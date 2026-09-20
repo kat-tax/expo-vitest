@@ -2,8 +2,9 @@
 
 Vitest for Expo code on iOS, Android, web and Windows: a project per platform
 picked by a test file's name, helpers for the tests, and a harness that drives
-a running app. Built on `vitest-expo` and `vitest-native`. The README is the
-reference; HARNESS.md is the harness's.
+a running app. Built on `vitest-expo` and `vitest-native`. The README is the front
+page: onboarding, then a summary of the features that links into `docs/`, one
+page per topic. A change to a feature changes its page.
 
 | Path | What |
 | --- | --- |

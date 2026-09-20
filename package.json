@@ -63,7 +63,7 @@
     "dist",
     "types.d.ts",
     "README.md",
-    "HARNESS.md",
+    "docs",
     "LICENSE"
   ],
   "scripts": {
