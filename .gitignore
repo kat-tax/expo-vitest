@@ -19,3 +19,6 @@ npm-debug.*
 
 # Claude Code: the shared configuration is committed, the personal parts are not
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/agent-memory-local/
+.claude/worktrees/

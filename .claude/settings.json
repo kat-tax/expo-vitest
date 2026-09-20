@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-edited-file.mjs\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run test:coverage)",
+      "Bash(bun run test:fixture)",
+      "Bash(node node_modules/oxlint/bin/oxlint *)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit *)",
+      "Bash(node node_modules/vitest/vitest.mjs run *)",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Get-Process *)"
+    ]
+  }
+}
