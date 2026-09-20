@@ -156,7 +156,7 @@ Screenshots land in `.harness/`. Add it to `.gitignore`.
 | --- | --- | --- |
 | windows | This package: the window manager, UI Automation and synthetic input, through PowerShell | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
 | web | A headless Chromium through `playwright-core` | A browser is already how the web build is tested. |
-| ios, android | `agent-device` | It does those far better than a hand-rolled `simctl` or `adb` wrapper, and installs its own runners without touching the app. |
+| ios, android | `agent-device` | It drives both, and installs its own runners without touching the app. |
 
 ## On Windows, a flyout is not in the tree
 

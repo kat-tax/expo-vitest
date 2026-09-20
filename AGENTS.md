@@ -56,6 +56,11 @@ so a change to one of them is not done until the fixture has run.
 Say what the reader cannot see from the code: why, and what was verified. Plain
 sentences, no em dashes.
 
+The README and `docs/` describe the package as it is. No history: not what an
+earlier version did, how a bug was found, or which version a feature arrived
+in. A reader has never seen a previous version. A reason stays when it explains
+the design; a story about getting there goes in the commit message.
+
 ## Commits
 
 One change per commit, with a message that says why the change was needed and

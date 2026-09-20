@@ -178,7 +178,7 @@ through UI Automation. The other platforms fill what their own trees carry.
 
 It fails with the ref and position of every control a screen reader would
 announce as its role alone. On Windows a button made of a glyph and a text
-block names nothing by itself, which is what this matcher keeps catching.
+block names nothing by itself, which is what this matcher catches.
 
 ```ts
 expect(await device.snapshot({interactive: true})).toBeFullyLabelled();
