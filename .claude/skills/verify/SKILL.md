@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Run this package's check loop: lint, typecheck, the unit tests with the 100% gate, and the fixture that runs the packed package as an app installs it. Use before reporting any work done, and to find what a failing coverage run is missing.
+description: "Run this package's check loop: lint, typecheck, the unit tests with the 100% gate, and the fixture that runs the packed package as an app installs it. Use before reporting any work done, and to find what a failing coverage run is missing."
 allowed-tools: [Bash(bun run *), Bash(node node_modules/*), Read, Grep]
 ---
 
