@@ -1,6 +1,6 @@
 # Phase 6. Agent surfaces
 
-Status: done, but for what needs a live model or a live client, which run by hand: the explore smoke and the cost it prints, a coding agent writing a test through a real MCP client, and explore and bug bash on Windows and iOS. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
+Status: done, but for what needs a live model, an app or a machine this one is not: the explore smoke and the cost it prints, a coding tool's own MCP client, the first exit criterion on Windows, which has no example app here, and explore and bug bash on Windows and iOS. A coding agent wrote a passing test for a new flow on web from an MCP session alone. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
 
 The agent of Phase 5 reached from outside a test file: an MCP server a coding
 agent drives the app through, an `explore` command that runs the agent with a
@@ -96,13 +96,23 @@ only: a session opened on a running app in under a second, listed the
 Windows tools, located, refused a second Windows session, and closed,
 sending no input.
 
+The first exit criterion, on web: a coding agent found the sign-in flow,
+which no scripted test covered, over the server alone, on the fixture's
+pages served on a port of their own. It observed, acted by ref, read each
+diff, and asked `locate` for each node. It then wrote
+`fixture/device/sign-in.test.ts` from those answers, which passes in the
+fixture. The client was a script speaking the protocol, not a coding
+tool's own MCP client.
+
 Not run: any live model, so the explore smoke and its cost line are not
-recorded; a Claude Code session with only the `.mcp.json` entry and the
-skill writing a test, which needs a client started with the server; and
-explore and bug bash on Windows, where they would press controls in the
-apps on this machine's desk, and on iOS. The nearest to the first exit
-criterion is the fixture's bug bash: its skeleton is built from the queries
-`queryFor` gives, and it ran and reached its check.
+recorded, and no coding tool's own MCP client has been started with the
+server, which a Claude Code session with only the `.mcp.json` entry would
+be. The first criterion on Windows waits for an app: expo-windows has no
+example app here (its `fixture/` is a manifest that does not run), and the
+Windows apps built on this machine are its owner's, whose debug build
+would load from the owner's dev server on 8081. Explore and bug bash have
+not run on Windows, where they would press controls in the apps on this
+machine's desk, nor on iOS.
 
 ## Purpose and the claims it proves
 
