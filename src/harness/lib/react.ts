@@ -103,8 +103,8 @@ export const WALK = `(async (passOver, limit, undrawn) => {
         const label = props.accessibilityLabel ?? props['aria-label'];
         if (typeof testId === 'string' && testId) node.testId = testId;
         if (typeof label === 'string' && label) node.label = label;
-        // React DOM keeps a lone string child in the props, not in a text fiber.
-        if (typeof props.children === 'string' || typeof props.children === 'number') node.text = String(props.children);
+        // React DOM keeps a lone string child in the props, not in a text fiber; React Native keeps it in both, and the fiber is read.
+        if ((typeof props.children === 'string' || typeof props.children === 'number') && !fiber.child) node.text = String(props.children);
         nodes.push(node);
         fibers.push(fiber);
         inside = node.id;

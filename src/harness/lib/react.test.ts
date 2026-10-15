@@ -65,7 +65,8 @@ describe('the walk', () => {
       {},
       fiber(COMPOSITE, Object.assign(() => {}, {displayName: 'Row'}), {}, fiber(COMPOSITE, Object.assign(() => {}, {displayName: 'Row'}), {}, fiber(HOST, 'RCTView', {testID: 'row', accessibilityLabel: 'Ada', children: 3}))),
       fiber(HOST, 'style', {children: ':root {}'}),
-      fiber(COMPOSITE, () => {}, {}, fiber(HOST, 'RCTText', {}, fiber(TEXT, null, 'Hi'))),
+      // React Native's text holds its string in its props and in a text fiber below, and is read once.
+      fiber(COMPOSITE, () => {}, {}, fiber(HOST, 'RCTText', {children: 'Hi'}, fiber(TEXT, null, 'Hi'))),
       fiber(COMPOSITE, 'not a component', {}, fiber(HOST, 'RCTView', null)),
     );
     const read = (await walk([[tree]])) as ReactTree;
