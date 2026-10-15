@@ -56,6 +56,12 @@ try {
     console.log('fixture/bun.lock updated');
   }
 
+  // The live smoke is billed, and runs by hand; it needs the SDK, which nothing else here does.
+  if (process.env.HARNESS_AGENT_SMOKE) {
+    console.log('==== The SDK, for the live smoke');
+    run('bun', ['add', '--dev', '@anthropic-ai/sdk'], {shell});
+  }
+
   console.log('==== The package, as published');
   fs.mkdirSync(installed, {recursive: true});
   execFileSync('npm', ['pack', '--pack-destination', modules, '--loglevel', 'error'], {cwd: root, stdio: ['ignore', 'ignore', 'inherit'], shell});
@@ -114,9 +120,10 @@ try {
   // refuses to act there, so a pass is the replay's.
   console.log("==== The agent's sign-in, replayed from the cache it recorded");
   const cache = path.join(scratch, '.harness', 'cache');
-  const recordedEntries = fs.existsSync(cache) ? fs.readdirSync(cache) : [];
+  // The live smoke, where it ran, records an entry of its own, under its own agent.
+  const recordedEntries = (fs.existsSync(cache) ? fs.readdirSync(cache) : []).map(name => JSON.parse(fs.readFileSync(path.join(cache, name), 'utf8'))).filter(entry => entry.agent.name === 'default');
   if (recordedEntries.length !== 1) throw new Error(`the agent's run left ${recordedEntries.length} cache entries, not the one sign-in`);
-  const recordedEntry = JSON.parse(fs.readFileSync(path.join(cache, recordedEntries[0]), 'utf8'));
+  const [recordedEntry] = recordedEntries;
   const filled = recordedEntry.actions.filter(action => action.tool === 'type_secret').map(action => action.input.secret);
   if (filled.join() !== 'FIXTURE_RECOVERY,FIXTURE_PASSWORD' || recordedEntry.params.password?.secret !== 'FIXTURE_PASSWORD') throw new Error('the cache entry does not keep the secrets by their names');
   const replayed = execFileSync(process.execPath, [...device, '--project', 'device:web', '--reporter', 'verbose', 'device/agent'], {cwd: scratch, env: {...environment, FIXTURE_AGENT_REPLAY: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
@@ -130,7 +137,7 @@ try {
   process.stdout.write(cached);
   if (!cached.includes('device/agent.test.ts > signs in') || !cached.includes('"sign in as {user} with {code} and {password}"')) throw new Error('cache ls does not list the sign-in the agent recorded');
   const counted = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'cache', 'stats'], {cwd: scratch, encoding: 'utf8'});
-  if (!counted.startsWith('1 entry, ')) throw new Error(`cache stats says ${counted}`);
+  if (!counted.startsWith(process.env.HARNESS_AGENT_SMOKE ? '2 entries, ' : '1 entry, ')) throw new Error(`cache stats says ${counted}`);
   console.log("==== No secret's value anywhere under .harness/");
   run(process.execPath, [path.join(root, 'scripts', 'secret-grep.js'), path.join(scratch, '.harness'), 'fixture-horse-battery', 'rc-4417-fixture-code']);
   // The reporter named on the command line replaces the config's, so a run
