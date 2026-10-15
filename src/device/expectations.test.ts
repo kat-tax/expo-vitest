@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
+import {Journal} from './evidence.ts';
 import {LOCATOR_MATCHERS} from './expectations.ts';
 import type {LocatorHost} from './locator.ts';
 import {Locator} from './locator.ts';
@@ -209,5 +210,22 @@ describe('a matcher given something else', () => {
   it('waits on the real clock for a device with none of its own', async () => {
     const host: LocatorHost = {platform: 'web', ready: () => Promise.reject(new Error('no')), feed: {next: async () => ({platform: 'web', nodes: [saved]}), invalidate: () => {}}, polling: DEFAULT_POLLING};
     await expect(new Locator(host, query('text', 'Saved'))).toBeVisible();
+  });
+});
+
+describe('the journal', () => {
+  it('records an assertion with how often it read and what it read, and one that passes as verifying the action before it', async () => {
+    const clock = fakeClock();
+    const next = async (): Promise<Snapshot> => ({platform: 'web', nodes: clock.at >= 200 ? [saved] : []});
+    const journal = new Journal(clock.now);
+    const host: LocatorHost = {platform: 'web', ready: () => Promise.reject(new Error('no')), feed: {next, invalidate: () => {}}, polling: DEFAULT_POLLING, clock, journal};
+    journal.steps.push({index: 1, event: 'press', what: 'Save', startedAt: 0, durationMs: 1, result: 'ok', message: ''});
+    await expect(new Locator(host, query('text', 'Saved'))).toBeVisible();
+    await expect(expect(new Locator(host, query('text', 'Gone'))).toBeVisible({timeout: 0})).rejects.toThrow();
+    expect(journal.steps.slice(1).map(step => [step.event, step.what, step.result, step.message, step.readings])).toEqual([
+      ['assert', 'expect(getByText("Saved")) to be visible', 'ok', '', expect.arrayContaining(['visible'])],
+      ['verified', 'expect(getByText("Saved")) to be visible', 'ok', 'step 1 took effect', undefined],
+      ['assert', 'expect(getByText("Gone")) to be visible', 'failed', 'not so within 0 ms', ['gone']],
+    ]);
   });
 });

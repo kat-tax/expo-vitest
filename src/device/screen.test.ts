@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
+import {Journal} from './evidence.ts';
 import type {LocatorHost} from './locator.ts';
 import {Locator} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
@@ -101,5 +102,18 @@ describe('within', () => {
     expect(queryFor(node('@e4', 'Group', '')).options).toEqual({hidden: true});
     const {host} = rig(() => [dialog, ok, outside]);
     expect(await queriesOn(host, scopeOf(dialog)).queryAllByRole('button')).toEqual([ok]);
+  });
+});
+
+describe('the journal', () => {
+  it('records a findBy as a wait, and one that ends as verifying the action before it', async () => {
+    const {host} = rig(() => [dialog, ok]);
+    const journal = new Journal(host.clock?.now);
+    journal.steps.push({index: 1, event: 'press', what: 'OK', startedAt: 0, durationMs: 1, result: 'ok', message: ''});
+    expect(await queriesOn({...host, journal}).findByTestId('ok')).toEqual(ok);
+    expect(journal.steps.slice(1).map(step => [step.event, step.what, step.verifies])).toEqual([
+      ['wait', 'getByTestId("ok")', undefined],
+      ['verified', 'getByTestId("ok")', 1],
+    ]);
   });
 });

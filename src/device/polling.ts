@@ -161,12 +161,23 @@ export function duration(ms: number): string {
  * The readings as a message says them, each run of the same value with how
  * long it lasted: `read 14 times; it was "" for 1.2 s, then "a@b" for 3.8 s`.
  */
-export function describeReadings<T>(result: PollResult<T>, show: (value: T) => string): string {
+/** Each run of readings that said the same, as it said it, and when it began. */
+function runsOf<T>(result: PollResult<T>, show: (value: T) => string): {said: string; from: number}[] {
   const runs: {said: string; from: number}[] = [];
   for (const reading of result.readings) {
     const said = show(reading.value);
     if (runs.at(-1)?.said !== said) runs.push({said, from: reading.at});
   }
+  return runs;
+}
+
+/** What the readings said, each run of the same once, in order. */
+export function readingsOf<T>(result: PollResult<T>, show: (value: T) => string): string[] {
+  return runsOf(result, show).map(run => run.said);
+}
+
+export function describeReadings<T>(result: PollResult<T>, show: (value: T) => string): string {
+  const runs = runsOf(result, show);
   // The last run may be the last reading alone, which lasted no time to speak of.
   const told = runs.map((run, at) => {
     const lasted = (runs[at + 1]?.from ?? result.elapsed) - run.from;

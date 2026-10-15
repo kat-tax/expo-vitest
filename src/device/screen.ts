@@ -58,8 +58,16 @@ export type Queries = {[W in Word as `getBy${W}`]: (match: TextMatch, options?: 
 export function queriesOn(host: LocatorHost, scope?: LocatorQuery): Queries {
   const error = (code: 'LOCATOR_NOT_FOUND' | 'LOCATOR_AMBIGUOUS', message: string) => new HarnessError(code, message, {platform: host.platform});
 
-  /** Waits until the query names `enough` nodes, and says why not when it never does. */
+  /** Waits until the query names `enough` nodes, recorded as a wait where the device keeps a journal. */
   async function find(query: LocatorQuery, enough: (count: number) => boolean, wait: FindOptions = {}): Promise<SnapshotNode[]> {
+    if (!host.journal) return found(query, enough, wait);
+    const nodes = await host.journal.run({event: 'wait', what: describeQuery(query)}, () => found(query, enough, wait));
+    host.journal.verified(describeQuery(query));
+    return nodes;
+  }
+
+  /** Waits until the query names `enough` nodes, and says why not when it never does. */
+  async function found(query: LocatorQuery, enough: (count: number) => boolean, wait: FindOptions): Promise<SnapshotNode[]> {
     const timeout = wait.timeout ?? host.polling.assertionTimeout;
     const result = await poll(snapshot => ({snapshot, found: resolve(query, snapshot)}), ({found}) => enough(found.length), {
       timeout,

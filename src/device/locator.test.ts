@@ -4,6 +4,7 @@ import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {LocatorHost} from './locator.ts';
+import {Journal} from './evidence.ts';
 import {Locator, follow, selectorOf, swipePath, targetFor} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch} from './queries.ts';
@@ -398,5 +399,23 @@ describe('the reads', () => {
     expect(await locate(query('testId', 'save')).boundingBox()).toEqual({x: 10, y: 20, width: 80, height: 40});
     expect(await locate(query('testId', 'email')).boundingBox()).toBeNull();
     expect(await locate(query('testId', 'gone')).boundingBox()).toBeNull();
+  });
+});
+
+describe('the journal', () => {
+  it('records each action with the query as written and the node it came to, a skipped one as skipped, and a wait that ends as verifying the action before it', async () => {
+    const {host} = rig(() => [save]);
+    const journal = new Journal(host.clock?.now);
+    const locate = (asked: LocatorQuery) => new Locator({...host, journal}, asked);
+    await locate(query('testId', 'save')).press();
+    expect(await locate(query('testId', 'save')).hover()).toBe('skipped');
+    await locate(query('testId', 'save')).waitFor();
+    expect(journal.steps.map(step => [step.event, step.what, step.resolved, step.result])).toEqual([
+      ['press', 'getByTestId("save")', '@e2   button "Save" #save  at 10,20', 'ok'],
+      ['hover', 'getByTestId("save")', '@e2   button "Save" #save  at 10,20', 'skipped'],
+      ['wait', 'getByTestId("save")', undefined, 'ok'],
+      ['verified', 'getByTestId("save")', undefined, 'ok'],
+    ]);
+    expect(journal.steps.at(-1)?.verifies).toBe(1);
   });
 });

@@ -24,6 +24,8 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
+import {Journal} from './evidence.ts';
 import {Locator} from './locator.ts';
 import type {LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
@@ -33,8 +35,8 @@ import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
 
-export {by, HarnessError, isHarnessError, Locator};
-export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
+export {by, HarnessError, isHarnessError, Journal, Locator};
+export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -95,11 +97,39 @@ class Device {
   readonly config: DeviceConfig;
   /** The snapshots every wait shares, so waits at the same moment take one between them. */
   readonly feed: SnapshotFeed;
+  /** The record of the current test's steps, for the evidence a failing test leaves. */
+  readonly journal = new Journal();
   private driver: Driver | null = null;
 
   constructor(config: DeviceConfig) {
     this.config = config;
-    this.feed = snapshotFeed(() => this.fullSnapshot());
+    this.feed = snapshotFeed(() => this.read({interactive: false}));
+  }
+
+  /** A read of the tree, which the journal digests into the step it belongs to when it is the whole tree. */
+  private async read(options: {interactive?: boolean}): Promise<Snapshot> {
+    const snapshot = await (await this.ready()).snapshot(options);
+    if (!options.interactive) this.journal.saw(snapshot);
+    return snapshot;
+  }
+
+  /** Whether the driver is open, so evidence can be had from it without making another. */
+  isOpen(): boolean {
+    return this.driver !== null;
+  }
+
+  /** What the evidence writer needs of the device: a picture and a fresh tree, while the driver is open. */
+  evidence(): EvidenceSource {
+    return {
+      platform: this.platform,
+      journal: this.journal,
+      open: () => this.isOpen(),
+      screenshot: async file => {
+        const result = await (this.driver as Driver).screenshot(file);
+        return result.ok && !result.skipped;
+      },
+      tree: () => this.read({interactive: false}),
+    };
   }
 
   get platform(): Platform {
@@ -122,29 +152,35 @@ class Device {
   }
 
   async open(route: string): Promise<void> {
-    const result = await (await this.ready()).open(route);
-    if (!result.ok) throw failure(result, this.platform, 'APP_UNREACHABLE');
+    await this.journal.run({event: 'open', what: route}, async () => {
+      const result = await (await this.ready()).open(route);
+      if (!result.ok) throw failure(result, this.platform, 'APP_UNREACHABLE');
+    });
   }
 
   async snapshot(options: {interactive?: boolean} = {interactive: true}): Promise<Snapshot> {
-    return (await this.ready()).snapshot(options);
+    return this.journal.run({event: 'snapshot', what: options.interactive ? 'what can be acted on' : 'the whole tree'}, () => this.read(options));
   }
 
   /** The whole tree, including what cannot be acted on. */
   async fullSnapshot(): Promise<Snapshot> {
-    return (await this.ready()).snapshot({interactive: false});
+    return this.snapshot({interactive: false});
   }
 
   async screenshot(name: string): Promise<string> {
-    const file = path.join(ROOT, '.harness', `${name}.png`);
-    const result = await (await this.ready()).screenshot(file);
-    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
-    return file;
+    return this.journal.run({event: 'screenshot', what: name}, async () => {
+      const file = path.join(ROOT, '.harness', `${name}.png`);
+      const result = await (await this.ready()).screenshot(file);
+      if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
+      return file;
+    });
   }
 
   async type(text: string): Promise<void> {
-    const result = await (await this.ready()).type(text);
-    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
+    await this.journal.run({event: 'type', what: JSON.stringify(text)}, async () => {
+      const result = await (await this.ready()).type(text);
+      if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
+    });
   }
 
   /**
@@ -155,25 +191,36 @@ class Device {
    * rather than failing for the wrong reason.
    */
   async key(name: string): Promise<'pressed' | 'skipped'> {
-    const driver = await this.ready();
-    if (!driver.key) return 'skipped';
-    const result = await driver.key(name);
-    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
-    return result.skipped ? 'skipped' : 'pressed';
+    const pressed = await this.journal.run(
+      {event: 'key', what: name},
+      async (): Promise<'pressed' | 'skipped'> => {
+        const driver = await this.ready();
+        if (!driver.key) return 'skipped';
+        const result = await driver.key(name);
+        if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
+        return result.skipped ? 'skipped' : 'pressed';
+      },
+      answer => (answer === 'skipped' ? {result: 'skipped', message: `the ${this.platform} harness sends no keys`} : {result: 'ok', message: ''}),
+    );
+    return pressed;
   }
 
   /** Waits until a selector is in the tree, or says what was there instead. */
   async waitFor(selector: Selector, {timeout = 10_000, interval = 400} = {}): Promise<SnapshotNode> {
-    const deadline = Date.now() + timeout;
-    let last: Snapshot = {platform: this.config.platform, nodes: []};
-    for (;;) {
-      last = await this.snapshot({interactive: false});
-      const node = findNode(last, selector);
-      if (node) return node;
-      if (Date.now() >= deadline) break;
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-    throw new HarnessError('LOCATOR_NOT_FOUND', `${describeTarget(selector)} never appeared within ${timeout} ms; the tree has ${last.nodes.length} nodes`, {platform: this.platform});
+    const node = await this.journal.run({event: 'wait', what: describeTarget(selector)}, async () => {
+      const deadline = Date.now() + timeout;
+      let last: Snapshot = {platform: this.config.platform, nodes: []};
+      for (;;) {
+        last = await this.read({interactive: false});
+        const found = findNode(last, selector);
+        if (found) return found;
+        if (Date.now() >= deadline) break;
+        await new Promise(resolve => setTimeout(resolve, interval));
+      }
+      throw new HarnessError('LOCATOR_NOT_FOUND', `${describeTarget(selector)} never appeared within ${timeout} ms; the tree has ${last.nodes.length} nodes`, {platform: this.platform});
+    });
+    this.journal.verified(describeTarget(selector));
+    return node;
   }
 
   async close(): Promise<void> {
@@ -203,13 +250,17 @@ export function element(selector: Selector) {
     selector,
     /** `{via: 'pointer'}` presses a Windows control with the pointer rather than through its pattern. */
     async press(options: PressOptions = {}): Promise<void> {
-      const result = await (await device.ready()).press(selector, options);
-      if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
+      await device.journal.run({event: 'press', what: describeTarget(selector)}, async () => {
+        const result = await (await device.ready()).press(selector, options);
+        if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
+      });
     },
     /** `{via: 'keys'}` clicks a Windows field and types rather than setting its value. */
     async fill(text: string, options: FillOptions = {}): Promise<void> {
-      const result = await (await device.ready()).fill(selector, text, options);
-      if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
+      await device.journal.run({event: 'fill', what: `${describeTarget(selector)} with ${JSON.stringify(text)}`}, async () => {
+        const result = await (await device.ready()).fill(selector, text, options);
+        if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
+      });
     },
     async node(): Promise<SnapshotNode | undefined> {
       return findNode(await device.fullSnapshot(), selector);

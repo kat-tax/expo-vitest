@@ -10,6 +10,7 @@ import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Bounds, Point, Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {Journal, StepEvent} from './evidence.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {describeReadings, duration, poll} from './polling.ts';
 import type {LocatorQuery, Refinement, TextMatch} from './queries.ts';
@@ -25,6 +26,8 @@ export interface LocatorHost {
   readonly polling: Polling;
   /** The time the waits keep, where it is not the real one. */
   readonly clock?: Clock;
+  /** Where the device records each step, for the evidence of a failing test. */
+  readonly journal?: Journal;
 }
 
 /** How long an action or a wait looks for its node, in ms, over `assertionTimeout`. */
@@ -216,6 +219,14 @@ export class Locator {
     return 'skipped';
   }
 
+  /** A step in the device's journal, where it keeps one: this locator as written, the node it came to, and how the step ended. */
+  private record<T>(event: StepEvent, node: SnapshotNode | undefined, work: () => Promise<T>): Promise<T> {
+    const journal = this.host.journal;
+    if (!journal) return work();
+    const judged = (value: T) => (value === 'skipped' ? {result: 'skipped' as const, message: 'the platform has no counterpart'} : {result: 'ok' as const, message: ''});
+    return journal.run({event, what: describeQuery(this.query), ...(node ? {resolved: describeCandidate(node)} : {})}, work, judged);
+  }
+
   /** A step through the driver, as the error a test sees when it did not work. */
   private async act(run: (driver: Driver) => Promise<StepResult>): Promise<StepResult> {
     const result = await run(await this.host.ready());
@@ -226,45 +237,49 @@ export class Locator {
   async press(options: PressOptions & WaitOptions = {}): Promise<void> {
     const {timeout, ...pressing} = options;
     const {node, snapshot} = await this.one(timeout);
-    await this.act(driver => driver.press(targetFor(node, snapshot), pressing));
+    await this.record('press', node, () => this.act(driver => driver.press(targetFor(node, snapshot), pressing)));
   }
 
   /** Puts text in the field, in place of what it held. */
   async fill(text: string, options: FillOptions & WaitOptions = {}): Promise<void> {
     const {timeout, ...filling} = options;
     const {node} = await this.one(timeout);
-    await this.act(driver => driver.fill({ref: node.ref}, text, filling));
+    await this.record('fill', node, () => this.act(driver => driver.fill({ref: node.ref}, text, filling)));
   }
 
   /** Empties the field. */
   async clear(options: FillOptions & WaitOptions = {}): Promise<void> {
-    await this.fill('', options);
+    const {timeout, ...filling} = options;
+    const {node} = await this.one(timeout);
+    await this.record('clear', node, () => this.act(driver => driver.fill({ref: node.ref}, '', filling)));
   }
 
   /** Presses the field to give it the focus, then types where the press put the caret. */
   async type(text: string, options: WaitOptions = {}): Promise<void> {
     const {node, snapshot} = await this.one(options.timeout);
-    await this.act(driver => driver.press(targetFor(node, snapshot)));
-    await this.act(driver => driver.type(text));
+    await this.record('type', node, async () => {
+      await this.act(driver => driver.press(targetFor(node, snapshot)));
+      await this.act(driver => driver.type(text));
+    });
   }
 
   /** A press held for `duration` ms, as for a context menu; an error where the platform has none. */
   async longPress(options: LongPressOptions & WaitOptions = {}): Promise<void> {
     const {timeout, ...holding} = options;
     const {node, snapshot} = await this.one(timeout);
-    await this.optional('a long press', driver => driver.longPress?.(targetFor(node, snapshot), holding), true);
+    await this.record('longPress', node, () => this.optional('a long press', driver => driver.longPress?.(targetFor(node, snapshot), holding), true));
   }
 
   /** The pointer over the node, without a press; `skipped` on a device, which has no pointer. */
   async hover(options: WaitOptions = {}): Promise<'done' | 'skipped'> {
     const {node} = await this.one(options.timeout, false);
-    return this.optional('a hover', driver => driver.hover?.({ref: node.ref}));
+    return this.record('hover', node, () => this.optional('a hover', driver => driver.hover?.({ref: node.ref})));
   }
 
   /** The keyboard focus on the node, without a press; an error where the platform cannot give it. */
   async focus(options: WaitOptions = {}): Promise<void> {
     const {node} = await this.one(options.timeout, false);
-    await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}), true);
+    await this.record('focus', node, () => this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}), true));
   }
 
   /**
@@ -274,6 +289,10 @@ export class Locator {
    * It may be off screen to begin with, so it is looked for there too.
    */
   async scrollIntoView(options: WaitOptions = {}): Promise<'done' | 'skipped'> {
+    return this.record('scroll', undefined, () => this.scrolled(options));
+  }
+
+  private async scrolled(options: WaitOptions): Promise<'done' | 'skipped'> {
     const selector = selectorOf(this.query);
     // A row of an Android list that is not drawn is not in the tree at all,
     // and agent-device finds it as it scrolls, down and then up.
@@ -295,7 +314,7 @@ export class Locator {
     const {node} = await this.one(options.timeout, false);
     if (!node.bounds) throw this.error('NOT_ACTIONABLE', `${describeCandidate(node)} has no bounds to swipe across`);
     const {from, to} = swipePath(node.bounds, direction, options.distance);
-    return this.optional('a swipe', driver => driver.swipe?.(from, to));
+    return this.record('swipe', node, () => this.optional('a swipe', driver => driver.swipe?.(from, to)));
   }
 
   /**
@@ -306,9 +325,11 @@ export class Locator {
    */
   async key(name: string, options: WaitOptions = {}): Promise<'pressed' | 'skipped'> {
     const {node} = await this.one(options.timeout);
-    if (!(await this.host.ready()).key) return 'skipped';
-    if (!node.focused && (await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}))) === 'skipped') return 'skipped';
-    return (await this.optional(`the ${name} key`, driver => driver.key?.(name))) === 'done' ? 'pressed' : 'skipped';
+    return this.record('key', node, async () => {
+      if (!(await this.host.ready()).key) return 'skipped';
+      if (!node.focused && (await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}))) === 'skipped') return 'skipped';
+      return (await this.optional(`the ${name} key`, driver => driver.key?.(name))) === 'done' ? 'pressed' : 'skipped';
+    });
   }
 
   async check(options: PressOptions & WaitOptions = {}): Promise<void> {
@@ -323,16 +344,18 @@ export class Locator {
   private async setChecked(want: boolean, options: PressOptions & WaitOptions): Promise<void> {
     const {timeout, ...pressing} = options;
     const {node, snapshot} = await this.one(timeout);
-    if (node.checked === want) return;
-    const verb = want ? 'check' : 'uncheck';
-    if (node.checked === undefined) throw this.error('NOT_ACTIONABLE', `${describeCandidate(node)} reports no checked state, so there is nothing to ${verb}`);
-    await this.act(driver => driver.press(targetFor(node, snapshot), pressing));
-    const after = await poll(
-      next => follow(node, snapshot, next),
-      now => now?.checked === want,
-      {timeout: timeout ?? this.host.polling.assertionTimeout, stable: 0, negated: false, feed: this.host.feed, ...this.timed()},
-    );
-    if (!after.pass) throw this.error('ACTION_FAILED', `pressed ${describeCandidate(node)} to ${verb} it, and it ${after.last ? `is still ${stateOf(after.last.checked)}` : 'is gone'}`);
+    await this.record('check', node, async () => {
+      if (node.checked === want) return;
+      const verb = want ? 'check' : 'uncheck';
+      if (node.checked === undefined) throw this.error('NOT_ACTIONABLE', `${describeCandidate(node)} reports no checked state, so there is nothing to ${verb}`);
+      await this.act(driver => driver.press(targetFor(node, snapshot), pressing));
+      const after = await poll(
+        next => follow(node, snapshot, next),
+        now => now?.checked === want,
+        {timeout: timeout ?? this.host.polling.assertionTimeout, stable: 0, negated: false, feed: this.host.feed, ...this.timed()},
+      );
+      if (!after.pass) throw this.error('ACTION_FAILED', `pressed ${describeCandidate(node)} to ${verb} it, and it ${after.last ? `is still ${stateOf(after.last.checked)}` : 'is gone'}`);
+    });
   }
 
   /**
@@ -343,6 +366,13 @@ export class Locator {
    * that has none.
    */
   async waitFor(options: {state?: LocatorState} & WaitOptions = {}): Promise<SnapshotNode | null> {
+    const found = await this.record('wait', undefined, () => this.waited(options));
+    // A wait that ends is what shows the action before it took effect.
+    this.host.journal?.verified(describeQuery(this.query));
+    return found;
+  }
+
+  private async waited(options: {state?: LocatorState} & WaitOptions): Promise<SnapshotNode | null> {
     const {state = 'visible', timeout = this.host.polling.assertionTimeout} = options;
     const all = {...this.query, options: {...this.query.options, hidden: true}};
     const present = (snapshot: Snapshot) => resolve(all, snapshot).filter(node => state === 'attached' || state === 'detached' || node.offscreen !== true);

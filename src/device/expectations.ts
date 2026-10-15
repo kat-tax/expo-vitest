@@ -12,7 +12,8 @@ import {HarnessError} from '../harness/lib/errors.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import type {Locator, LocatorHost} from './locator.ts';
 import {hostOf} from './locator.ts';
-import {describeReadings, duration, poll} from './polling.ts';
+import type {PollResult} from './polling.ts';
+import {describeReadings, duration, poll, readingsOf} from './polling.ts';
 import type {TextMatch, TextMatchOptions} from './queries.ts';
 import {ambiguity, describeCandidate, describeQuery, matches, nameOf, resolve, suggestions} from './queries.ts';
 
@@ -80,13 +81,23 @@ async function check(state: MatcherThis, received: unknown, name: string, expect
     if (expectation.one && nodes.length > 1) throw error(host, 'LOCATOR_AMBIGUOUS', ambiguity(locator.query, nodes));
     return {snapshot, nodes};
   };
-  const result = await poll(read, reading => (expectation.passes(reading) === want) !== stable, {
-    timeout,
-    stable: host.polling.stable,
-    negated: stable,
-    feed: host.feed,
-    ...(host.clock ? {clock: host.clock} : {}),
+  const waited = () =>
+    poll(read, reading => (expectation.passes(reading) === want) !== stable, {
+      timeout,
+      stable: host.polling.stable,
+      negated: stable,
+      feed: host.feed,
+      ...(host.clock ? {clock: host.clock} : {}),
+    });
+  const what = `expect(${describeQuery(locator.query)}) ${negated ? 'not ' : ''}${expectation.says}`;
+  const judged = (outcome: PollResult<Reading>) => ({
+    result: outcome.pass ? ('ok' as const) : ('failed' as const),
+    message: outcome.pass ? '' : `not so within ${duration(timeout)}`,
+    polls: outcome.polls,
+    readings: readingsOf(outcome, expectation.show),
   });
+  const result = host.journal ? await host.journal.run({event: 'assert', what}, waited, judged) : await waited();
+  if (result.pass) host.journal?.verified(what);
   // Vitest turns the answer round for `.not`, so the answer is whether the
   // wait got what it waited for, turned round to match.
   const pass = result.pass === want;
