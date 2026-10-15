@@ -55,6 +55,10 @@ onlyOn(['web'], () => {
     await opened();
     await device.web.selectOption(screen.getByTestId('colour'), 'Blue');
     await expect(screen.getByText('Chose b')).toBeVisible();
+    // An option the select lacks is said at once, with the ones it has, rather than waited for.
+    const started = Date.now();
+    await expect(device.web.selectOption(screen.getByTestId('colour'), 'blue')).rejects.toMatchObject({code: 'ACTION_FAILED', message: expect.stringMatching(/has no option "blue"; its options are "Red", "Blue"/)});
+    expect(Date.now() - started).toBeLessThan(5000);
     await device.web.setInputFiles(screen.getByTestId('attachment'), 'device/page.html');
     await expect(screen.getByText('Attached page.html')).toBeVisible();
     await expect(device.web.setInputFiles(screen.getByTestId('attachment'), '../outside.txt')).rejects.toMatchObject({code: 'INVALID_ARGUMENT'});

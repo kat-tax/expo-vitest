@@ -275,6 +275,9 @@ const FRAME_BOX = `((selector) => {
 /** Runs in the page, or a frame: the element a ref's number names, while it is there. */
 const ELEMENT = (id: number) => `(() => { const refs = window.__harnessRefs; const held = refs && refs.elements.get(${id}); return held ? held.deref() : null; })()`;
 
+/** The label and value of each option of the select a ref is, or null where it is no select. */
+const OPTIONS = (id: number) => `(() => { const element = ${ELEMENT(id)}; return element instanceof HTMLSelectElement ? Array.from(element.options, option => ({label: option.label, value: option.value})) : null; })()`;
+
 /** How long a long press is held when a test does not say, in ms: what a person holds for a context menu. */
 const HOLD_MS = 800;
 
@@ -1030,12 +1033,22 @@ export function webDriver(options: DriverOptions): Driver {
         try {
           const {node} = await nodeFor(what);
           const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
+          const wanted = typeof option === 'string' ? {label: option} : option;
+          // Playwright waits out its whole timeout for an option the select
+          // lacks, and then says only that it timed out. The select is there,
+          // so the answer is at once, with what it offers.
+          const {frame, id} = refOf(node.ref);
+          const offered = await (await realm(frame)).evaluate<{label: string; value: string}[] | null>(OPTIONS(id));
+          const has = (each: {label: string; value: string}, at: number) => ('index' in wanted ? at === wanted.index : 'value' in wanted ? each.value === wanted.value : each.label === wanted.label);
+          if (offered && !offered.some(has)) {
+            const named = offered.map(each => JSON.stringify(each.label)).join(', ');
+            return failed(`${note} has no option ${JSON.stringify(option)}; its options are ${named || 'none'}`, 'ACTION_FAILED');
+          }
           const element = await handleOf(node);
           if (!element) return failed(`${note} has gone from the page`, 'LOCATOR_NOT_FOUND');
           lastRead = null;
-          const chosen = await element.selectOption(typeof option === 'string' ? {label: option} : option);
+          const chosen = await element.selectOption(wanted);
           await element.dispose();
-          if (chosen.length === 0) return failed(`${note} has no option ${JSON.stringify(option)}`, 'ACTION_FAILED');
           return ok(`chose ${JSON.stringify(chosen[0])} in ${note}`);
         } catch (error) {
           return failed(firstLine((error as Error).message), codeOf(error));

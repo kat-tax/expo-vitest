@@ -258,7 +258,7 @@ which the screen is read afresh.
 | `setViewport({width, height})` | The page's size. |
 | `cookies()`, `setCookies(list)`, `clearCookies()` | The context's cookies. One set needs a `url`, or a `domain` and a `path`. |
 | `waitForDownload(trigger, file?)` | Runs `trigger`, waits for the download it starts, and keeps the file at `file`, from the root, or in `.harness/downloads/` by the name the page gave it. Answers where. |
-| `selectOption(locator, option)` | Chooses an option of a select by its label, `{value}` or `{index}`. |
+| `selectOption(locator, option)` | Chooses an option of a select by its label, `{value}` or `{index}`. One the select lacks fails at once with `ACTION_FAILED`, which names the options it has. |
 | `setInputFiles(locator, files)` | Gives a file input files from the project, which may not be outside it, hidden, or in a hidden folder. |
 | `secondaryTap(locator)` | Presses with the secondary button, as a right click does. |
 | `frame(selector)` | A [screen](locators.md) of the frame a CSS selector names. Its queries read the frame's tree and its locators act in the frame, of any origin; the page's own screen does not reach into it. |
