@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {DEFAULT_TIMING} from '../harness/lib/settle.ts';
-import type {Platform} from '../harness/lib/types.ts';
+import type {HostedDevice, Platform} from '../harness/lib/types.ts';
 import {PLATFORMS} from '../harness/lib/types.ts';
 import type {DeviceConfig} from './index.ts';
 import {DEFAULT_POLLING} from './polling.ts';
@@ -57,8 +57,8 @@ export interface AppConfig {
   url?: string;
   /** Windows: the exe or process; a device: the simulator, emulator or phone. `HARNESS_TARGET`. */
   target?: string;
-  /** The same as `target`: e2e's word for it on a device. */
-  device?: string;
+  /** The same as `target`, e2e's word for it on a device; or, on iOS and Android, a device a provider hosts. */
+  device?: string | HostedDevice;
   /** The app's URI scheme, for deep links. `HARNESS_SCHEME`. */
   scheme?: string;
   /** iOS and Android: the installed app. */
@@ -152,12 +152,24 @@ const permissions: Check = value =>
 const logTo: Check = value => (value === false || typeof value === 'string' ? null : 'a path, or false');
 const statusBar: Check = value => (value === 'fixed' || value === 'real' ? null : "'fixed' or 'real'");
 const video: Check = value => (videoModeOf(value) ? null : "'on', 'retain-on-failure' or 'off'");
+/** A flag's name as agent-device spells it, without its dashes. */
+const FLAG = /^[a-z][a-z0-9-]*$/;
+const device: Check = value => {
+  if (typeof value === 'string') return null;
+  const hosted =
+    isObject(value) &&
+    typeof value.provider === 'string' &&
+    value.provider !== '' &&
+    Object.keys(value).every(key => key === 'provider' || key === 'options') &&
+    (value.options === undefined || (isObject(value.options) && Object.entries(value.options).every(([flag, each]) => FLAG.test(flag) && (typeof each === 'string' || typeof each === 'boolean'))));
+  return hosted ? null : "a device's name, or a hosted device: {provider, options}, its options agent-device's connect flags without their dashes, each a string or true";
+};
 
 const ROOT_CHECKS: Record<string, Check> = {assertionTimeout: ms, stable: ms, settle: msOrOff, transition: msOrOff, statusBar, actionTimeout: ms, video};
 const APP_CHECKS: Record<string, Check> = {
   url: text,
   target: text,
-  device: text,
+  device,
   scheme: text,
   bundleId: text,
   appPath: text,
@@ -201,6 +213,9 @@ export function validate(value: unknown, file = 'harness.config.ts'): HarnessCon
   for (const [platform, each] of Object.entries(app)) {
     if (each === undefined) continue;
     checkObject(each, `app.${platform}`, APP_KEYS, APP_CHECKS, file);
+    if (isObject(each.device) && platform !== 'android' && platform !== 'ios') {
+      throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.device is a hosted device, which is for android and ios`);
+    }
     if (each.command === undefined) continue;
     checkObject(each.command, `app.${platform}.command`, COMMAND_KEYS, COMMAND_CHECKS, file);
     if (each.command.executable === undefined) throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.command needs an executable`);
@@ -216,6 +231,8 @@ export interface ResolvedRun {
   platform: Platform;
   url?: string;
   target?: string;
+  /** A device a provider hosts, where the config names one and nothing names a device of this machine's. */
+  hosted?: HostedDevice;
   scheme?: string;
   bundleId?: string;
   appPath?: string;
@@ -306,7 +323,10 @@ function commandOf(platform: Platform, command: CommandConfig, url: string | und
 export function resolveRun(platform: Platform, config: HarnessConfig | null, environment: NodeJS.ProcessEnv, root: string): ResolvedRun {
   const app: AppConfig = config?.app?.[platform] ?? {};
   const url = environment.HARNESS_URL ?? app.url ?? (platform === 'web' ? DEFAULTS.url : undefined);
-  const target = environment.HARNESS_TARGET ?? app.target ?? app.device;
+  const named = typeof app.device === 'string' ? app.device : undefined;
+  const target = environment.HARNESS_TARGET ?? app.target ?? named;
+  // A device named here is this machine's, and wins over a hosted one, as the environment wins over the file.
+  const hosted = !target && isObject(app.device) ? (app.device as HostedDevice) : undefined;
   const scheme = environment.HARNESS_SCHEME ?? app.scheme;
   const command = app.command && commandOf(platform, app.command, url, environment, root);
   const readyUrl = app.readyUrl ?? (command ? url : undefined);
@@ -316,6 +336,7 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
     platform,
     ...(url ? {url} : {}),
     ...(target ? {target} : {}),
+    ...(hosted ? {hosted} : {}),
     ...(scheme ? {scheme} : {}),
     ...(app.bundleId ? {bundleId: app.bundleId} : {}),
     ...(app.appPath ? {appPath: path.resolve(root, app.appPath)} : {}),

@@ -86,6 +86,8 @@ export interface AgentDeviceTransport {
   command(command: DeviceCommand): Promise<unknown>;
   /** Starts a recording of the screen into a file, or stops it. */
   record(action: 'start' | 'stop', file?: string): Promise<void>;
+  /** Connects to a hosted device's provider, or releases the connection, through the command line: the Node client has neither. */
+  hosted(args: string[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -176,9 +178,16 @@ function findAgentDevice(root: string): Promise<Found | null> {
 export async function transportFor(options: TransportOptions): Promise<AgentDeviceTransport> {
   if (process.env.HARNESS_AGENT_DEVICE === 'cli') return cliTransport(options, 'agent-device', []);
   const found = await findAgentDevice(options.root);
-  if (found?.module) return clientTransport(options, found.module, found.manifest.version ?? 'unknown version');
-  // A package that would not load is still a command line this Node can run,
-  // without the launcher a package manager put on the PATH.
+  if (found?.module) return clientTransport(options, found.module, found.manifest.version ?? 'unknown version', commandLine(options, found));
+  return commandLine(options, found);
+}
+
+/**
+ * agent-device's command line. A package that would not load is still a
+ * command line this Node can run, without the launcher a package manager put
+ * on the PATH.
+ */
+function commandLine(options: TransportOptions, found: Found | null): AgentDeviceTransport {
   const script = found && cliScript(found.manifest);
   return script ? cliTransport(options, process.execPath, [path.join(found.folder, script)]) : cliTransport(options, 'agent-device', []);
 }
@@ -187,7 +196,7 @@ function failure(options: TransportOptions, reason: AgentFailure, otherwise: Har
   return new HarnessError(codeFor(reason, otherwise), describeFailure(reason), {platform: options.harnessPlatform, cause});
 }
 
-function clientTransport(options: TransportOptions, module: ClientModule, version: string): AgentDeviceTransport {
+function clientTransport(options: TransportOptions, module: ClientModule, version: string, cli: AgentDeviceTransport): AgentDeviceTransport {
   const client = module.createAgentDeviceClient({cwd: options.root});
   const select = {platform: options.platform, ...(options.device ? {device: options.device} : null)};
 
@@ -260,6 +269,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     },
     async record(action, file) {
       await call(signal => client.recording.record({...select, action, ...(action === 'start' ? {recordingScope: 'device', ...(file ? {path: file} : {})} : {}), signal}), 'ACTION_FAILED');
+    },
+    hosted(args) {
+      return cli.hosted(args);
     },
     async close() {
       await call(signal => client.sessions.close({signal}), 'ACTION_FAILED', 10_000).catch(() => {});
@@ -341,6 +353,10 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async record(action, file) {
       await agent(recordArgs(action, file), 'ACTION_FAILED');
+    },
+    async hosted(args) {
+      // A provider checks its credentials over the network before it answers.
+      await agent(args, 'DRIVER_UNAVAILABLE', OPEN_TIMEOUT);
     },
     async close() {
       await agent(['close'], 'ACTION_FAILED', 60_000).catch(() => {});

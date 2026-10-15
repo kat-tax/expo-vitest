@@ -163,6 +163,16 @@ export function recordArgs(action: 'start' | 'stop', file?: string): string[] {
   return action === 'start' ? ['record', 'start', ...(file ? [file] : []), '--scope', 'device'] : ['record', 'stop'];
 }
 
+/**
+ * A hosted device's provider connected to, on the command line, the platform
+ * given after it as every command's is. Never with a login: no one is there to
+ * answer one in a test run.
+ */
+export function connectArgs(provider: string, options: Record<string, string | boolean> = {}): string[] {
+  const flags = Object.entries(options).flatMap(([flag, value]) => (value === false ? [] : value === true ? [`--${flag}`] : [`--${flag}`, value]));
+  return ['connect', provider, '--no-login', ...flags];
+}
+
 /** What the command line printed, as JSON, even when a line of prose comes first. */
 export function parsePayload(stdout: string): unknown {
   try {

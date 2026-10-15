@@ -219,7 +219,7 @@ parameter properties.
 | --- | --- | --- |
 | `app.<platform>.url` | Where the app is served. | `http://localhost:8081` on web |
 | `app.<platform>.target` | The exe or process on Windows; the simulator, emulator or phone on a device. | the driver's own choice |
-| `app.<platform>.device` | The same as `target`, the word for it on a device. | |
+| `app.<platform>.device` | The same as `target`, the word for it on a device; or on iOS and Android a [hosted device](device-tests.md#hosted-devices), `{provider, options}`. | |
 | `app.<platform>.scheme` | The app's URI scheme, for deep links. | |
 | `app.<platform>.bundleId` | iOS and Android: the installed app, which a [restart](controls.md) relaunches. | |
 | `app.<platform>.appPath` | iOS and Android: a build `installApp` installs; Windows: an `.msix`. From the root. | |

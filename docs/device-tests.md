@@ -132,6 +132,54 @@ finished. Start the daemon first from outside the pipe, with any
 [The harness](harness.md#getting-an-app-to-drive) says how to get an app up on
 each platform.
 
+## Hosted devices
+
+On iOS and Android the device can be one a provider hosts, such as a Limrun
+emulator, rather than one on this machine. Name the provider in place of a
+device:
+
+```ts
+// harness.config.ts
+export default defineHarness({
+  app: {
+    android: {
+      bundleId: 'com.example.app',
+      appPath: 'android/app/build/outputs/apk/release/app-release.apk',
+      device: {provider: 'limrun'},
+    },
+  },
+});
+```
+
+There is no provider code here: agent-device connects to the provider, and
+the run gives it two commands. Before the first test, `agent-device connect
+limrun --platform android --no-login`, which checks the credentials and
+saves the connection. The warm-up's first command then allocates the
+device, the warm-up installs `appPath`, since a hosted device starts
+without the app, and opens it. Each test file's session runs on the one
+connection, and after the last test `agent-device disconnect` releases the
+device. A connection that fails skips the platform's tests with
+agent-device's reason, as an absent device does, or fails them under
+`HARNESS_REQUIRE=1`. `--no-login` is always passed, since no one is there to
+answer a login prompt in a test run.
+
+Credentials come from the provider's own variables: `LIMRUN_API_KEY` for
+Limrun, `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` for
+BrowserStack, and the AWS chain for AWS Device Farm. `LIMRUN_KEEP_ALIVE=1`
+keeps a Limrun instance from timing out while a slow suite is idle. A
+provider that wants more says so in flags to `connect`, and `options` passes
+them, named without their dashes:
+
+```ts
+device: {provider: 'browserstack', options: {device: 'Google Pixel 8', 'provider-os-version': '14.0', 'provider-app': 'bs://app-id'}},
+```
+
+`agent-device help connect` lists the flags. A device named by
+`HARNESS_TARGET`, or by `target`, is this machine's, and wins over a hosted
+one, so a run can go back to a local emulator without editing the config.
+The connection, and its refusal without credentials, are what this
+package's own tests exercise; a provider's device is not in them.
+
 ## device
 
 | Call | What it does |

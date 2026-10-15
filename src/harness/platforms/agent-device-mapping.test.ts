@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -425,5 +425,21 @@ describe('a recording through agent-device', () => {
     expect(recordArgs('start', '/r/a.mp4')).toEqual(['record', 'start', '/r/a.mp4', '--scope', 'device']);
     expect(recordArgs('start')).toEqual(['record', 'start', '--scope', 'device']);
     expect(recordArgs('stop', '/r/a.mp4')).toEqual(['record', 'stop']);
+  });
+});
+
+describe('a hosted device through agent-device', () => {
+  it('connects to its provider with the flags the config gives, and never with a login', () => {
+    expect(connectArgs('limrun')).toEqual(['connect', 'limrun', '--no-login']);
+    expect(connectArgs('browserstack', {device: 'Google Pixel 8', 'provider-os-version': '14.0', 'provider-no-resign-app': true, force: false})).toEqual([
+      'connect',
+      'browserstack',
+      '--no-login',
+      '--device',
+      'Google Pixel 8',
+      '--provider-os-version',
+      '14.0',
+      '--provider-no-resign-app',
+    ]);
   });
 });

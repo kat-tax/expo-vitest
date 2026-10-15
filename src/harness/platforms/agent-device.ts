@@ -5,11 +5,11 @@ import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, connectArgs, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -161,6 +161,24 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     async screenshot(file: string): Promise<StepResult> {
       const out = prepare(file);
       return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out, options.statusBar));
+    },
+
+    async connect(hosted: HostedDevice): Promise<StepResult> {
+      try {
+        await (await transport()).hosted(connectArgs(hosted.provider, hosted.options));
+        return ok(`connected to ${hosted.provider}; the device is allocated at the first command that needs it`);
+      } catch (error) {
+        return failed(`could not connect to ${hosted.provider}: ${firstLine((error as Error).message)}`, codeOf(error, 'DRIVER_UNAVAILABLE'));
+      }
+    },
+
+    async disconnect(): Promise<StepResult> {
+      try {
+        await (await transport()).hosted(['disconnect']);
+        return ok('released the hosted device');
+      } catch (error) {
+        return failed(`could not release the hosted device: ${firstLine((error as Error).message)}`, codeOf(error, 'ACTION_FAILED'));
+      }
     },
 
     async video(action: 'start' | 'stop', file?: string): Promise<ControlResult> {

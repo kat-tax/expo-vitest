@@ -97,6 +97,14 @@ export interface ControlResult extends StepResult {
 }
 
 /** What a driver knows of the app for a fresh launch, from the harness config. */
+/** A device a provider hosts, which agent-device connects to before a run and releases after it. */
+export interface HostedDevice {
+  /** agent-device's name for the provider: `limrun`, `browserstack`, `aws-device-farm` or `testmu`. */
+  provider: string;
+  /** Flags for agent-device's `connect`, by name without the dashes, as `{'provider-os-version': '14.0'}`. `true` passes a flag alone. */
+  options?: Record<string, string | boolean>;
+}
+
 export interface AppOptions {
   /** iOS and Android: the installed app. */
   bundleId?: string;
@@ -217,6 +225,10 @@ export interface Driver {
    * without one. Left off where the platform records nothing.
    */
   video?(action: 'start' | 'stop', file?: string): Promise<ControlResult>;
+  /** A hosted device's provider connected to, before a run's first test. Left off where the platform has no hosted devices. */
+  connect?(hosted: HostedDevice): Promise<StepResult>;
+  /** The connection released, and the device with it, after the run's last test. */
+  disconnect?(): Promise<StepResult>;
   /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
   onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */

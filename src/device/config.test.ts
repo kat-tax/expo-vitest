@@ -86,6 +86,20 @@ describe('checking it', () => {
     expect(validate({app: {web: undefined, windows: {url: undefined}}, settle: undefined})).toBeTruthy();
   });
 
+  it('takes a device on iOS and Android that a provider hosts, with the flags its connect takes', () => {
+    expect(validate({app: {android: {device: {provider: 'limrun'}}}})).toBeTruthy();
+    expect(validate({app: {ios: {device: {provider: 'browserstack', options: {device: 'iPhone 16', 'provider-os-version': '18', 'provider-no-resign-app': true}}}}})).toBeTruthy();
+    const takes = "a device's name, or a hosted device: {provider, options}, its options agent-device's connect flags without their dashes, each a string or true";
+    expect(failure({app: {android: {device: {provider: ''}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: {name: 'Pixel'}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: {provider: 'limrun', region: 'eu'}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: {provider: 'limrun', options: {'--region': 'eu'}}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: {provider: 'limrun', options: {retries: 2}}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: {provider: 'limrun', options: 'eu'}}}})).toBe(`harness.config.ts: app.android.device is an object; it takes ${takes}`);
+    expect(failure({app: {android: {device: 5}}})).toBe(`harness.config.ts: app.android.device is 5; it takes ${takes}`);
+    expect(failure({app: {web: {device: {provider: 'limrun'}}}})).toBe('harness.config.ts: app.web.device is a hosted device, which is for android and ios');
+  });
+
   it('names a key it does not take, and what it takes', () => {
     expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video');
     expect(failure({app: {macos: {}}})).toBe('harness.config.ts: app.macos is not something a harness config takes here; it takes web, windows, android, ios');
@@ -151,6 +165,17 @@ describe('what a run goes by', () => {
 
   it("is the defaults the device layer already keeps", () => {
     expect(DEFAULTS).toMatchObject({assertionTimeout: 5000, stable: 1000, settle: 150, transition: 500, startupTimeout: 60_000, shutdownTimeout: 10_000});
+  });
+
+  it('runs on a hosted device where nothing names one of this machine\'s', () => {
+    const hosted = {provider: 'limrun', options: {'provider-os-version': '15'}};
+    const run = resolveRun('android', {app: {android: {device: hosted, bundleId: 'com.example.app'}}}, env(), root);
+    expect(run).toMatchObject({hosted, bundleId: 'com.example.app'});
+    expect(run).not.toHaveProperty('target');
+    expect(resolveRun('android', {app: {android: {device: hosted}}}, env({HARNESS_TARGET: 'emulator-5554'}), root)).toMatchObject({target: 'emulator-5554'});
+    expect(resolveRun('android', {app: {android: {device: hosted}}}, env({HARNESS_TARGET: 'emulator-5554'}), root)).not.toHaveProperty('hosted');
+    expect(resolveRun('android', {app: {android: {device: hosted, target: 'Pixel_9'}}}, env(), root)).not.toHaveProperty('hosted');
+    expect(resolveRun('android', {app: {android: {device: 'Pixel_9'}}}, env(), root)).toMatchObject({target: 'Pixel_9'});
   });
 
   it('takes the file over the defaults', () => {

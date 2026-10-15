@@ -25,7 +25,7 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import {describeControl} from '../harness/lib/controls.ts';
-import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, FillOptions, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, FillOptions, HostedDevice, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 import {elsewhere} from '../harness/lib/types.ts';
 import type {Capability, Circumstances} from './capabilities.ts';
 import {cannotSentence, capabilitiesOf, knownFacts} from './capabilities.ts';
@@ -48,7 +48,7 @@ import type {VideoMode} from './video.ts';
 import {videoModeOf} from './video.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
-export type {AppConfig, Capability, CommandConfig, HarnessConfig, Orientation, Permission};
+export type {AppConfig, Capability, CommandConfig, HarnessConfig, HostedDevice, Orientation, Permission};
 export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
