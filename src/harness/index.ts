@@ -106,6 +106,13 @@ async function doctor(options: Options): Promise<number> {
   return 0;
 }
 
+/** `cache`: the agent's replay cache, in the folder the harness config's `cache.dir` names, else `.harness/cache`. */
+async function cacheCommand(args: string[]): Promise<number> {
+  const [{findHarnessFile, loadHarnessSync}, {cacheSettings}, {cache}] = await Promise.all([import('../device/config.ts'), import('../agent/cache.ts'), import('../cli/cache.ts')]);
+  const config = loadHarnessSync(findHarnessFile(ROOT));
+  return cache(args, cacheSettings(config?.cache, process.env, ROOT).dir);
+}
+
 async function main(argv: string[]): Promise<number> {
   let options: Options;
   try {
@@ -122,6 +129,7 @@ async function main(argv: string[]): Promise<number> {
   // Loaded only when asked for, so a step does not pay for what it does not use.
   if (options.command === 'init') return (await import('../cli/init.ts')).init(options.args);
   if (options.command === 'guide') return (await import('../cli/guide.ts')).guide(options.args);
+  if (options.command === 'cache') return cacheCommand(options.args);
   if (!options.platform || !PLATFORMS.includes(options.platform)) {
     console.error(`name a platform with --platform (${PLATFORMS.join(', ')}), or run \`doctor\` to see what this machine can drive`);
     return 2;

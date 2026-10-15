@@ -45,6 +45,7 @@ Nothing is installed in the app itself.
 expo-harness doctor
 expo-harness init [--yes]
 expo-harness guide [topic | --list]
+expo-harness cache [ls | stats | clear]
 expo-harness -p <platform> [options] <step>...
 ```
 
@@ -85,6 +86,17 @@ refreshed, each with its diff shown. Without installing
 it prints the commands that would, and it ends with the commands that run
 the tests. `--yes` takes every default, the platforms it found, device
 tests and the skill, writes without asking, and installs nothing.
+
+## The agent's cache
+
+`cache` reads the [agent's](agent.md#the-cache) replay cache, in the folder
+the harness config's `cache.dir` names, else `.harness/cache`:
+
+| Command | What it does |
+| --- | --- |
+| `cache ls` | Each entry, newest first: the start of its key, how old it is, the platform, the test and the instruction. |
+| `cache stats` | How many entries there are, and their size. |
+| `cache clear` | Empties the folder, and says how many entries it held. |
 
 ## The guide
 

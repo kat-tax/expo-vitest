@@ -71,6 +71,7 @@ describe('parse', () => {
     expect(parse(['init', '--yes'])).toMatchObject({command: 'init', args: ['--yes'], steps: []});
     expect(parse(['guide', 'device'])).toMatchObject({command: 'guide', args: ['device']});
     expect(parse(['guide'])).toMatchObject({command: 'guide', args: []});
+    expect(parse(['cache', 'clear'])).toMatchObject({command: 'cache', args: ['clear']});
     expect(() => parse(['-p', 'web', 'init'])).toThrow('init is not a step; try --help');
   });
 

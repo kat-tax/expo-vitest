@@ -125,6 +125,12 @@ try {
   const keeps = fs.readdirSync(typed).find(test => test.startsWith('keeps-a-secret'));
   if (!keeps || !fs.readFileSync(path.join(typed, keeps, 'tree.json'), 'utf8').includes('<secret:FIXTURE_RECOVERY>')) throw new Error('the tree of the test that typed a secret does not hide it');
   if (fs.existsSync(path.join(typed, keeps, 'screenshot.png'))) throw new Error('the test that typed a secret kept a screenshot');
+  console.log('==== The cache, from the packed command');
+  const cached = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'cache', 'ls'], {cwd: scratch, encoding: 'utf8'});
+  process.stdout.write(cached);
+  if (!cached.includes('device/agent.test.ts > signs in') || !cached.includes('"sign in as {user} with {code} and {password}"')) throw new Error('cache ls does not list the sign-in the agent recorded');
+  const counted = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'cache', 'stats'], {cwd: scratch, encoding: 'utf8'});
+  if (!counted.startsWith('1 entry, ')) throw new Error(`cache stats says ${counted}`);
   console.log("==== No secret's value anywhere under .harness/");
   run(process.execPath, [path.join(root, 'scripts', 'secret-grep.js'), path.join(scratch, '.harness'), 'fixture-horse-battery', 'rc-4417-fixture-code']);
   // The reporter named on the command line replaces the config's, so a run

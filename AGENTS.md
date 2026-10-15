@@ -15,7 +15,7 @@ page per topic. A change to a feature changes its page.
 | `src/device/` | the device object and its matchers, over the harness's drivers |
 | `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter |
 | `src/harness/` | the drivers and the `expo-harness` command |
-| `src/cli/` | `init` and `guide`, which the command runs by either name |
+| `src/cli/` | `init`, `guide` and `cache`, which the command runs by either name |
 | `src/reporter/` | the summary and GitHub reporters, as `expo-vitest/reporter` |
 | `skills/expo-vitest/` | the skill for coding agents, which `guide` prints and `init` copies |
 | `fixture/` | a one-constant library with a test per file-name rule, run against the packed package |
