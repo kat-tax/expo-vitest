@@ -346,6 +346,14 @@ function pooled(size: number, index: number): {groupOrder?: number} {
   return size > 1 ? {groupOrder: index + 1} : {};
 }
 
+/**
+ * Where Vitest keeps its copy of each test's evidence, which it is handed as
+ * attachments for the reporters, from the project's root: under `.harness/`
+ * with the evidence itself, which `init` has an app ignore, rather than in a
+ * folder of Vitest's own beside it.
+ */
+const ATTACHMENTS = '.harness/attachments';
+
 export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig {
   const timeout = options.timeout ?? 120_000;
   // How long a step waits for the screen, and how long a wait looks, reach
@@ -368,6 +376,7 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
         environment: 'node',
         include: options.include ?? ['device/**/*.test.ts'],
         setupFiles: [file('device/matchers.ts')],
+        attachmentsDir: ATTACHMENTS,
         // A real app, a real renderer: slower than a component test by a lot.
         testTimeout: timeout,
         hookTimeout: timeout,
@@ -408,6 +417,7 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
           // Loads the harness config and starts what serves the app; then opens the app once.
           globalSetup: [file('device/global-setup.ts'), file('device/warm-up.ts')],
           provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': harness},
+          attachmentsDir: ATTACHMENTS,
           testTimeout: timeout,
           hookTimeout: timeout,
           // One app per platform, or a file to each device of a pool. The platforms take turns.

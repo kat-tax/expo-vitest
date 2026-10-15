@@ -33,7 +33,8 @@ never share a folder. A test's folder is replaced each time it is written to.
 The trace, the screenshot and the recording are also recorded as a Vitest
 artifact of type `expo-vitest:evidence`, with the files attached, which a
 reporter sees in `onTestCaseArtifactRecord`, and their paths are on the
-task's `meta.evidence`.
+task's `meta.evidence`. Vitest keeps a copy of each file it is handed that
+way, and the device config has it keep them in `.harness/attachments/`.
 
 ## The run's summary
 
@@ -44,8 +45,8 @@ its error and links to its screenshot, tree, trace and recording.
 
 ## What to commit
 
-Nothing under `.harness/`: the results, the summary, the downloads, the
-[AI trace](agent.md#debugging-and-cost), and what the harness keeps for
+Nothing under `.harness/`: the results, the summary, the downloads, Vitest's
+copies of the evidence, the [AI trace](agent.md#debugging-and-cost), and what the harness keeps for
 itself between runs, such as a pool's locks and the desk's quiet on Windows.
 `init` adds it to `.gitignore`. The one exception is the agent's replay
 cache, `.harness/cache/`, which a team commits on purpose to share

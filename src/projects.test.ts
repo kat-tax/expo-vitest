@@ -159,7 +159,7 @@ describe('nodeProject and deviceConfig', () => {
 
   it('runs device tests one at a time, with the matchers registered', () => {
     const device = testOf(deviceConfig());
-    expect(device).toMatchObject({name: 'device', include: ['device/**/*.test.ts'], fileParallelism: false, maxWorkers: 1, testTimeout: 120_000, hookTimeout: 120_000});
+    expect(device).toMatchObject({name: 'device', include: ['device/**/*.test.ts'], fileParallelism: false, maxWorkers: 1, testTimeout: 120_000, hookTimeout: 120_000, attachmentsDir: '.harness/attachments'});
     expect(device.setupFiles).toEqual([path.join(PACKAGE, 'src', 'device', 'matchers.ts')]);
     expect(testOf(deviceConfig({include: ['e2e/**/*.test.ts'], timeout: 10}))).toMatchObject({include: ['e2e/**/*.test.ts'], testTimeout: 10});
   });
@@ -196,6 +196,7 @@ describe('deviceConfig with platforms', () => {
       testTimeout: 10,
       hookTimeout: 10,
       provide: {'harness.platform': 'web'},
+      attachmentsDir: '.harness/attachments',
     });
   });
 

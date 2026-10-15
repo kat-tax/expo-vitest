@@ -115,6 +115,9 @@ try {
   if (!skipped.includes('web cannot home, since a browser has no home screen')) throw new Error('the test that needs a home screen was not skipped on web with the reason');
   const summarised = fs.readFileSync(path.join(scratch, '.harness', 'summary.md'), 'utf8');
   if (!/^## expo-vitest · \d+ passed · \d+ skipped/.test(summarised)) throw new Error(`the summary reporter wrote no summary of the run: ${summarised.slice(0, 200)}`);
+  // Vitest's copy of each test's evidence is kept with it, under the folder init has an app ignore.
+  if (fs.existsSync(path.join(scratch, '.vitest-attachments'))) throw new Error('Vitest kept its copies of the evidence in .vitest-attachments, outside .harness/');
+  if (!fs.existsSync(path.join(scratch, '.harness', 'attachments'))) throw new Error('Vitest kept no copies of the evidence in .harness/attachments');
   // The agent's sign-in was recorded once the assertion after it held, with
   // each secret by its name; a second run replays it, and the model of rules
   // refuses to act there, so a pass is the replay's.
