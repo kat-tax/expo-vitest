@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
@@ -277,15 +278,15 @@ describe('the wait after an action', () => {
 describe('the state a node is in', () => {
   const base = {ref: 'e1', type: 'android.widget.EditText', depth: 1};
 
-  it('passes checked through, selected where it is true, and the hint as the placeholder', () => {
+  it('passes checked through, selected where it is true, and the placeholder', () => {
     expect(toSnapshotNode({...base, type: 'android.widget.Switch', checked: true, selected: true}, 0)).toMatchObject({checked: true, selected: true});
     // On Android every node says selected: false, which is no state at all.
     expect(toSnapshotNode({...base, type: 'android.widget.TextView', selected: false}, 0)).not.toHaveProperty('selected');
-    expect(toSnapshotNode({...base, editable: true, value: 'Ada', hint: 'Name'}, 0)).toMatchObject({value: 'Ada', placeholder: 'Name'});
+    expect(toSnapshotNode({...base, editable: true, value: 'Ada', placeholder: 'Name'}, 0)).toMatchObject({value: 'Ada', placeholder: 'Name'});
   });
 
   it('reads an empty field as empty while it shows its hint, and gives a secure field no value', () => {
-    expect(toSnapshotNode({...base, editable: true, value: 'Name', hint: 'Name', hintShowing: true}, 0)).toMatchObject({value: '', placeholder: 'Name'});
+    expect(toSnapshotNode({...base, editable: true, value: 'Name', placeholder: 'Name', hintShowing: true}, 0)).toMatchObject({value: '', placeholder: 'Name'});
     const secret = toSnapshotNode({...base, editable: true, password: true, value: '••••'}, 0);
     expect(secret.secure).toBe(true);
     expect(secret).not.toHaveProperty('value');
@@ -294,5 +295,20 @@ describe('the state a node is in', () => {
   it('leaves out what was not reported, and the value of what cannot be edited', () => {
     const label = toSnapshotNode({...base, type: 'android.widget.TextView', value: 'Hello'}, 0);
     for (const field of ['checked', 'selected', 'placeholder', 'secure', 'value']) expect(label).not.toHaveProperty(field);
+  });
+});
+
+describe('real snapshots', () => {
+  const fixture = (name: string) => toSnapshotNodes(nodesFrom(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'lib', '__fixtures__', name), 'utf8'))));
+
+  it('reads the emulator\'s search field: its placeholder, and empty while the hint shows', () => {
+    const field = fixture('android-search.json').find(node => node.role === 'android.widget.EditText');
+    expect(field).toMatchObject({placeholder: 'Search settings', value: '', focused: true});
+  });
+
+  it('reads the emulator\'s switch as off, and no node as selected', () => {
+    const nodes = fixture('android-display.json');
+    expect(nodes.find(node => node.role === 'android.widget.Switch')).toMatchObject({name: 'Dark theme', checked: false});
+    expect(nodes.filter(node => 'selected' in node)).toEqual([]);
   });
 });

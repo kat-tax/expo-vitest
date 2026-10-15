@@ -52,7 +52,7 @@ export interface AgentNode {
   editable?: boolean;
   password?: boolean;
   /** The hint an empty field shows, and whether it is showing in place of the text. */
-  hint?: string;
+  placeholder?: string;
   hintShowing?: boolean;
 }
 
@@ -84,7 +84,7 @@ export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
     // says nothing about whether the node can be selected at all, so only a
     // selected node carries it.
     ...(node.selected === true ? {selected: true} : null),
-    ...(node.hint ? {placeholder: node.hint} : null),
+    ...(node.placeholder ? {placeholder: node.placeholder} : null),
     // What a field holds: never a secure field's, and nothing while Android
     // shows the hint in place of the text. Only an editable node has one, so
     // a label's text is not read as a value.
