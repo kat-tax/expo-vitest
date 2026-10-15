@@ -17,6 +17,7 @@ as it is; this folder describes where it is going and why. It is not shipped
 | [`phase-4-developer-experience.md`](phase-4-developer-experience.md) | `expo-vitest init`, the skill and `guide`, the reporter and pull request comments, video, CDP connect, hosted devices, device pools, web extras, the docs pages. Size M. |
 | [`phase-5-agent.md`](phase-5-agent.md) | `expo-vitest/agent`: act, assert, waitFor, extract, the model interface and the Claude adapter, the replay cache, secrets and policy, tools, executors, personas, debug and cost. Size L. |
 | [`phase-6-agent-surfaces.md`](phase-6-agent-surfaces.md) | `expo-harness mcp`, explore, bug bash, the skill's agent topics. Size M. |
+| [`phase-7-test-app.md`](phase-7-test-app.md) | The test app: a typical app on all four platforms, kept here, that every device feature and the agent run against. Size L. |
 | [`external-drivers.md`](external-drivers.md) | Maintained drivers read as replacements for ours or as sources of features: the verdicts, what to take, the recommendation. |
 
 Each phase document follows one shape: purpose and the claims it proves, what
