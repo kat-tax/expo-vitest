@@ -247,6 +247,39 @@ opens in a separate top-level window, so a menu plainly open on screen leaves
 no trace in the tree. Verify menus with a screenshot on Windows. A tree that
 says nothing happened is not evidence that nothing did.
 
+## Errors
+
+A call that cannot do what it was asked rejects with a `HarnessError`. The
+`message` is what to read. The `code` says what kind of failure it was, for a
+test or a script that has to decide what to do next, and `platform` says
+where it happened.
+
+```ts
+import {by, element, isHarnessError} from 'expo-vitest/device';
+
+// A banner that only some accounts see: dismiss it if it is there.
+try {
+  await element(by.testID('banner-dismiss')).press();
+} catch (error) {
+  if (!isHarnessError(error) || error.code !== 'LOCATOR_NOT_FOUND') throw error;
+}
+```
+
+| Code | What happened |
+| --- | --- |
+| `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
+| `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
+| `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. |
+| `NOT_ACTIONABLE` | The node is there but cannot be pressed: it has no bounds, or is off screen. |
+| `ACTION_FAILED` | The backend refused the step, or failed it. |
+| `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a key the Windows harness cannot send. |
+| `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
+
+`isHarnessError` checks the name and the code rather than using
+`instanceof`, so it still answers when a project has loaded two copies of the
+package. An error from the browser or the device tool underneath, such as a
+browser that crashed, passes through as it was thrown.
+
 ## Using the matchers elsewhere
 
 `deviceConfig` registers the matchers. A config of your own registers them

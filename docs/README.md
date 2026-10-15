@@ -22,7 +22,7 @@ with one project per platform. New here? Start with
 
 | Page | What is in it |
 | --- | --- |
-| [Device tests](device-tests.md) | Drive a running app from Vitest: `device`, `element`, selectors, the tree, the four matchers, screenshots. |
+| [Device tests](device-tests.md) | Drive a running app from Vitest: `device`, `element`, selectors, the tree, the four matchers, screenshots, errors. |
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do. |
 
 ## Build on it
@@ -40,7 +40,7 @@ with one project per platform. New here? Start with
 | `expo-vitest/native` | `nodes`, `host`, `modifier`, `byComposeTestID`, `stackHeaders` |
 | `expo-vitest/windows` | `island`, `islands`, `fireIsland` |
 | `expo-vitest/router` | `renderApp` |
-| `expo-vitest/device` | `device`, `element`, `by`, `configFromEnvironment` |
+| `expo-vitest/device` | `device`, `element`, `by`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
 | `expo-vitest/device/matchers` | A setup file that registers the device matchers. |
 | `expo-vitest/metro-compat` | `metroCompat`, `EXPO_WEB_PACKAGES` |
 | `expo-vitest/types` | Types for `tsconfig.json`: the jest-dom matchers on `expect`. |
