@@ -1,4 +1,4 @@
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,6 +29,74 @@ export function run(command: string, args: string[], options: {cwd?: string; tim
   // rather than as a failure of the thing they were asked to do.
   const missing = Boolean(result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT');
   return {ok: !missing && result.status === 0, status: result.status, stdout, stderr, missing};
+}
+
+export interface RunOptions {
+  cwd?: string;
+  /** Milliseconds before the program is stopped. 120 000 unless given; 0 for no limit. */
+  timeout?: number;
+  /** Written to the program's stdin, which is then closed. */
+  input?: string;
+  /** Stops the program when it aborts. */
+  signal?: AbortSignal;
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface RanAsync extends Ran {
+  missing: boolean;
+  /** The program outlived `timeout` and was stopped. */
+  timedOut: boolean;
+  /** `signal` aborted before the program finished. */
+  aborted: boolean;
+}
+
+/**
+ * `run`, without blocking. `spawnSync` holds the event loop until the program
+ * exits, so no timer fires meanwhile, a Vitest timeout included; this lets one
+ * fire, and stops the program when a timeout or an abort says so.
+ *
+ * It answers rather than rejects, the way `run` does: every caller already
+ * branches on `ok`, and a rejection would be the one shape none handles.
+ */
+export function runAsync(command: string, args: string[], options: RunOptions = {}): Promise<RanAsync> {
+  const {signal, timeout = 120_000} = options;
+  return new Promise(resolve => {
+    const answer = {ok: false, status: null, stdout: '', stderr: '', missing: false, timedOut: false, aborted: false};
+    if (signal?.aborted) return resolve({...answer, aborted: true});
+    try {
+      // No shell, ever: nothing a test hands over is interpreted.
+      const child = spawn(command, args, {cwd: options.cwd, env: options.env, windowsHide: true});
+      let error: NodeJS.ErrnoException | undefined;
+      const stop = (why: 'timedOut' | 'aborted') => {
+        answer[why] = true;
+        // On Windows this ends that one process, not what it started; nothing
+        // the drivers run starts anything that would outlive it.
+        child.kill('SIGTERM');
+      };
+      const timer = timeout > 0 ? setTimeout(() => stop('timedOut'), timeout) : undefined;
+      const abort = () => stop('aborted');
+      signal?.addEventListener('abort', abort, {once: true});
+      child.stdout.setEncoding('utf8').on('data', (chunk: string) => (answer.stdout += chunk));
+      child.stderr.setEncoding('utf8').on('data', (chunk: string) => (answer.stderr += chunk));
+      child.on('error', thrown => (error = thrown));
+      // A program that exits without reading its input breaks the pipe under a
+      // write still in flight. What it printed and how it exited still stand.
+      child.stdin.on('error', () => {});
+      child.stdin.end(options.input);
+      // `close` rather than `exit`, so what the program wrote has all arrived.
+      // It comes even when the program never started, after the error.
+      child.on('close', status => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
+        const started = child.pid !== undefined;
+        const missing = error?.code === 'ENOENT';
+        resolve({...answer, ok: started && status === 0 && !answer.timedOut && !answer.aborted, status: started ? status : null, missing});
+      });
+    } catch (thrown) {
+      // Arguments that cannot be handed over at all, such as one holding a null byte.
+      resolve({...answer, stderr: (thrown as Error).message});
+    }
+  });
 }
 
 /** Whether a program answers at all, for the doctor. */
@@ -71,5 +139,6 @@ export function prepare(file: string): string {
 }
 
 export function firstLine(text: string): string {
-  return text.trim().split(/\r?\n/)[0] ?? '';
+  // `split` always answers with at least one string, so the first is there.
+  return text.trim().split(/\r?\n/)[0]!;
 }

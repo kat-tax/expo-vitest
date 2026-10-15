@@ -1,0 +1,139 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {describe, expect, it} from 'vitest';
+import {firstLine, installed, powershell, prepare, run, runAsync, runBinary} from './run.ts';
+
+// Every program here is this Node, so the cases run the same on every CI machine.
+const node = process.execPath;
+const PRINTS = "process.stdout.write('out'); process.stderr.write('err')";
+const LINGERS = 'setTimeout(() => {}, 10000)';
+const ECHOES = "process.stdin.setEncoding('utf8'); let all = ''; process.stdin.on('data', c => (all += c)); process.stdin.on('end', () => process.stdout.write(all))";
+const MISSING = 'expo-vitest-no-such-program';
+
+describe('runAsync', () => {
+  it('answers with what the program printed and how it exited', async () => {
+    expect(await runAsync(node, ['-e', PRINTS])).toStrictEqual({ok: true, status: 0, stdout: 'out', stderr: 'err', missing: false, timedOut: false, aborted: false});
+    expect(await runAsync(node, ['-e', 'process.exit(3)'])).toMatchObject({ok: false, status: 3, missing: false});
+  });
+
+  it('says a program that is not there is missing', async () => {
+    expect(await runAsync(MISSING, [])).toMatchObject({ok: false, status: null, missing: true});
+  });
+
+  it('stops a program that outlives its timeout, without waiting for it', async () => {
+    const started = Date.now();
+    expect(await runAsync(node, ['-e', LINGERS], {timeout: 200})).toMatchObject({ok: false, timedOut: true, aborted: false});
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it('stops a program when the signal aborts', async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 50);
+    expect(await runAsync(node, ['-e', LINGERS], {signal: controller.signal})).toMatchObject({ok: false, aborted: true, timedOut: false});
+  });
+
+  it('starts nothing when the signal has already aborted', async () => {
+    expect(await runAsync(node, ['-e', PRINTS], {signal: AbortSignal.abort()})).toStrictEqual({
+      ok: false,
+      status: null,
+      stdout: '',
+      stderr: '',
+      missing: false,
+      timedOut: false,
+      aborted: true,
+    });
+  });
+
+  it('hands the program its input, and closes stdin when there is none', async () => {
+    expect((await runAsync(node, ['-e', ECHOES], {input: 'hello'})).stdout).toBe('hello');
+    // A program reading stdin still finishes when it was handed nothing, rather than waiting for a person.
+    expect(await runAsync(node, ['-e', ECHOES], {timeout: 0})).toMatchObject({ok: true, stdout: ''});
+  });
+
+  it('runs where it is told, with the environment it is given', async () => {
+    const folder = fs.realpathSync(os.tmpdir());
+    const reads = "process.stdout.write(process.cwd() + '|' + process.env.EXPO_VITEST_PROBE)";
+    expect((await runAsync(node, ['-e', reads], {cwd: folder, env: {...process.env, EXPO_VITEST_PROBE: 'yes'}})).stdout).toBe(`${folder}|yes`);
+  });
+
+  it('lets a program exit without reading what it was handed', async () => {
+    // Far more than a pipe holds, so the write is still in flight when the program goes.
+    expect(await runAsync(node, ['-e', 'process.exit(0)'], {input: 'x'.repeat(16 * 1024 * 1024)})).toMatchObject({ok: true, status: 0});
+  });
+
+  it('answers rather than throws for arguments that cannot be handed over', async () => {
+    const ran = await runAsync(node, ['a\u0000b']);
+    expect(ran.ok).toBe(false);
+    expect(ran.stderr).toMatch(/null bytes/);
+  });
+});
+
+describe('run', () => {
+  it('answers with what the program printed and how it exited', () => {
+    expect(run(node, ['-e', PRINTS])).toStrictEqual({ok: true, status: 0, stdout: 'out', stderr: 'err', missing: false});
+    expect(run(node, ['-e', 'process.exit(3)'])).toMatchObject({ok: false, status: 3});
+  });
+
+  it('hands the program its input, and runs where it is told', () => {
+    expect(run(node, ['-e', ECHOES], {input: 'hello'}).stdout).toBe('hello');
+    const folder = fs.realpathSync(os.tmpdir());
+    expect(run(node, ['-e', 'process.stdout.write(process.cwd())'], {cwd: folder}).stdout).toBe(folder);
+  });
+
+  it('says a program that is not there is missing, and one that ran too long is not', () => {
+    expect(run(MISSING, [])).toStrictEqual({ok: false, status: null, stdout: '', stderr: '', missing: true});
+    expect(run(node, ['-e', LINGERS], {timeout: 200})).toMatchObject({ok: false, missing: false});
+  });
+});
+
+describe('runBinary', () => {
+  it('keeps bytes as bytes', () => {
+    const ran = runBinary(node, ['-e', 'process.stdout.write(Buffer.from([0, 255, 128]))'], {timeout: 20_000});
+    expect(ran.ok).toBe(true);
+    expect([...ran.stdout]).toEqual([0, 255, 128]);
+  });
+
+  it('says a program that is not there is missing', () => {
+    const ran = runBinary(MISSING, []);
+    expect(ran).toMatchObject({ok: false, stderr: '', missing: true});
+    expect(ran.stdout.length).toBe(0);
+  });
+});
+
+describe('installed', () => {
+  it('knows a program that answers from one that is not there', () => {
+    expect(installed(node)).toBe(true);
+    expect(installed(node, ['-e', '0'])).toBe(true);
+    expect(installed(MISSING)).toBe(false);
+  });
+});
+
+describe('powershell', () => {
+  it('fails plainly for a script that is not there', () => {
+    // On Windows PowerShell says the file does not exist; elsewhere PowerShell itself is missing.
+    const script = path.join(os.tmpdir(), 'expo-vitest-no-such-script.ps1');
+    expect(powershell(script).ok).toBe(false);
+    expect(powershell(script, ['-Flag', 'value']).ok).toBe(false);
+  });
+});
+
+describe('prepare', () => {
+  it('makes the folder a file goes in, and answers with the file', () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-vitest-run-'));
+    try {
+      expect(prepare(path.join(folder, 'a', 'b', 'shot.png'))).toBe(path.join(folder, 'a', 'b', 'shot.png'));
+      expect(fs.statSync(path.join(folder, 'a', 'b')).isDirectory()).toBe(true);
+    } finally {
+      fs.rmSync(folder, {recursive: true, force: true});
+    }
+  });
+});
+
+describe('firstLine', () => {
+  it('is the first line of what a program said, trimmed', () => {
+    expect(firstLine('  one\r\ntwo\n')).toBe('one');
+    expect(firstLine('one')).toBe('one');
+    expect(firstLine('')).toBe('');
+  });
+});
