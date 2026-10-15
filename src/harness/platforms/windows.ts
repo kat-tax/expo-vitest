@@ -5,7 +5,7 @@ import {spawn} from 'node:child_process';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import type {PatternAnswer} from '../lib/patterns.ts';
 import {afterFill, afterPress, chooseFill, choosePress} from '../lib/patterns.ts';
-import {desk, refusal} from '../lib/quiet.ts';
+import {desk, fileStore, refusal} from '../lib/quiet.ts';
 import {kindOnWindows, withKinds} from '../lib/roles.ts';
 import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
@@ -200,7 +200,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
   const exe = isExe ? path.resolve(options.root, target) : '';
   const processName = isExe ? path.basename(exe, '.exe') : target;
   const backend = process.env.HARNESS_WINDOWS_HOST === '0' ? scriptBackend(processName) : hostBackend(processName);
-  const quiet = desk();
+  // Kept under .harness/ too, since each device test file makes a driver of its own.
+  const quiet = desk(fileStore(path.join(options.root, '.harness', 'windows-desk.json')));
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     let tree: RawTree;

@@ -94,7 +94,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
 | `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
 | `HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE` | How long a locator's wait looks, and how long something must stay gone, in ms. `deviceConfig`'s `assertionTimeout` and `stable` set them. |
-| `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. |
+| `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. The harness's own input does not count, from one test file to the next too: what the guard has seen is kept in `.harness/windows-desk.json`. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
 starts agent-device's daemon passes it a handle to the run's own output, and

@@ -1,5 +1,9 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {QUIET_SECONDS, desk, refusal} from './quiet.ts';
+import type {DeskRecord, DeskStore} from './quiet.ts';
+import {QUIET_SECONDS, desk, fileStore, refusal} from './quiet.ts';
 
 describe('refusal', () => {
   it('lets input go once the machine has been quiet long enough, and where idleness has no meaning', () => {
@@ -63,5 +67,39 @@ describe('desk', () => {
 
   it('never reads as less than nothing', () => {
     expect(desk().quiet(-0.01, at)).toBe(0);
+  });
+
+  it("keeps what it knows in a store, so the next driver does not take the last one's input for a person's", () => {
+    let kept: DeskRecord = {};
+    const store: DeskStore = {read: () => kept, write: record => void (kept = record)};
+    const first = desk(store);
+    expect(first.quiet(200, at)).toBe(200);
+    first.sent(at + 1000, at + 1600);
+    expect(kept).toEqual({person: at - 200_000, own: {from: at + 1000, to: at + 1600}});
+    // The next test file's driver, a moment later, reads the same desk.
+    expect(desk(store).quiet(0.4, at + 1900)).toBe(201.9);
+  });
+});
+
+describe('fileStore', () => {
+  it('reads back what it wrote, making the folder, and knows nothing from a file that is missing or not a record', () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'desk-'));
+    const store = fileStore(path.join(folder, '.harness', 'windows-desk.json'));
+    expect(store.read()).toEqual({});
+    store.write({person: 5, own: {from: 6, to: 7}});
+    expect(store.read()).toEqual({person: 5, own: {from: 6, to: 7}});
+    fs.writeFileSync(path.join(folder, '.harness', 'windows-desk.json'), 'null');
+    expect(store.read()).toEqual({});
+    fs.writeFileSync(path.join(folder, '.harness', 'windows-desk.json'), '{ broken');
+    expect(store.read()).toEqual({});
+    fs.rmSync(folder, {recursive: true, force: true});
+  });
+
+  it('lets a write that cannot happen be', () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'desk-'));
+    const blocked = path.join(folder, 'file');
+    fs.writeFileSync(blocked, '');
+    expect(() => fileStore(path.join(blocked, 'windows-desk.json')).write({person: 1})).not.toThrow();
+    fs.rmSync(folder, {recursive: true, force: true});
   });
 });

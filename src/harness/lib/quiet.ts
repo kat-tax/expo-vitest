@@ -8,7 +8,13 @@
  * because of its first. So the desk remembers when the harness sent input, and
  * an idle time that ends inside that input is the harness's own. The person's
  * last touch is then still the one seen before it.
+ *
+ * Each device test file makes a driver of its own, so the desk is kept in a
+ * file as well: without it, the next file's driver would take the last file's
+ * input for a person's, and refuse for three minutes.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 
 /** How long the machine must have been quiet before synthetic input is sent. */
 export const QUIET_SECONDS = 180;
@@ -30,19 +36,56 @@ export interface Desk {
   sent(from: number, to: number): void;
 }
 
-export function desk(): Desk {
-  let person: number | undefined;
-  let own: {from: number; to: number} | undefined;
+/** What a desk knows: when a person last used the machine, and when the harness last sent input, in milliseconds since the epoch. */
+export interface DeskRecord {
+  person?: number;
+  own?: {from: number; to: number};
+}
+
+/** Where a desk keeps what it knows between drivers. */
+export interface DeskStore {
+  read(): DeskRecord;
+  write(record: DeskRecord): void;
+}
+
+export function desk(store?: DeskStore): Desk {
+  let {person, own} = store?.read() ?? {};
   return {
     quiet(idle, now = Date.now()) {
       if (idle === null) return null;
       const last = now - idle * 1000;
       const ours = own !== undefined && last >= own.from - SLACK_MS && last <= own.to + SLACK_MS;
-      if (!ours || person === undefined) person = last;
+      if (!ours || person === undefined) {
+        person = last;
+        store?.write({person, own});
+      }
       return Math.max(0, (now - person) / 1000);
     },
     sent(from, to) {
       own = {from, to};
+      store?.write({person, own});
+    },
+  };
+}
+
+/** A desk kept in a JSON file. One that is missing or cannot be read knows nothing, and one that cannot be written is let be. */
+export function fileStore(file: string): DeskStore {
+  return {
+    read() {
+      try {
+        const record = JSON.parse(fs.readFileSync(file, 'utf8')) as DeskRecord;
+        return typeof record === 'object' && record !== null ? record : {};
+      } catch {
+        return {};
+      }
+    },
+    write(record) {
+      try {
+        fs.mkdirSync(path.dirname(file), {recursive: true});
+        fs.writeFileSync(file, JSON.stringify(record));
+      } catch {
+        // Only the next driver's guess at the desk is lost.
+      }
     },
   };
 }
