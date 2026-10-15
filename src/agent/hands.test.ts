@@ -329,6 +329,16 @@ describe('a picture of the screen', () => {
     expect(await setUp({device: unbounded}).hands.screenshot()).toEqual({withheld: 'the secure field @e3 has no bounds to paint over, so a picture could show it'});
   });
 
+  it("is a person's at the size asked, by the same rules, and leaves tap_at aiming at the model's last", async () => {
+    const {hands} = setUp({device: new FakeDevice({screenshot: writer()})});
+    const picture = await hands.picture(1000);
+    expect('withheld' in picture ? null : [picture.width, picture.height]).toEqual([500, 1000]);
+    expect(await failure(hands.tapAt(10, 10))).toEqual(['INVALID_ARGUMENT', 'tap_at presses a point of the last screenshot, and none has been taken']);
+    const taints = {};
+    taint(taints);
+    expect(await setUp({device: new FakeDevice({screenshot: writer()}), taintStore: taints}).hands.picture(1000)).toEqual({withheld: 'a secret was filled in this test, so no picture of the screen leaves it'});
+  });
+
   it('keeps the long side the step asks for', async () => {
     const picture = await setUp({device: new FakeDevice({screenshot: writer()}), screenshotMaxSide: 400}).hands.screenshot();
     expect('withheld' in picture ? null : [picture.width, picture.height]).toEqual([200, 400]);

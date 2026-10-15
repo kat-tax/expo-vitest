@@ -147,7 +147,24 @@ export class Hands {
    * no bounds to paint over.
    */
   async screenshot(): Promise<ImagePart | {withheld: string}> {
-    const {host, taintStore, screenshotMaxSide = 768} = this.options;
+    const taken = await this.take(this.options.screenshotMaxSide ?? 768);
+    if ('withheld' in taken) return taken;
+    this.shot = taken.shot;
+    return taken.image;
+  }
+
+  /**
+   * A picture by the same rules, for a person to read rather than the
+   * model: tap_at goes on aiming at the last screenshot the model saw.
+   */
+  async picture(maxSide: number): Promise<ImagePart | {withheld: string}> {
+    const taken = await this.take(maxSide);
+    return 'withheld' in taken ? taken : taken.image;
+  }
+
+  /** A picture, the long side at most `maxSide`, and how a point of it maps to the tree. */
+  private async take(maxSide: number): Promise<{image: ImagePart; shot: NonNullable<Hands['shot']>} | {withheld: string}> {
+    const {host, taintStore} = this.options;
     const seen = await this.read();
     // The step's nodes, so a reason names the ref the model knows; their bounds are the platform's.
     const verdict = pixelsAllowed({tainted: tainted(taintStore), canScreenshot: host.capabilities.has('screenshot'), nodes: seen.snapshot.nodes});
@@ -163,9 +180,11 @@ export class Hands {
     const image = decodePng(taken);
     const factor = scaleFactor(image.width, seen.platform.viewport);
     const masks = secureMasks(seen.snapshot.nodes).map(bounds => scaleRect(bounds, factor));
-    const small = resizeImage(maskImage(image, masks), screenshotMaxSide);
-    this.shot = {width: small.width, height: small.height, toTree: image.width / small.width / factor};
-    return {type: 'image', mediaType: 'image/png', data: encodePng(small).toString('base64'), width: small.width, height: small.height};
+    const small = resizeImage(maskImage(image, masks), maxSide);
+    return {
+      image: {type: 'image', mediaType: 'image/png', data: encodePng(small).toString('base64'), width: small.width, height: small.height},
+      shot: {width: small.width, height: small.height, toTree: image.width / small.width / factor},
+    };
   }
 
   tap(ref: string): Promise<string> {
