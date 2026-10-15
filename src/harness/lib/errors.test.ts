@@ -48,7 +48,7 @@ describe('codeOf', () => {
 });
 
 describe('HarnessCode', () => {
-  it('is these thirteen, so a new one is a deliberate edit here', () => {
+  it('is these twenty-eight, so a new one is a deliberate edit here', () => {
     expectTypeOf<HarnessCode>().toEqualTypeOf<
       | 'DRIVER_UNAVAILABLE'
       | 'APP_UNREACHABLE'
@@ -63,6 +63,21 @@ describe('HarnessCode', () => {
       | 'INVALID_ARGUMENT'
       | 'INVALID_CONFIG'
       | 'DEVICE_POOL_EXHAUSTED'
+      | 'ASSERTION_INCONCLUSIVE'
+      | 'STEP_BUDGET_EXHAUSTED'
+      | 'STEP_TIMEOUT'
+      | 'STEP_NO_CONCLUSION'
+      | 'CONTEXT_OVERFLOW'
+      | 'MODEL_UNAVAILABLE'
+      | 'MODEL_PROVIDER_FAILED'
+      | 'MODEL_OUTPUT_INVALID'
+      | 'POLICY_DENIED'
+      | 'SECRET_UNAVAILABLE'
+      | 'AUTOMATION_UNSUPPORTED'
+      | 'REPLAY_STALE'
+      | 'CANCELLED'
+      | 'APP_NOT_OPEN'
+      | 'AUTHENTICATION_FAILED'
     >();
   });
 });

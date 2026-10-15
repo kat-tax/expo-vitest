@@ -32,7 +32,38 @@ export type HarnessCode =
   /** A harness config that names something it cannot take, or a value of the wrong kind. */
   | 'INVALID_CONFIG'
   /** Every device in a pool was held by another test file, or a session outside the run, for as long as a file may wait. */
-  | 'DEVICE_POOL_EXHAUSTED';
+  | 'DEVICE_POOL_EXHAUSTED'
+  // An agent step's own, e2e's codes with e2e's meanings.
+  /** A judgment could not tell, from what the screen shows. */
+  | 'ASSERTION_INCONCLUSIVE'
+  /** A step used every model call or action it may. */
+  | 'STEP_BUDGET_EXHAUSTED'
+  /** A step ran out of time. */
+  | 'STEP_TIMEOUT'
+  /** The model stopped without saying how the step ended. */
+  | 'STEP_NO_CONCLUSION'
+  /** What a step sends the model no longer fits its context. */
+  | 'CONTEXT_OVERFLOW'
+  /** No model to ask: none configured, its package missing, or its credentials refused. */
+  | 'MODEL_UNAVAILABLE'
+  /** The model's provider failed the call, or declined it. */
+  | 'MODEL_PROVIDER_FAILED'
+  /** The model answered in a shape the step cannot use, even after a repair. */
+  | 'MODEL_OUTPUT_INVALID'
+  /** A security rule refused what was asked: a secret, a URL, a file, a screenshot. */
+  | 'POLICY_DENIED'
+  /** A secret the step needs has no value. */
+  | 'SECRET_UNAVAILABLE'
+  /** The app asks for something automation cannot do, such as a captcha. */
+  | 'AUTOMATION_UNSUPPORTED'
+  /** Under a strict cache, a recorded step no longer replays. */
+  | 'REPLAY_STALE'
+  /** The test was stopped while the step ran. */
+  | 'CANCELLED'
+  /** The app was not open for the step to act in. */
+  | 'APP_NOT_OPEN'
+  /** The app refused the credentials the step was given. */
+  | 'AUTHENTICATION_FAILED';
 
 export class HarnessError extends Error {
   override readonly name = 'HarnessError';
