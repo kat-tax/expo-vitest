@@ -6,6 +6,10 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {configDefaults} from 'vitest/config';
 import {vitestExpo, vitestExpoProjects} from 'vitest-expo';
+import {findHarnessFile} from './device/config.ts';
+import './device/provided.ts';
+import {HarnessError} from './harness/lib/errors.ts';
+import {PLATFORMS} from './harness/lib/types.ts';
 import {forbidModules} from './forbid-modules.ts';
 import {EXPO_WEB_PACKAGES, metroCompat} from './metro-compat.ts';
 import {TEST_TIMEOUT} from './timeout.ts';
@@ -294,6 +298,23 @@ export function nodeProject(options: {name: string; include: string[]; root?: st
 }
 
 
+export interface DeviceConfigOptions {
+  /** The test files, from the root: every `.test.ts` under `device/` unless given. */
+  include?: string[];
+  /** How long a test or a hook may take, in ms. Two minutes unless given. */
+  timeout?: number;
+  settle?: number | false;
+  transition?: number | false;
+  assertionTimeout?: number;
+  stable?: number;
+  /** One project per platform, each named `device:<platform>`, with the harness config read. Without it, one project for the platform `HARNESS_PLATFORM` names. */
+  platforms?: Platform[];
+  /** With `platforms`: the harness config, from the root. `HARNESS_CONFIG`, else `harness.config.ts`, `.mts`, `.js` or `.mjs` at the root. */
+  harness?: string;
+  /** With `platforms`: the project's folder. `HARNESS_ROOT`, else the working directory. */
+  root?: string;
+}
+
 /**
  * The config for device tests: the ones that drive a real build of the app
  * and read what it actually rendered (`expo-vitest/device`). Its own config
@@ -303,10 +324,15 @@ export function nodeProject(options: {name: string; include: string[]; root?: st
  *     export default defineConfig(deviceConfig());
  *
  *     HARNESS_PLATFORM=web HARNESS_URL=http://localhost:8081 vitest run --config vitest.config.device.mts
+ *
+ * With `platforms`, a project for each, which read `harness.config.ts` and
+ * start the command that serves each app:
+ *
+ *     export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
+ *
+ *     vitest run --config vitest.config.device.mts --project device:web
  */
-export function deviceConfig(
-  options: {include?: string[]; timeout?: number; settle?: number | false; transition?: number | false; assertionTimeout?: number; stable?: number} = {},
-): ViteUserConfig {
+export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig {
   const timeout = options.timeout ?? 120_000;
   // How long a step waits for the screen, and how long a wait looks, reach
   // the test process through its environment, which is what the device
@@ -318,22 +344,62 @@ export function deviceConfig(
     ...(options.assertionTimeout === undefined ? {} : {HARNESS_ASSERTION_TIMEOUT: ms(options.assertionTimeout)}),
     ...(options.stable === undefined ? {} : {HARNESS_STABLE: ms(options.stable)}),
   };
+  if (!options.platforms) {
+    if (options.harness !== undefined || options.root !== undefined) throw new HarnessError('INVALID_ARGUMENT', 'deviceConfig takes harness and root with platforms, which say what they are for');
+    return {
+      resolve: {alias: selfAliases()},
+      test: {
+        name: 'device',
+        globals: true,
+        environment: 'node',
+        include: options.include ?? ['device/**/*.test.ts'],
+        setupFiles: [file('device/matchers.ts')],
+        // A real app, a real renderer: slower than a component test by a lot.
+        testTimeout: timeout,
+        hookTimeout: timeout,
+        // One app, one driver: two files must not press the same window at once.
+        fileParallelism: false,
+        pool: 'forks',
+        maxWorkers: 1,
+        ...(Object.keys(env).length > 0 ? {env} : {}),
+      },
+    };
+  }
+  const platforms = [...new Set(options.platforms)];
+  const unknown = platforms.find(platform => !PLATFORMS.includes(platform));
+  if (unknown !== undefined || platforms.length === 0) {
+    throw new HarnessError('INVALID_ARGUMENT', `deviceConfig takes platforms from ${PLATFORMS.join(', ')}${unknown === undefined ? ', at least one' : `, not ${JSON.stringify(unknown)}`}`);
+  }
+  const root = path.resolve(options.root ?? process.env.HARNESS_ROOT ?? process.cwd());
+  // Found now, and loaded by the global setup, since a config is synchronous and the file may be TypeScript.
+  const harness = findHarnessFile(root, options.harness ?? process.env.HARNESS_CONFIG);
   return {
-    resolve: {alias: selfAliases()},
     test: {
-      name: 'device',
-      globals: true,
-      environment: 'node',
-      include: options.include ?? ['device/**/*.test.ts'],
-      setupFiles: [file('device/matchers.ts')],
-      // A real app, a real renderer: slower than a component test by a lot.
-      testTimeout: timeout,
-      hookTimeout: timeout,
-      // One app, one driver: two files must not press the same window at once.
-      fileParallelism: false,
-      pool: 'forks',
-      maxWorkers: 1,
-      ...(Object.keys(env).length > 0 ? {env} : {}),
+      projects: platforms.map(platform => ({
+        root,
+        resolve: {alias: selfAliases()},
+        test: {
+          name: `device:${platform}`,
+          root,
+          globals: true,
+          environment: 'node',
+          include: options.include ?? ['device/**/*.test.ts'],
+          setupFiles: [file('device/matchers.ts')],
+          // Loads the harness config, and starts what serves the app.
+          globalSetup: [file('device/global-setup.ts')],
+          provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': harness},
+          testTimeout: timeout,
+          hookTimeout: timeout,
+          // One app per platform. Vitest holds this for the whole run, so the platforms take turns.
+          fileParallelism: false,
+          pool: 'forks',
+          maxWorkers: 1,
+          // The setup files import the harness config by a path worked out at run time, which only the Vite graph transforms.
+          server: {deps: {inline: [SELF]}},
+          // The project's own platform, whatever the shell says.
+          env: {...env, HARNESS_PLATFORM: platform},
+        },
+      })),
     },
   };
 }

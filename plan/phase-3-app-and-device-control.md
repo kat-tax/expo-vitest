@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 3 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 4 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -77,6 +77,26 @@ below, the build is what holds.
   - **Not built:** a `SIGINT` handler. The teardown and an `exit` hook stop
     the command. A hard kill of Vitest leaves it running, and a local run
     then uses it.
+- **Item 4: `deviceConfig` with `platforms`, `harness` and `root`.**
+  - The root config holds only `test.projects`. Each project carries:
+    - Vite's `root` and Vitest's;
+    - the global setup;
+    - `provide`;
+    - `maxWorkers: 1` beside `fileParallelism: false`, as the single
+      form has;
+    - `server.deps.inline`;
+    - `HARNESS_PLATFORM` in its environment, so the worker's `device` is
+      on the project's platform whatever the shell says.
+  - The platforms are taken once each, in the order given. One it does not
+    know, or none, is `INVALID_ARGUMENT`, and so are `harness` or `root`
+    without `platforms`.
+  - The harness file is `harness`, else `HARNESS_CONFIG`, else the first
+    at the root. The root is `root`, else `HARNESS_ROOT`, else the working
+    directory.
+  - **Seen live** in the scratch consumer, from source:
+    - two projects, each worker on its own platform;
+    - one command for both;
+    - `--project device:web` ran that one alone.
 
 ## Purpose and the claims it proves
 

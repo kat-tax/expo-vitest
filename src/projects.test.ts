@@ -175,3 +175,56 @@ describe('nodeProject and deviceConfig', () => {
     expect(testOf(deviceConfig({assertionTimeout: 8000, stable: 500})).env).toEqual({HARNESS_ASSERTION_TIMEOUT: '8000', HARNESS_STABLE: '500'});
   });
 });
+
+describe('deviceConfig with platforms', () => {
+  const projectsOf = (config: {test?: {projects?: unknown}}) => (config.test?.projects ?? []) as {root: string; test: Record<string, any>}[];
+  const folder = () => fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'expo-vitest-harness-'));
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is a project per platform, in the order given, each once', () => {
+    const names = projectsOf(deviceConfig({platforms: ['android', 'web', 'android']})).map(project => project.test.name);
+    expect(names).toEqual(['device:android', 'device:web']);
+  });
+
+  it("takes each project's platform over the shell's, and the waits as the single form does", () => {
+    vi.stubEnv('HARNESS_PLATFORM', 'ios');
+    const [web] = projectsOf(deviceConfig({platforms: ['web'], settle: false, assertionTimeout: 8000, include: ['e2e/**/*.test.ts'], timeout: 10}));
+    expect(web!.test).toMatchObject({
+      env: {HARNESS_PLATFORM: 'web', HARNESS_SETTLE: '0', HARNESS_ASSERTION_TIMEOUT: '8000'},
+      include: ['e2e/**/*.test.ts'],
+      testTimeout: 10,
+      hookTimeout: 10,
+      provide: {'harness.platform': 'web'},
+    });
+  });
+
+  it('finds the harness config at the root, or takes the one named, or the environment\'s', () => {
+    const root = folder();
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBeNull();
+    fs.writeFileSync(path.join(root, 'harness.config.mts'), 'export default {};');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'harness.config.mts'));
+    fs.mkdirSync(path.join(root, 'e2e'));
+    fs.writeFileSync(path.join(root, 'e2e', 'harness.ts'), 'export default {};');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root, harness: 'e2e/harness.ts'}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'e2e', 'harness.ts'));
+    vi.stubEnv('HARNESS_CONFIG', 'e2e/harness.ts');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'e2e', 'harness.ts'));
+    expect(() => deviceConfig({platforms: ['web'], root, harness: 'gone.ts'})).toThrow(expect.objectContaining({code: 'INVALID_CONFIG'}));
+  });
+
+  it("takes the root from HARNESS_ROOT, else the working directory, for Vite and for Vitest", () => {
+    const root = folder();
+    vi.stubEnv('HARNESS_ROOT', root);
+    const [fromEnvironment] = projectsOf(deviceConfig({platforms: ['web']}));
+    expect([fromEnvironment!.root, fromEnvironment!.test.root, fromEnvironment!.test.provide['harness.root']]).toEqual([root, root, root]);
+    vi.unstubAllEnvs();
+    expect(projectsOf(deviceConfig({platforms: ['web']}))[0]!.root).toBe(process.cwd());
+  });
+
+  it('refuses a platform it does not know, none at all, and harness or root without platforms', () => {
+    expect(() => deviceConfig({platforms: ['macos' as 'web']})).toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'deviceConfig takes platforms from web, windows, android, ios, not "macos"'}));
+    expect(() => deviceConfig({platforms: []})).toThrow('deviceConfig takes platforms from web, windows, android, ios, at least one');
+    expect(() => deviceConfig({harness: 'harness.config.ts'})).toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'deviceConfig takes harness and root with platforms, which say what they are for'}));
+    expect(() => deviceConfig({root: '.'})).toThrow('deviceConfig takes harness and root with platforms');
+  });
+});

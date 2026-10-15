@@ -23,7 +23,7 @@ import {parseTarget} from '../harness/lib/snapshot.ts';
 import type {Driver, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
-import {deviceConfig, file, nodeProject, selfAliases} from '../projects.ts';
+import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
 import type {DeviceConfig, HarnessCode, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
 import {Locator, by, configFromEnvironment, device, element, isHarnessError, screen, withComponents, within} from './index.ts';
 import './matchers.ts';
@@ -415,6 +415,35 @@ describe('deviceConfig', () => {
     });
   });
 
+  it('with platforms is a project for each, named for it, that reads the harness config', () => {
+    const root = path.resolve('/project');
+    expect(deviceConfig({platforms: ['web', 'android'], root})).toStrictEqual({
+      test: {
+        projects: ['web', 'android'].map(platform => ({
+          root,
+          resolve: {alias: selfAliases()},
+          test: {
+            name: `device:${platform}`,
+            root,
+            globals: true,
+            environment: 'node',
+            include: ['device/**/*.test.ts'],
+            setupFiles: [file('device/matchers.ts')],
+            globalSetup: [file('device/global-setup.ts')],
+            provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': null},
+            testTimeout: 120_000,
+            hookTimeout: 120_000,
+            fileParallelism: false,
+            pool: 'forks',
+            maxWorkers: 1,
+            server: {deps: {inline: [SELF]}},
+            env: {HARNESS_PLATFORM: platform},
+          },
+        })),
+      },
+    });
+  });
+
   it('takes the test files and one timeout for tests and hooks', () => {
     expect(deviceConfig({include: ['x/**'], timeout: 5})).toStrictEqual({
       resolve: {alias: selfAliases()},
@@ -568,6 +597,9 @@ describe('the types a consumer compiled against', () => {
       transition?: number | false;
       assertionTimeout?: number;
       stable?: number;
+      platforms?: Platform[];
+      harness?: string;
+      root?: string;
     }>();
     expectTypeOf<Parameters<typeof nodeProject>[0]>().toMatchObjectType<{name: string; include: string[]; root?: string; timeout?: number}>();
     expectTypeOf<Plain<ExpoProjectsOptions>>().toMatchObjectType<{root?: string; platforms?: Platform[]; include?: string[]; transformPackages?: string[]; timeout?: number}>();
