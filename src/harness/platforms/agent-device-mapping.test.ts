@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -389,5 +389,20 @@ describe("the device's capabilities", () => {
   it("say what the device is: its name, its kind and its version", () => {
     expect(factsOf({device, availableCommands: []})).toEqual({name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'});
     expect(factsOf({device: {name: 'iPhone 17', platform: 'ios', kind: 'simulator', target: 'mobile'}, availableCommands: []})).toEqual({name: 'iPhone 17', kind: 'simulator'});
+  });
+});
+
+describe("the box a device's tree is measured in", () => {
+  it('is the viewport the client or the command line gives beside the nodes', () => {
+    expect(viewportFrom({nodes: [], viewport: {width: 390, height: 844}})).toEqual({width: 390, height: 844});
+    expect(viewportFrom({success: true, data: {nodes: [], viewport: {width: 1080, height: 2400}}})).toEqual({width: 1080, height: 2400});
+  });
+
+  it('is nothing where none was measured, or what was given is not a box', () => {
+    expect(viewportFrom({nodes: []})).toBeUndefined();
+    expect(viewportFrom({data: 'nodes'})).toBeUndefined();
+    expect(viewportFrom({viewport: {width: 0, height: 10}})).toBeUndefined();
+    expect(viewportFrom({viewport: {width: '390', height: 844}})).toBeUndefined();
+    expect(viewportFrom(null)).toBeUndefined();
   });
 });

@@ -310,7 +310,7 @@ export function webDriver(options: DriverOptions): Driver {
   interface Page {
     addInitScript(script: string): Promise<void>;
     goto(url: string, o?: unknown): Promise<unknown>;
-    screenshot(o: {path: string; fullPage?: boolean}): Promise<unknown>;
+    screenshot(o: {path: string; fullPage?: boolean; animations?: 'disabled'; caret?: 'hide'}): Promise<unknown>;
     mouse: {click(x: number, y: number): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
     keyboard: {type(text: string): Promise<void>; press(key: string): Promise<void>};
     locator(selector: string): Locator;
@@ -432,10 +432,12 @@ export function webDriver(options: DriverOptions): Driver {
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     const nodes = await collect();
+    const viewport = (await open()).viewportSize();
     return {
       platform: 'web',
       source: base,
       nodes: snapshotOptions.interactive ? narrow(nodes, node => node.interactive && !node.offscreen) : nodes,
+      ...(viewport ? {viewport} : {}),
     };
   }
 
@@ -743,7 +745,8 @@ export function webDriver(options: DriverOptions): Driver {
     async screenshot(file: string): Promise<StepResult> {
       const current = await open();
       const out = prepare(file);
-      await current.screenshot({path: out});
+      // Animations stopped at their end and the caret hidden, so two pictures of the same screen are the same.
+      await current.screenshot({path: out, animations: 'disabled', caret: 'hide'});
       return ok(`saved ${path.relative(options.root, out)}`);
     },
 

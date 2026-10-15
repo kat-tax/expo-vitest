@@ -10,10 +10,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {expect} from 'vitest';
-import {comparePng} from '../harness/lib/png.ts';
+import {HarnessError} from '../harness/lib/errors.ts';
+import type {Rect} from '../harness/lib/image.ts';
+import {maskImage} from '../harness/lib/image.ts';
+import {compareImages, decodePng, encodePng} from '../harness/lib/png.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {LOCATOR_MATCHERS} from './expectations.ts';
+import type {Locator} from './locator.ts';
+import {hostOf} from './locator.ts';
+import type {ScreenshotOptions} from './screenshots.ts';
+import {allowanceOf, isRect, mismatchMessage, regionOf, scaleFactor, stillPicture, subjectOf, updatingBaselines, withinAllowance} from './screenshots.ts';
 // The evidence a failing test leaves: the screen, the tree and a trace.
 import './evidence-hook.ts';
 
@@ -25,10 +32,22 @@ export function baselineFor(platform: string, name: string): string {
   return path.join(ROOT, 'device', '__screenshots__', platform, `${name}.png`);
 }
 
-/** Something that can take its own picture — the device, in practice. */
+/** Something that can take its own picture: the device, in practice. The tree and the waits are for masks, clips and an element. */
 interface Photographable {
   platform: string;
   screenshot(name: string): Promise<string>;
+  fullSnapshot?(): Promise<Snapshot>;
+  polling?: {assertionTimeout: number};
+  can?(capability: string): boolean;
+}
+
+/** The rectangles a mask or a clip names, in the tree's units, against one tree; one that names nothing is an error, not a mask of nothing. */
+function rectsOf(what: Selector | Locator | Rect, tree: Snapshot, purpose: string): Rect[] {
+  if (isRect(what)) return [what];
+  const locator = hostOf(what) ? (what as Locator) : null;
+  const nodes = locator ? locator.resolve(tree) : [findNode(tree, what as Selector)].filter(node => node !== undefined);
+  if (nodes.length === 0) throw new HarnessError('LOCATOR_NOT_FOUND', `${locator ? String(locator) : describeTarget(what as Selector)} names nothing on the screen to ${purpose}`);
+  return nodes.flatMap(node => (node.bounds ? [node.bounds] : []));
 }
 
 /** What a tree looks like when it is written into a test's expectations. */
@@ -136,40 +155,71 @@ expect.extend({
    * own expectations. A failure leaves the picture it took and a diff with the
    * changed pixels in red beside it.
    */
-  async toMatchScreenshot(received: Photographable, name: string, {maxRatio = 0.002}: {maxRatio?: number} = {}) {
-    const baseline = baselineFor(received.platform, name);
-    const taken = await received.screenshot(`${received.platform}-${name}.actual`);
-    const actual = fs.readFileSync(taken);
+  /**
+   * The screen, or one element of it, against its baseline. Masks are
+   * painted over in both pictures, so a clock or an avatar never fails it,
+   * and a clip or an element compares one rectangle. The pictures are taken
+   * until two in a row agree.
+   */
+  async toMatchScreenshot(received: unknown, name: string, options: ScreenshotOptions = {}) {
+    const allowed = allowanceOf(options);
+    const locator = hostOf(received) ? (received as Locator) : null;
+    const camera = (locator ? hostOf(received) : received) as unknown as Photographable;
+    const platform = camera.platform;
+    const timeout = camera.polling?.assertionTimeout ?? 5000;
+    // An element is brought on screen where the platform scrolls, then found, strictly, as an action finds its node.
+    if (locator && camera.can?.('scrollIntoView')) await locator.scrollIntoView();
+    const element = locator ? await locator.waitFor({state: 'visible'}) : null;
+    const needsTree = Boolean(element || options.clip || options.mask?.length);
+    const tree = needsTree && camera.fullSnapshot ? await camera.fullSnapshot() : null;
+    const clip = element ? (element.bounds ?? null) : options.clip && tree ? (rectsOf(options.clip, tree, 'clip to')[0] ?? null) : null;
+    if ((element || options.clip) && !clip) throw new HarnessError('NOT_ACTIONABLE', `${element ? String(locator) : 'the clip'} has no bounds to compare`, {platform: platform as never});
+    const maskRects = tree ? (options.mask ?? []).flatMap(each => rectsOf(each, tree, 'mask')) : [];
+    const file = `${platform}-${name}`;
+    const take = async () => {
+      const image = decodePng(fs.readFileSync(await camera.screenshot(`${file}.actual`)));
+      const {region, masks} = regionOf(scaleFactor(image.width, tree?.viewport), clip, maskRects);
+      const subject = subjectOf(image, region, masks);
+      if (!subject) throw new HarnessError('NOT_ACTIONABLE', `what ${name} compares is outside the picture of the screen`, {platform: platform as never});
+      return {...subject, masks};
+    };
+    const {picture, still} = await stillPicture(take, (a, b) => a.compared.pixels.equals(b.compared.pixels), {timeout});
+    const harness = path.join(ROOT, '.harness');
+    const actualFile = path.join(harness, `${file}.actual.png`);
+    const expectedFile = path.join(harness, `${file}.expected.png`);
+    const diffFile = path.join(harness, `${file}.diff.png`);
+    // What was compared, the region with its masks, is what a reviewer looks at beside the baseline.
+    fs.writeFileSync(actualFile, encodePng(picture.compared));
+    const baseline = baselineFor(platform, name);
+    const relative = (to: string) => path.relative(ROOT, to);
+    // A baseline belongs to the machine that drew it: the same page renders
+    // differently under a different font stack, so one recorded on a desk
+    // cannot be asserted on a Linux runner. Recording is deliberate, never a
+    // side effect of running, and keeps the region without its masks.
+    if (updatingBaselines(process.env, expect.getState() as unknown as {snapshotState?: {_updateSnapshot?: string}})) {
+      fs.mkdirSync(path.dirname(baseline), {recursive: true});
+      fs.writeFileSync(baseline, encodePng(picture.kept));
+      return {pass: true, message: () => `recorded a baseline at ${relative(baseline)}`};
+    }
     if (!fs.existsSync(baseline)) {
-      // A baseline belongs to the machine that drew it: the same page renders
-      // differently under a different font stack, so one recorded on a desk
-      // cannot be asserted on a Linux runner. Without one, the picture is kept
-      // as evidence and the tree assertions carry the test. Recording is
-      // deliberate, never a side effect of running.
-      if (process.env.HARNESS_UPDATE_SCREENSHOTS) {
-        fs.mkdirSync(path.dirname(baseline), {recursive: true});
-        fs.writeFileSync(baseline, actual);
-        return {pass: true, message: () => `recorded a baseline at ${path.relative(ROOT, baseline)}`};
-      }
       return {
         pass: true,
-        message: () =>
-          `no baseline for ${name} on ${received.platform}; kept ${path.relative(ROOT, taken)} as evidence. ` +
-          `Record one where you mean to assert it: HARNESS_UPDATE_SCREENSHOTS=1`,
+        message: () => `no baseline for ${name} on ${platform}; kept ${relative(actualFile)} as evidence. Record one where you mean to assert it: HARNESS_UPDATE_SCREENSHOTS=1, or vitest -u`,
       };
     }
-    const result = comparePng(fs.readFileSync(baseline), actual, {tolerance: 8});
-    if (result.diff) fs.writeFileSync(path.join(ROOT, '.harness', `${received.platform}-${name}.diff.png`), result.diff);
-    const pass = result.comparable && result.ratio <= maxRatio;
+    const expected = maskImage(decodePng(fs.readFileSync(baseline)), picture.masks);
+    const result = compareImages(expected, picture.compared, {tolerance: allowed.tolerance});
+    if (result.diff) fs.writeFileSync(diffFile, result.diff);
+    const pass = withinAllowance(result, allowed);
+    const files = {expected: relative(expectedFile), actual: relative(actualFile), diff: relative(diffFile)};
+    if (!pass) {
+      fs.writeFileSync(expectedFile, encodePng(expected));
+      // A code a script can branch on, and the difference as the evidence.
+      if (!this.isNot) throw new HarnessError('SCREENSHOT_MISMATCH', mismatchMessage(name, result, allowed, files, still), {platform: platform as never, evidence: diffFile});
+    }
     return {
       pass,
-      message: () =>
-        pass
-          ? `expected ${name} to differ from its baseline by more than ${maxRatio * 100}%, but ${(result.ratio * 100).toFixed(3)}% of pixels differ`
-          : result.comparable
-            ? `${name} differs from its baseline in ${result.different} of ${result.total} pixels (${(result.ratio * 100).toFixed(3)}%, allowed ${maxRatio * 100}%). ` +
-              `What it looks like now is in ${path.relative(ROOT, taken)}, and the difference in .harness/${received.platform}-${name}.diff.png`
-            : `${name} cannot be compared: ${result.reason}`,
+      message: () => (pass ? `expected ${name} to differ from its baseline by more than is allowed, but ${result.different} of ${result.total} pixels differ` : mismatchMessage(name, result, allowed, files, still)),
     };
   },
 });

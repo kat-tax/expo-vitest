@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {inject} from 'vitest';
-import {device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest/device';
+import {by, device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest/device';
 
 afterAll(() => device.close());
 
@@ -50,6 +50,25 @@ it('waits for something to be gone, and stay gone', async () => {
 it('keeps a screenshot as evidence where there is no baseline', async () => {
   await expect(device).toMatchScreenshot('profile');
   expect(fs.existsSync(path.join(process.cwd(), '.harness', 'web-profile.actual.png'))).toBe(true);
+});
+
+it('matches a masked baseline with the clock moved on, and not without the mask', async () => {
+  await screen.getByRole('button', {name: 'Start the clock'}).press();
+  const clock = {mask: [by.testID('clock')]};
+  // Recorded here and compared here, since a baseline belongs to the machine that drew it.
+  process.env.HARNESS_UPDATE_SCREENSHOTS = '1';
+  try {
+    await expect(device).toMatchScreenshot('masked', clock);
+  } finally {
+    delete process.env.HARNESS_UPDATE_SCREENSHOTS;
+  }
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await expect(device).toMatchScreenshot('masked', clock);
+  const unmasked = await expect(device)
+    .toMatchScreenshot('masked', {maxRatio: 0})
+    .catch((error: unknown) => error);
+  expect(isHarnessError(unmasked) && unmasked.code).toBe('SCREENSHOT_MISMATCH');
+  for (const kind of ['expected', 'actual', 'diff']) expect(fs.existsSync(path.join(process.cwd(), '.harness', `web-masked.${kind}.png`)), kind).toBe(true);
 });
 
 it('left a trace for each test before it, with its steps', () => {

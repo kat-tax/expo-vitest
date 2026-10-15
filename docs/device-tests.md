@@ -107,7 +107,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots, baselines and evidence are kept under it. |
 | `HARNESS_CONFIG` | The harness config, from the root, when it is not `harness.config.ts` there. |
 | `HARNESS_REQUIRE` | `1` to fail the tests of a platform this machine cannot drive, rather than skip them; `0` to skip them in CI, where they fail otherwise. |
-| `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
+| `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines, and replace ones that differ, as `vitest -u` does. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
 | `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
@@ -279,6 +279,7 @@ try {
 | `NOT_ACTIONABLE` | The node is there but cannot be acted on: it stayed disabled, has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
 | `ACTION_FAILED` | The backend refused the step, or failed it, or a locator's `check` did not take. |
 | `ASSERTION_FAILED` | The screen did not come to say what a test waited for, such as a node that never went, within the time allowed. |
+| `SCREENSHOT_MISMATCH` | A [screenshot](matchers.md#tomatchscreenshot) differs from its baseline by more than was allowed, or cannot be compared with it. Its `evidence` is the diff. |
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a long press or the focus where a platform has neither, or a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
 | `INVALID_CONFIG` | A harness config with a key it does not take or a value of the wrong kind, which the message names, or one that changed while the run was going. |

@@ -101,5 +101,12 @@ try {
     console.log('they failed with DRIVER_UNAVAILABLE');
   }
 } finally {
-  fs.rmSync(scratch, {recursive: true, force: true});
+  try {
+    fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});
+  } catch (error) {
+    // A process the run started may hold the copy as its own folder for a
+    // while: agent-device's daemon, started there to say what it can drive,
+    // keeps it until it has been idle some minutes. The tests have answered.
+    console.warn(`left ${scratch} behind: ${error.message}`);
+  }
 }

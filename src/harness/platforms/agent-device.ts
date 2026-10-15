@@ -8,7 +8,7 @@ import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions,
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -47,7 +47,8 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
-    return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android')};
+    const viewport = viewportFrom(payload);
+    return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android'), ...(viewport ? {viewport} : {})};
   }
 
   /**

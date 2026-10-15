@@ -109,6 +109,8 @@ export interface Snapshot {
   /** What was snapshotted: a process, a page, a bundle id. */
   source?: string;
   nodes: SnapshotNode[];
+  /** The box the nodes' bounds are measured in, where the driver knows it: a page's viewport, a device's screen in points. */
+  viewport?: {width: number; height: number};
 }
 
 /** What a step can be pointed at. */

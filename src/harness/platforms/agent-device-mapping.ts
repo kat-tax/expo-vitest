@@ -130,6 +130,14 @@ export function nodesFrom(payload: unknown): AgentNode[] {
   return [];
 }
 
+/** The box agent-device measured a snapshot's bounds in, where it measured one. */
+export function viewportFrom(payload: unknown): {width: number; height: number} | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const record = payload as {viewport?: unknown; data?: unknown};
+  const box = (record.viewport ?? (record.data && typeof record.data === 'object' ? (record.data as {viewport?: unknown}).viewport : undefined)) as {width?: unknown; height?: unknown} | undefined;
+  return box && typeof box.width === 'number' && typeof box.height === 'number' && box.width > 0 ? {width: box.width, height: box.height} : undefined;
+}
+
 /** What the command line printed, as JSON, even when a line of prose comes first. */
 export function parsePayload(stdout: string): unknown {
   try {

@@ -13,6 +13,7 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import type {Locator, LocatorHost} from './locator.ts';
 import {hostOf} from './locator.ts';
 import type {PollResult} from './polling.ts';
+import type {ScreenshotOptions} from './screenshots.ts';
 import {describeReadings, duration, poll, readingsOf} from './polling.ts';
 import type {TextMatch, TextMatchOptions} from './queries.ts';
 import {ambiguity, describeCandidate, describeQuery, matches, nameOf, resolve, suggestions} from './queries.ts';
@@ -294,7 +295,7 @@ declare module '@vitest/expect' {
     toHaveElement(selector: Selector): T;
     toBeFullyLabelled(): T;
     toSupportArrowNavigation(key?: string): Promise<T>;
-    toMatchScreenshot(name: string, options?: {maxRatio?: number}): Promise<T>;
+    toMatchScreenshot(name: string, options?: ScreenshotOptions): Promise<T>;
     toBeHidden(options?: ExpectOptions): Promise<void>;
     toBeAttached(options?: ExpectOptions): Promise<void>;
     toBeDetached(options?: ExpectOptions): Promise<void>;

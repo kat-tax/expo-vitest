@@ -21,6 +21,8 @@ export type HarnessCode =
   | 'ACTION_FAILED'
   /** The screen did not come to say what a test waited for, within the time allowed. */
   | 'ASSERTION_FAILED'
+  /** A screenshot differs from its baseline by more than was allowed, or cannot be compared with it. */
+  | 'SCREENSHOT_MISMATCH'
   /** The node is there, but cannot be acted on: it has no bounds, or is off screen. */
   | 'NOT_ACTIONABLE'
   /** Asked of a platform that has no counterpart, where answering `skipped` would hide a mistake. */

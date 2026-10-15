@@ -48,7 +48,7 @@ describe('codeOf', () => {
 });
 
 describe('HarnessCode', () => {
-  it('is these eleven, so a new one is a deliberate edit here', () => {
+  it('is these twelve, so a new one is a deliberate edit here', () => {
     expectTypeOf<HarnessCode>().toEqualTypeOf<
       | 'DRIVER_UNAVAILABLE'
       | 'APP_UNREACHABLE'
@@ -57,6 +57,7 @@ describe('HarnessCode', () => {
       | 'LOCATOR_AMBIGUOUS'
       | 'ACTION_FAILED'
       | 'ASSERTION_FAILED'
+      | 'SCREENSHOT_MISMATCH'
       | 'NOT_ACTIONABLE'
       | 'UNSUPPORTED_CAPABILITY'
       | 'INVALID_ARGUMENT'

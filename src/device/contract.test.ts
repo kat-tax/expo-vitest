@@ -617,7 +617,13 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();
     expectTypeOf<Parameters<Assertion['toSupportArrowNavigation']>>().toEqualTypeOf<[key?: string]>();
     expectTypeOf<Parameters<Assertion['toMatchScreenshot']>[0]>().toEqualTypeOf<string>();
-    expectTypeOf<NonNullable<Parameters<Assertion['toMatchScreenshot']>[1]>>().toMatchObjectType<{maxRatio?: number}>();
+    expectTypeOf<NonNullable<Parameters<Assertion['toMatchScreenshot']>[1]>>().toMatchObjectType<{
+      maxRatio?: number;
+      maxDiffPixels?: number;
+      threshold?: number;
+      mask?: (Selector | Locator)[];
+      clip?: Selector | Locator | {x: number; y: number; width: number; height: number};
+    }>();
 
     const locator = screen.getByText('Saved');
     expectTypeOf(expect(locator).toBeVisible).toBeCallableWith({timeout: 1});

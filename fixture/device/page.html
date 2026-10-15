@@ -17,6 +17,8 @@
   <button data-testid="reset">Reset</button>
   <div role="progressbar" aria-label="Saving" data-testid="spinner" hidden>Saving</div>
   <p role="status" data-testid="saved" hidden>Saved</p>
+  <p data-testid="clock">Tick 0</p>
+  <button data-testid="clock-start">Start the clock</button>
   <ul aria-label="Drafts">
     <li>First draft</li>
     <li>Second draft</li>
@@ -33,6 +35,11 @@
         spinner.hidden = true;
         saved.hidden = false;
       }, 400);
+    });
+    // A clock that ticks once it is started, so the screen holds still for every test but the one about it.
+    document.querySelector('[data-testid=clock-start]').addEventListener('click', () => {
+      let tick = 0;
+      setInterval(() => (document.querySelector('[data-testid=clock]').textContent = 'Tick ' + ++tick), 50);
     });
     document.querySelector('[data-testid=reset]').addEventListener('click', () => {
       document.querySelector('[data-testid=name]').value = '';

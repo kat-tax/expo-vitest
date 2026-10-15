@@ -106,7 +106,7 @@ These take a snapshot or the device, and read it once.
 | `toHaveElement(selector)` | A snapshot | The tree contains something the [selector](locators.md#by-and-element) names. |
 | `toBeFullyLabelled()` | A snapshot | Every element a person can act on carries an accessible name. |
 | `toSupportArrowNavigation(key?)` | The device, awaited | Pressing the key (`ArrowDown` by default) moves the focus. |
-| `toMatchScreenshot(name, {maxRatio})` | The device, awaited | The screen matches a recorded baseline. |
+| `toMatchScreenshot(name, options)` | The device or a locator, awaited | The screen, or one element of it, matches a recorded baseline. |
 
 ### toBeFullyLabelled
 
@@ -142,13 +142,35 @@ actually being drawn. The tree is still the better assertion for behaviour.
 
 ```ts
 await expect(device).toMatchScreenshot('settings');
-await expect(device).toMatchScreenshot('chart', {maxRatio: 0.01});
+await expect(device).toMatchScreenshot('settings', {mask: [by.testID('clock')]});
+await expect(device).toMatchScreenshot('header', {clip: by.role('banner')});
+await expect(screen.getByRole('button', {name: 'Pay'})).toMatchScreenshot('pay');
+await expect(device).toMatchScreenshot('chart', {threshold: 0.1, maxDiffPixels: 50});
 ```
 
 Baselines are kept at `device/__screenshots__/<platform>/<name>.png`.
-`maxRatio` is how much of the picture may differ before the test fails, 0.2%
-by default. A small tolerance per channel absorbs the drift text rendering
-produces between runs.
+
+| Option | What it is | Default |
+| --- | --- | --- |
+| `maxRatio` | The share of the picture that may differ. | 0.002 |
+| `maxDiffPixels` | How many pixels may differ. Given with `maxRatio`, the stricter applies. | none |
+| `threshold` | How far a channel may drift, 0 to 1, and its pixel still count as the same. | 8 of 255 |
+| `mask` | What is painted magenta in the baseline and the picture alike before they are compared: the first node a selector names, or every node a locator names. | none |
+| `clip` | The one rectangle compared: a node, by a selector or a locator, or `{x, y, width, height}` in the tree's units. | the whole screen |
+
+A mask is painted at compare time, so adding one needs no new baseline. A
+mask or a clip that names nothing fails with `LOCATOR_NOT_FOUND` rather than
+masking nothing. A locator as the receiver compares that element alone: it is
+scrolled into view where the platform scrolls, found as an action finds its
+node, and its picture is its bounds. Bounds are in the tree's units, and are
+scaled to the picture's pixels where the driver says what box it measured
+them in, as on an iOS screen measured in points.
+
+The matcher takes pictures until two in a row are the same, as compared,
+with masks painted, up to five of them 100 ms apart. A screen still moving
+after that is compared as it last was, and a failure says it never held
+still. On web a picture is taken with animations stopped and the caret
+hidden.
 
 A baseline belongs to the machine that drew it. The same page renders
 differently under a different font stack, so one recorded on a desk cannot be
@@ -157,15 +179,16 @@ effect of a run:
 
 ```sh
 HARNESS_UPDATE_SCREENSHOTS=1 npm run test:device   # record
+npm run test:device -- --update                    # the same, as Vitest's own snapshots are updated
 npm run test:device                                # assert against what was recorded
 ```
 
 | Situation | What happens |
 | --- | --- |
-| No baseline | The picture is kept under `.harness/` as evidence, and the test passes on its tree assertions. |
-| No baseline, with `HARNESS_UPDATE_SCREENSHOTS` | The baseline is recorded. |
-| A baseline that matches | The test passes. |
-| A baseline that differs | The test fails. `.harness/` has the picture it took and a diff with the changed pixels in red over a faded copy. |
+| No baseline | What would be compared is kept as `.harness/<platform>-<name>.actual.png`, as evidence, and the test passes on its tree assertions. |
+| `HARNESS_UPDATE_SCREENSHOTS`, or `vitest -u` | The baseline is recorded, or replaced: the region compared, without its masks. |
+| A baseline within what is allowed | The test passes. |
+| A baseline that differs by more | The test fails with `SCREENSHOT_MISMATCH`, whose `evidence` is the diff. Beside each other in `.harness/` are `<platform>-<name>.expected.png`, the baseline as compared, `.actual.png`, the picture as compared, and `.diff.png`, the changed pixels in red over a faded copy. |
 
 Commit a baseline only when the machine that asserts it is the machine that
 drew it. `.harness/` is not for committing.

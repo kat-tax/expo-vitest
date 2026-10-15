@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 9 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 10 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -247,6 +247,50 @@ below, the build is what holds.
   - `cropImage` answers null for a rectangle wholly outside.
   - `png.ts` gains `compareImages` over pictures already read, which
     `comparePng` now calls.
+- **Item 10: the screenshot matcher.**
+  - `src/device/screenshots.ts` holds what it decides:
+    - the allowance, `maxRatio`, `maxDiffPixels` and `threshold`, each
+      checked;
+    - whether baselines are written;
+    - the scale factor;
+    - the region and its masks;
+    - the still picture;
+    - the mismatch's sentence.
+    - It is under the gate.
+  - **The matcher** reads the tree only for a mask, a clip or an element,
+    so an object that only takes pictures still works.
+  - **The baseline** is the region compared, without its masks, so a mask
+    needs no new one.
+  - **The pictures:**
+    - `.actual.png` is the picture as compared, and `.expected.png` the
+      baseline as compared, written on a mismatch.
+    - On a mismatch the matcher throws a `HarnessError` with
+      `SCREENSHOT_MISMATCH` and the diff as its `evidence`, rather than
+      answer `pass: false`, so a script can branch on the code. Under
+      `.not` it answers as a matcher does.
+  - **Recording:** `HARNESS_UPDATE_SCREENSHOTS` and `vitest -u` record a
+    missing baseline and replace one that differs. A unit test pins
+    `snapshotState._updateSnapshot` under Vitest 4.1.
+  - **The box:** the snapshot gains `viewport`, the box its bounds are
+    measured in: the page's viewport on web, and agent-device's viewport
+    beside the nodes. Windows gives none, and its bounds are its picture's
+    pixels.
+  - **Seen live** on web, from no baselines:
+    - a masked baseline recorded and matched with the clock moved on;
+    - without the mask, `SCREENSHOT_MISMATCH` with the three pictures;
+    - the stricter of a share and a count;
+    - an element's baseline exactly its bounds, 83 by 41;
+    - a clip by role;
+    - a mask that named nothing, `LOCATOR_NOT_FOUND`;
+    - `vitest run <file> --update` recording with no variable set, where
+      the same run without it recorded nothing.
+  - **The fixture** has the masked screenshot over a clock its page starts
+    on purpose, recorded and compared in the one run, since a baseline
+    belongs to the machine that drew it.
+  - **Found on the way:** agent-device's daemon, started in the fixture's
+    copy to say whether it can drive iOS, keeps that folder as its own
+    for minutes. `scripts/fixture.js` now retries the cleanup, then leaves
+    the copy and says so, rather than fail a run whose tests passed.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,
