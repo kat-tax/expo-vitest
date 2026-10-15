@@ -79,6 +79,7 @@ expo-harness -p android --scheme myapp \
 | `raise` | Bring the app to the front. Windows only. |
 | `wait <ms>` | Let something settle. |
 | `idle` | How long the machine has been quiet. |
+| `bench [n]` | Time each operation `n` times, 20 by default. See [Timing a platform](#timing-a-platform). |
 
 ## Targets
 
@@ -104,6 +105,9 @@ quotes in it, as your shell requires.
 | `--out <dir>` | Where screenshots go. `.harness` by default. |
 | `-i`, `--interactive` | Snapshot only what can be acted on. |
 | `--force` | Press even when someone is using the machine. |
+| `--iterations <n>` | How many times `bench` runs each operation. The same as `bench <n>`. |
+| `--field <target>` | A field for `bench` to time `fill` on. |
+| `--json` | `bench` prints its result as JSON instead of a table. |
 | `-h`, `--help` | The usage. |
 
 Everything is relative to the project the command is run in, or to
@@ -117,6 +121,7 @@ Everything is relative to the project the command is run in, or to
 | `tree`, `snapshot` | yes | yes | yes | yes |
 | `press`, `tap`, `fill`, `type` | yes | yes | yes | yes |
 | `raise` | | yes | | |
+| `bench` | yes | yes | yes | yes |
 | Named keys, in [device tests](device-tests.md) | yes | yes | skipped | skipped |
 
 A step a platform cannot do says so and is skipped rather than failed. The
@@ -138,6 +143,51 @@ are not the desktop, so the check does not apply to them.
 or share sheet that is usually the thing being looked at. Use the `raise` step
 when the app really does need to be in front, which is what synthetic input
 needs.
+
+## Timing a platform
+
+`bench` measures what each thing a driver does costs, so a change meant to
+make one faster can be shown to. It is a step like the others, and times
+whatever the steps before it left on screen:
+
+```sh
+expo-harness -p web --url http://localhost:8081 open / bench
+expo-harness -p windows --target MyApp bench 50
+expo-harness -p android --scheme myapp open /settings bench --field 'testID=search'
+```
+
+```
+bench on web (http://localhost:8099), 20 iterations, node 24.20.0, 2026-10-15T01:23:05Z
+
+  operation         cold      p50      p95      min      max
+  snapshot          11.2      1.3      5.4      1.0     19.1
+  snapshot -i        1.0      1.0      1.2      0.9      1.3
+  press              7.6      0.5      3.1      0.4      3.3
+  fill         skipped: pass --field <target> to measure it
+  screenshot        46.7     32.9     34.9     25.4     35.3
+```
+
+Each operation runs once and then `n` more times, and the times are in
+milliseconds. The first call is `cold`, kept out of the rest because it pays
+for whatever starts on first use, which is a different fact from the steady
+state. p50 and p95 are by nearest rank over the other `n`. At least 5 are
+needed, since the p95 of fewer is only the slowest.
+
+| Operation | What runs |
+| --- | --- |
+| `snapshot` | The whole tree. |
+| `snapshot -i` | Only what can be acted on. |
+| `press` | A press in the middle of the first node on screen that cannot be acted on and is not inside one that can, so that it changes nothing. Skipped when there is no such node. |
+| `fill` | Types `bench` into the field `--field` names. The field keeps the text. Skipped without `--field`. |
+| `screenshot` | A PNG, deleted afterwards. |
+
+On Windows, `press` and `fill` wait for a quiet desk as the steps do. While
+someone is using the machine they are skipped, with that as the reason, and
+the rest is still timed.
+
+Every run writes its result, every sample included, to
+`.harness/bench/<platform>-<time>.json`, so a before and an after can be
+compared.
 
 ## Getting an app to drive
 

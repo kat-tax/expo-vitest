@@ -18,7 +18,7 @@ export default defineConfig({
       // The files that are logic and nothing else are held to all of it. A setup
       // file, a Node require hook and a device driver are not what a unit test
       // reaches, and a number for them would say nothing.
-      include: ['src/projects.ts', 'src/forbid-modules.ts', 'src/windows-resolution.ts', 'src/timeout.ts', 'src/harness/lib/cli.ts', 'src/harness/lib/errors.ts', 'src/harness/lib/run.ts'],
+      include: ['src/projects.ts', 'src/forbid-modules.ts', 'src/windows-resolution.ts', 'src/timeout.ts', 'src/harness/lib/cli.ts', 'src/harness/lib/errors.ts', 'src/harness/lib/run.ts', 'src/harness/lib/bench.ts'],
       thresholds: {lines: 100, functions: 100, branches: 100, statements: 100},
     },
   },

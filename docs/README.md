@@ -23,7 +23,7 @@ with one project per platform. New here? Start with
 | Page | What is in it |
 | --- | --- |
 | [Device tests](device-tests.md) | Drive a running app from Vitest: `device`, `element`, selectors, the tree, the four matchers, screenshots, errors. |
-| [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do. |
+| [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 
 ## Build on it
 

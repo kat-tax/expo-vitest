@@ -321,8 +321,9 @@ describe('deviceConfig', () => {
 
 describe('expo-harness', () => {
   it('has the steps it had, each taking what it took', () => {
-    expect(STEP_ARGUMENTS).toMatchObject({open: 1, snapshot: 0, tree: 0, press: 1, tap: 2, fill: 2, type: 1, screenshot: 1, raise: 0, wait: 1, idle: 0});
+    expect(STEP_ARGUMENTS).toMatchObject({open: 1, snapshot: 0, tree: 0, press: 1, tap: 2, fill: 2, type: 1, screenshot: 1, raise: 0, wait: 1, idle: 0, bench: 0});
     expect(OPTIONAL_ARGUMENT.has('snapshot')).toBe(true);
+    expect(OPTIONAL_ARGUMENT.has('bench')).toBe(true);
   });
 
   it('reads the options it read, in both spellings', () => {
@@ -336,7 +337,8 @@ describe('expo-harness', () => {
       interactive: true,
     });
     expect(parse(['--platform', 'ios', '--interactive'])).toMatchObject({platform: 'ios', interactive: true});
-    expect(parse([])).toMatchObject({out: '.harness', force: false, interactive: false});
+    expect(parse(['--iterations', '50', '--field', 'testID=search', '--json'])).toMatchObject({iterations: '50', field: 'testID=search', json: true});
+    expect(parse([])).toMatchObject({out: '.harness', force: false, interactive: false, json: false});
     expect(parse(['-h']).command).toBe('help');
     expect(parse(['--help']).command).toBe('help');
     expect(parse(['doctor']).command).toBe('doctor');

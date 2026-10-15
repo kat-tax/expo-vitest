@@ -19,6 +19,7 @@
  */
 import path from 'node:path';
 import fs from 'node:fs';
+import {FEWEST, bench, iterationsFrom, renderBench} from './lib/bench.ts';
 import type {Options} from './lib/cli.ts';
 import {USAGE, parse, screenshotPath, unmangleRoute} from './lib/cli.ts';
 import {driverFor} from './lib/drivers.ts';
@@ -87,6 +88,22 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
     case 'idle': {
       const idle = await driver.idleSeconds();
       return idle === null ? ok('idleness does not apply to this platform') : ok(`quiet for ${Math.round(idle)} seconds`);
+    }
+    case 'bench': {
+      const iterations = iterationsFrom(args[0] ?? options.iterations);
+      if (iterations === null) return failed(`bench takes a whole number of iterations, at least ${FEWEST}: of fewer, the p95 is only the slowest`, 'INVALID_ARGUMENT');
+      const folder = path.resolve(ROOT, options.out, 'bench');
+      fs.mkdirSync(folder, {recursive: true});
+      // The press and the fill are synthetic input, so they wait on the same quiet desk as the steps.
+      const refuse = async (what: string) => (await guard(driver, options, what))?.message ?? null;
+      const result = await bench(driver, {iterations, field: options.field, directory: folder, refuse});
+      const file = path.join(folder, `${result.platform}-${result.at.replace(/:/g, '-')}.json`);
+      fs.writeFileSync(file, `${JSON.stringify(result, null, 1)}\n`);
+      const filled = result.samples.some(sample => sample.operation === 'fill' && sample.cold !== null);
+      return ok(
+        `timed on ${result.platform}, written to ${path.relative(ROOT, file)}${filled ? '; the field keeps what fill typed into it' : ''}`,
+        options.json ? JSON.stringify(result, null, 1) : renderBench(result),
+      );
     }
     default:
       return failed(`${name} is not a step`, 'INVALID_ARGUMENT');

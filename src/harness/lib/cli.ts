@@ -27,6 +27,7 @@ steps       open <path|url>       a route, as a deep link or a URL
             raise                 bring the app to the front (desktop)
             wait <ms>             let something settle
             idle                  how long the machine has been quiet
+            bench [n]             time each operation n times (default 20), into ${OUT}/bench/
 
 targets     @e7                   a ref from the last snapshot
             label="New drop"      by accessible name
@@ -39,6 +40,9 @@ options     --url <url>           where the app is served (web; default http://l
             --out <dir>           where screenshots go (default ${OUT})
             --interactive         snapshot only what can be acted on
             --force               press even when someone is using the machine
+            --iterations <n>      how many times bench runs each operation
+            --field <target>      a field for bench to time fill on
+            --json                bench prints its result as JSON instead of a table
 `;
 
 export interface Options {
@@ -49,6 +53,12 @@ export interface Options {
   out: string;
   force: boolean;
   interactive: boolean;
+  /** How many times `bench` runs each operation, as it was typed. */
+  iterations?: string;
+  /** The field `bench` times `fill` on. */
+  field?: string;
+  /** `bench` prints JSON rather than a table. */
+  json: boolean;
   steps: string[][];
   command: 'doctor' | 'run' | 'help';
 }
@@ -65,13 +75,14 @@ export const STEP_ARGUMENTS: Record<string, number> = {
   raise: 0,
   wait: 1,
   idle: 0,
+  bench: 0,
 };
 
 /** Steps whose argument is optional, so a bare `snapshot` is also a step. */
-export const OPTIONAL_ARGUMENT = new Set(['snapshot']);
+export const OPTIONAL_ARGUMENT = new Set(['snapshot', 'bench']);
 
 export function parse(argv: string[]): Options {
-  const options: Options = {out: OUT, force: false, interactive: false, steps: [], command: 'run'};
+  const options: Options = {out: OUT, force: false, interactive: false, json: false, steps: [], command: 'run'};
   const rest: string[] = [];
   for (let at = 0; at < argv.length; at++) {
     const argument = argv[at];
@@ -83,6 +94,9 @@ export function parse(argv: string[]): Options {
     else if (argument === '--out') options.out = value();
     else if (argument === '--force') options.force = true;
     else if (argument === '--interactive' || argument === '-i') options.interactive = true;
+    else if (argument === '--iterations') options.iterations = value();
+    else if (argument === '--field') options.field = value();
+    else if (argument === '--json') options.json = true;
     else if (argument === '--help' || argument === '-h') options.command = 'help';
     else if (argument === 'doctor') options.command = 'doctor';
     else rest.push(argument);

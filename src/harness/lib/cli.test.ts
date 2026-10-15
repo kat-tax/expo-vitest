@@ -4,7 +4,7 @@ import {OPTIONAL_ARGUMENT, STEP_ARGUMENTS, USAGE, parse, screenshotPath, unmangl
 
 describe('parse', () => {
   it('reads every step with the arguments it takes, in order', () => {
-    const argv = ['open', '/settings', 'tree', 'press', '@e3', 'tap', '10', '20', 'fill', 'label="Name"', 'Ada', 'type', 'hello', 'screenshot', 'after.png', 'raise', 'wait', '500', 'idle'];
+    const argv = ['open', '/settings', 'tree', 'press', '@e3', 'tap', '10', '20', 'fill', 'label="Name"', 'Ada', 'type', 'hello', 'screenshot', 'after.png', 'raise', 'wait', '500', 'idle', 'bench', '30'];
     expect(parse(argv).steps).toEqual([
       ['open', '/settings'],
       ['tree'],
@@ -16,22 +16,27 @@ describe('parse', () => {
       ['raise'],
       ['wait', '500'],
       ['idle'],
+      ['bench', '30'],
     ]);
   });
 
-  it('takes the snapshot file only when the next word is not a step', () => {
+  it('takes an optional argument only when the next word is not a step', () => {
     expect(parse(['snapshot']).steps).toEqual([['snapshot']]);
     expect(parse(['snapshot', 'tree.json']).steps).toEqual([['snapshot', 'tree.json']]);
     expect(parse(['snapshot', 'tree']).steps).toEqual([['snapshot'], ['tree']]);
-    expect([...OPTIONAL_ARGUMENT]).toEqual(['snapshot']);
+    expect(parse(['open', '/', 'bench']).steps).toEqual([['open', '/'], ['bench']]);
+    expect(parse(['bench', '50']).steps).toEqual([['bench', '50']]);
+    expect(parse(['bench', 'tree']).steps).toEqual([['bench'], ['tree']]);
+    expect([...OPTIONAL_ARGUMENT]).toEqual(['snapshot', 'bench']);
   });
 
   it('starts from the defaults', () => {
-    expect(parse([])).toEqual({out: '.harness', force: false, interactive: false, steps: [], command: 'run'});
+    expect(parse([])).toEqual({out: '.harness', force: false, interactive: false, json: false, steps: [], command: 'run'});
   });
 
   it('reads every option in either spelling, before or between the steps', () => {
-    expect(parse(['-p', 'web', '--url', 'http://localhost:8085', '--scheme', 'myapp', '--target', 'MyApp', '--out', 'shots', '--force', '-i', 'tree'])).toEqual({
+    const argv = ['-p', 'web', '--url', 'http://localhost:8085', '--scheme', 'myapp', '--target', 'MyApp', '--out', 'shots', '--force', '-i', 'bench'];
+    expect(parse([...argv, '--iterations', '50', '--field', 'testID=search', '--json'])).toEqual({
       platform: 'web',
       url: 'http://localhost:8085',
       scheme: 'myapp',
@@ -39,7 +44,10 @@ describe('parse', () => {
       out: 'shots',
       force: true,
       interactive: true,
-      steps: [['tree']],
+      iterations: '50',
+      field: 'testID=search',
+      json: true,
+      steps: [['bench']],
       command: 'run',
     });
     expect(parse(['tree', '--platform', 'windows', '--interactive', 'idle'])).toMatchObject({platform: 'windows', interactive: true, steps: [['tree'], ['idle']]});
