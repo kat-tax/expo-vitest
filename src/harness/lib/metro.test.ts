@@ -1,3 +1,5 @@
+import http from 'node:http';
+import type {AddressInfo} from 'node:net';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {InspectorPage, Socket} from './metro.ts';
 import {cdp, choosePage, metroFrom, readReact} from './metro.ts';
@@ -96,12 +98,20 @@ describe('readReact', () => {
 
   it('reads the tree from the chosen page, and closes the connection after', async () => {
     const socket = fakeSocket();
-    const reading = readReact({url: 'http://metro', take: false, fetch: listed([page('1')]), connect: url => (expect(url).toContain('page=1'), socket)});
+    const reading = readReact({url: 'http://metro', take: false, fetch: listed([page('1')]), connect: url => (expect(url).toBe('ws://127.0.0.1:8081/inspector/debug?page=1'), socket)});
     await vi.waitFor(() => expect(socket.listening('open')).toBe(true));
     socket.emit('open');
+    // The walk is started, and leaves what it finds in the app, since Hermes's debugger cannot wait on its Promise.
     await vi.waitFor(() => expect(socket.sent).toHaveLength(1));
-    expect(socket.sent[0]).toMatchObject({method: 'Runtime.evaluate', params: {returnByValue: true, awaitPromise: true}});
-    socket.emit('message', JSON.stringify({id: 1, result: {result: {value: {nodes: [{id: 1, host: 'RCTView', chain: []}]}}}}));
+    expect(socket.sent[0]).toMatchObject({method: 'Runtime.evaluate', params: {returnByValue: true}});
+    expect((socket.sent[0] as unknown as {params: {expression: string}}).params.expression).toMatch(/^\(globalThis\.__harnessReact = undefined, \(async .*\.then\(tree => \{ globalThis\.__harnessReact = tree; \}/s);
+    socket.emit('message', JSON.stringify({id: 1, result: {result: {value: 'started'}}}));
+    // A look before it is done finds nothing, and the next one the tree, which it takes away.
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(2));
+    expect((socket.sent[1] as unknown as {params: {expression: string}}).params.expression).toBe('(() => { const found = globalThis.__harnessReact; if (found !== undefined) delete globalThis.__harnessReact; return found; })()');
+    socket.emit('message', JSON.stringify({id: 2, result: {result: {type: 'undefined'}}}));
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(3));
+    socket.emit('message', JSON.stringify({id: 3, result: {result: {value: {nodes: [{id: 1, host: 'RCTView', chain: []}]}}}}));
     expect(await reading).toEqual({nodes: [{id: 1, host: 'RCTView', chain: []}]});
     expect(socket.closed).toBe(true);
   });
@@ -112,19 +122,25 @@ describe('readReact', () => {
     expect(await readReact({url: 'http://metro', take: false, fetch: listed({not: 'a list'})})).toEqual({unavailable: 'Metro lists no app to read: a development build has to be running against it'});
   });
 
-  it('says what the app answered when the walk threw, or answered nothing', async () => {
-    for (const [result, said] of [
-      [{exceptionDetails: {exception: {description: 'TypeError: x'}}}, 'the walk threw in the app: TypeError: x'],
-      [{exceptionDetails: {text: 'Uncaught'}}, 'the walk threw in the app: Uncaught'],
-      [{exceptionDetails: {}}, 'the walk threw in the app: no message'],
-      [{result: {}}, 'the app answered with nothing'],
+  it('says what the app answered where the walk could not start, threw, or found no hook', async () => {
+    const started = {result: {value: 'started'}};
+    for (const [start, look, said] of [
+      [{exceptionDetails: {exception: {description: 'TypeError: x'}}}, undefined, 'the walk threw in the app: TypeError: x'],
+      [{exceptionDetails: {text: 'Uncaught'}}, undefined, 'the walk threw in the app: Uncaught'],
+      [{exceptionDetails: {}}, undefined, 'the walk threw in the app: no message'],
+      [started, {exceptionDetails: {text: 'ReferenceError'}}, 'the walk threw in the app: ReferenceError'],
+      [started, {result: {value: {unavailable: 'there is no React DevTools hook in this runtime'}}}, 'there is no React DevTools hook in this runtime'],
     ] as const) {
       const socket = fakeSocket();
       const reading = readReact({url: 'http://metro', take: false, fetch: listed([page('1')]), connect: () => socket});
       await vi.waitFor(() => expect(socket.listening('open')).toBe(true));
       socket.emit('open');
       await vi.waitFor(() => expect(socket.sent).toHaveLength(1));
-      socket.emit('message', JSON.stringify({id: 1, result}));
+      socket.emit('message', JSON.stringify({id: 1, result: start}));
+      if (look) {
+        await vi.waitFor(() => expect(socket.sent).toHaveLength(2));
+        socket.emit('message', JSON.stringify({id: 2, result: look}));
+      }
       expect(await reading).toEqual({unavailable: said});
     }
   });
@@ -141,6 +157,22 @@ describe('readReact', () => {
     await vi.waitFor(() => expect(broken.listening('open')).toBe(true));
     broken.emit('error');
     expect(await failing).toEqual({unavailable: 'the connection to the app failed'});
+  });
+
+  it('connects where Metro lists localhost by IPv4, with the origin of that host, as its inspector proxy asks of a debugger', async () => {
+    const origins: (string | undefined)[] = [];
+    const server = http.createServer();
+    server.on('upgrade', (request, socket) => {
+      origins.push(request.headers.origin);
+      socket.destroy();
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const {port} = server.address() as AddressInfo;
+    const fetching = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ok: true, json: async () => [page('1', {webSocketDebuggerUrl: `ws://localhost:${port}/inspector/debug`})]} as Response);
+    await readReact({url: `http://localhost:${port}/`, take: false, timeout: 3000});
+    fetching.mockRestore();
+    server.close();
+    expect(origins).toEqual([`http://127.0.0.1:${port}`]);
   });
 
   it("uses Node's own fetch and WebSocket when given neither", async () => {

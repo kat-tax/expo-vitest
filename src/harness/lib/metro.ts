@@ -16,6 +16,10 @@
 import type {ReactTree} from './react.ts';
 import {walkExpression} from './react.ts';
 
+/** Where the walk leaves what it found in the app's runtime, and how often it is looked for, in ms. */
+const RESULT = '__harnessReact';
+const LOOK_EVERY = 50;
+
 /** A page as Metro's inspector proxy lists it. */
 export interface InspectorPage {
   id: string;
@@ -118,7 +122,9 @@ function opened(socket: Socket): Promise<void> {
 /** The React tree of the app Metro serves, or why it cannot be read. */
 export async function readReact(options: MetroOptions): Promise<ReactTree | {unavailable: string}> {
   const fetching = options.fetch ?? ((url: string) => fetch(url));
-  const connect = options.connect ?? ((url: string) => new WebSocket(url) as unknown as Socket);
+  // Metro's inspector proxy takes a debugger only from an origin on the host it is reached at, and Node's WebSocket
+  // sends none of its own, so it is given that host's, through the headers Node's WebSocket takes beside the standard's.
+  const connect = options.connect ?? ((url: string) => new WebSocket(url, {headers: {Origin: new URL(url.replace(/^ws/, 'http')).origin}} as unknown as string[]) as unknown as Socket);
   let pages: InspectorPage[];
   try {
     const answer = await fetching(`${options.url}/json/list`);
@@ -129,7 +135,8 @@ export async function readReact(options: MetroOptions): Promise<ReactTree | {una
   }
   const chosen = choosePage(Array.isArray(pages) ? pages : [], options);
   if ('refused' in chosen) return {unavailable: chosen.refused};
-  const socket = connect(chosen.page.webSocketDebuggerUrl as string);
+  // Metro lists its debugger at localhost, which Node's WebSocket may try as ::1 alone, where Metro need not listen.
+  const socket = connect((chosen.page.webSocketDebuggerUrl as string).replace(/^ws:\/\/localhost(?=[:/])/, 'ws://127.0.0.1'));
   const session = cdp(socket);
   const timeout = options.timeout ?? 15_000;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -138,12 +145,22 @@ export async function readReact(options: MetroOptions): Promise<ReactTree | {una
       timer = setTimeout(() => reject(new Error(`the app gave no answer within ${timeout / 1000} s`)), timeout);
     });
     await Promise.race([opened(socket), late]);
-    const answer = (await Promise.race([session.call('Runtime.evaluate', {expression: walkExpression(), returnByValue: true, awaitPromise: true}), late])) as {
-      result?: {value?: ReactTree | {unavailable: string}};
-      exceptionDetails?: {text?: string; exception?: {description?: string}};
-    };
-    if (answer.exceptionDetails) return {unavailable: `the walk threw in the app: ${answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text ?? 'no message'}`};
-    return answer.result?.value ?? {unavailable: 'the app answered with nothing'};
+    type Answer = {result?: {value?: ReactTree | {unavailable: string} | string}; exceptionDetails?: {text?: string; exception?: {description?: string}}};
+    const evaluate = async (expression: string) => (await Promise.race([session.call('Runtime.evaluate', {expression, returnByValue: true}), late])) as Answer;
+    const threw = (answer: Answer) => ({unavailable: `the walk threw in the app: ${answer.exceptionDetails?.exception?.description ?? answer.exceptionDetails?.text ?? 'no message'}`});
+    // Hermes's debugger cannot wait on React Native's own Promise, so the walk leaves what it found in the app, and
+    // a look after reads it and takes it away.
+    const started = await evaluate(
+      `(globalThis.${RESULT} = undefined, ${walkExpression()}.then(tree => { globalThis.${RESULT} = tree; }, error => { globalThis.${RESULT} = {unavailable: 'the walk threw in the app: ' + error}; }), 'started')`,
+    );
+    if (started.exceptionDetails) return threw(started);
+    for (;;) {
+      const look = await evaluate(`(() => { const found = globalThis.${RESULT}; if (found !== undefined) delete globalThis.${RESULT}; return found; })()`);
+      if (look.exceptionDetails) return threw(look);
+      const found = look.result?.value;
+      if (found !== undefined) return found as ReactTree | {unavailable: string};
+      await new Promise(resolve => setTimeout(resolve, LOOK_EVERY));
+    }
   } catch (error) {
     return {unavailable: (error as Error).message};
   } finally {
