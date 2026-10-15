@@ -72,7 +72,7 @@ const COLLECT = `((last) => {
   // UI Automation reports on Windows, so a test finds a label on either. A
   // container's text is its children's, so only leaves are taken; that keeps
   // the tree small enough to read and to put in front of a model.
-  const selector = '[role],button,a,input,select,textarea,h1,h2,h3,h4,dialog,[popover],[tabindex],p,li,td,label,span,div';
+  const selector = '[role],button,a,input,select,textarea,h1,h2,h3,h4,h5,h6,ul,ol,img,progress,output,dialog,[popover],[tabindex],p,li,td,label,span,div';
   const ACTIONABLE = new Set(['button', 'link', 'a', 'menuitem', 'menuitemcheckbox', 'checkbox', 'switch', 'tab', 'textbox', 'input', 'select', 'textarea', 'slider', 'option', 'radio']);
   const depthOf = (node) => { let d = 0; for (let p = node.parentElement; p; p = p.parentElement) d++; return d; };
   // The refs given out by this collect, so a node's parent is the nearest
