@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 3 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 4 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -67,6 +67,29 @@ below, the build is what holds.
   - Every node of the Windows and Android fixtures has a kind, but the
     window and custom views.
   - The iOS table is XCUIElement's type names, unread off a device.
+- **Item 4: the queries, `src/device/queries.ts`.**
+  - A query is data, with its scope and a `has` filter as queries too, so
+    resolving one needs no device and the locator only holds one.
+  - **Names.** A role's `name` and a label read the node's own name, or,
+    for a control with none, the text inside it that is not inside a
+    control within it. An Android row has no name of its own, as every
+    row of the emulator fixtures showed, and a list that scrolls is
+    interactive too, so without the second half it took every row's text.
+    agent-device names a node with no label after its testID, which on
+    iOS and Android counts as no name.
+  - **`getByText`** takes a text or a heading where one matches, and
+    only where none does, any node, then the innermost of those. The
+    design's rule took any node, and on the emulator's Display screen a
+    switch carries the name of the text beside it.
+  - **`getByLabelText`** leaves text and headings out. A button and the
+    text inside it share a name on Windows and web: 68 of the 94 nodes
+    of the Windows fixture are text inside a button.
+  - `getByTestId` follows RNTL's text rules, as RNTL does, rather than
+    only exact. A string is normalised on both sides, and a global pattern
+    is tested from the start every time, as in RNTL.
+  - `filter({hasText})` looks inside the node too, as Playwright does.
+  - The web fixtures were captured again once nodes carried `kind`, and
+    match the first capture node for node apart from it.
 
 ## Purpose and the claims it proves
 
