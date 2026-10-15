@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 12 done, and the start of 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 12 and 14 done, and the start of 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -328,6 +328,8 @@ below, the build is what holds.
   - **The absent platform** is iOS beside web, rather than Windows as the
     design has it, since this Windows machine can drive Windows. On a Mac
     it is Windows.
+- **Item 14: `engines.node` is `>=22.18`,** the package's first floor, and
+  `docs/getting-started.md` says why beside the install.
 - **Item 13, its start.** `docs/configuration.md` has the three options, a
   project per platform, and `harness.config.ts` with the precedence and the
   command. `docs/device-tests.md` has `HARNESS_CONFIG`, `HARNESS_REQUIRE`

@@ -22,6 +22,9 @@
     "accessibility"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

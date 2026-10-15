@@ -22,6 +22,12 @@ npx expo install --dev expo-vitest vitest vitest-expo vitest-native \
 The web project also needs `react-dom` and `react-native-web`, which an app
 with a web target has.
 
+The package needs Node 22.18 or later. That is where Node strips TypeScript's
+types without a flag, so a device test's [harness
+config](configuration.md#harnessconfigts), a `.ts` file, loads as it is
+whichever loader reads it. agent-device, which drives iOS and Android, needs
+22.12 already.
+
 ## 2. Configure
 
 ```ts
