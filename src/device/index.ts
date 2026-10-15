@@ -69,6 +69,8 @@ export interface DeviceConfig {
   stable?: number;
   /** The app, for its fresh launches and its state, from the harness config. */
   app?: AppOptions;
+  /** On a device, the status bar made the same in every screenshot, `fixed`, or left as it is, `real`. */
+  statusBar?: 'fixed' | 'real';
 }
 
 /** A count of milliseconds from the environment, with `false` as 0, as e2e spells it; undefined when it is not one. */
@@ -193,8 +195,8 @@ class Device {
   /** The driver, made on first use and kept for the file's tests; its steps wait for the screen to hold still. */
   async ready(): Promise<Driver> {
     if (this.driver) return this.driver;
-    const {platform, url, scheme, target, force, app} = this.config;
-    const driver = driverFor(platform, {root: ROOT, url, scheme, target, force, ...(app ? {app} : {})});
+    const {platform, url, scheme, target, force, app, statusBar} = this.config;
+    const driver = driverFor(platform, {root: ROOT, url, scheme, target, force, ...(app ? {app} : {}), ...(statusBar ? {statusBar} : {})});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
     if (state.device) this.facts = state.device;

@@ -156,7 +156,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async screenshot(file: string): Promise<StepResult> {
       const out = prepare(file);
-      return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out));
+      return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out, options.statusBar));
     },
 
     async control(request: ControlRequest): Promise<ControlResult> {

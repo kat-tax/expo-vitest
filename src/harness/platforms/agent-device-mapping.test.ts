@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -404,5 +404,18 @@ describe("the box a device's tree is measured in", () => {
     expect(viewportFrom({viewport: {width: 0, height: 10}})).toBeUndefined();
     expect(viewportFrom({viewport: {width: '390', height: 844}})).toBeUndefined();
     expect(viewportFrom(null)).toBeUndefined();
+  });
+});
+
+describe('the status bar in a screenshot', () => {
+  it("is agent-device's own on Android unless real, and normalised on iOS when fixed", () => {
+    expect(screenshotArgs('android')).toEqual([]);
+    expect(screenshotArgs('android', 'real')).toEqual(['--no-stabilize']);
+    expect(screenshotArgs('ios')).toEqual(['--normalize-status-bar']);
+    expect(screenshotArgs('ios', 'real')).toEqual([]);
+    expect(screenshotRequest('android')).toEqual({});
+    expect(screenshotRequest('android', 'real')).toEqual({stabilize: false});
+    expect(screenshotRequest('ios', 'fixed')).toEqual({normalizeStatusBar: true});
+    expect(screenshotRequest('ios', 'real')).toEqual({});
   });
 });

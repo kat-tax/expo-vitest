@@ -138,6 +138,22 @@ export function viewportFrom(payload: unknown): {width: number; height: number} 
   return box && typeof box.width === 'number' && typeof box.height === 'number' && box.width > 0 ? {width: box.width, height: box.height} : undefined;
 }
 
+/**
+ * How a screenshot treats the status bar. agent-device puts an Android
+ * device in demo mode for every screenshot unless told not to, and an iOS
+ * simulator's status bar is made the same when asked; `real` leaves both.
+ */
+export function screenshotArgs(platform: string, statusBar: 'fixed' | 'real' = 'fixed'): string[] {
+  if (statusBar === 'real') return platform === 'android' ? ['--no-stabilize'] : [];
+  return platform === 'ios' ? ['--normalize-status-bar'] : [];
+}
+
+/** The same, as the Node client takes it. */
+export function screenshotRequest(platform: string, statusBar: 'fixed' | 'real' = 'fixed'): Record<string, boolean> {
+  if (statusBar === 'real') return platform === 'android' ? {stabilize: false} : {};
+  return platform === 'ios' ? {normalizeStatusBar: true} : {};
+}
+
 /** What the command line printed, as JSON, even when a line of prose comes first. */
 export function parsePayload(stdout: string): unknown {
   try {

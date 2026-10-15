@@ -229,6 +229,7 @@ parameter properties.
 | `stable` | How long something must stay gone before a wait for it to go passes, in ms. | 1000 |
 | `settle` | How long the screen must hold still after a step, in ms, or `false`. | 150 |
 | `transition` | How long a control the last step brought in is given before it is pressed, in ms, or `false`. | 500 |
+| `statusBar` | On a device, `fixed` makes the status bar the same in every screenshot, and `real` leaves it as it is. | `fixed` |
 
 A key the file does not take, or a value of the wrong kind, fails the run
 with `INVALID_CONFIG`, naming it and what the file takes there. So does a

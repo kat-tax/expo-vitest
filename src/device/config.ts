@@ -357,6 +357,7 @@ export function configFromRun(run: ResolvedRun, environment: NodeJS.ProcessEnv):
     transition: run.transition,
     assertionTimeout: run.assertionTimeout,
     stable: run.stable,
+    statusBar: run.statusBar,
     ...appOf(run),
   };
 }

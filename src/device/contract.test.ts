@@ -582,6 +582,7 @@ describe('the types a consumer compiled against', () => {
       assertionTimeout?: number;
       stable?: number;
       app?: {bundleId?: string; appPath?: string; launchArguments?: string[]; permissions?: Record<string, 'grant' | 'deny' | 'reset'>; stateDir?: string};
+      statusBar?: 'fixed' | 'real';
     }>();
     expectTypeOf(device.restart).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.clearState).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();

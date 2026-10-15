@@ -170,7 +170,10 @@ The matcher takes pictures until two in a row are the same, as compared,
 with masks painted, up to five of them 100 ms apart. A screen still moving
 after that is compared as it last was, and a failure says it never held
 still. On web a picture is taken with animations stopped and the caret
-hidden.
+hidden. On a device the status bar is made the same in every picture:
+agent-device puts Android in demo mode for each one, and normalises an iOS
+simulator's. `statusBar: 'real'` in the [harness
+config](configuration.md#harnessconfigts) leaves it as it is.
 
 A baseline belongs to the machine that drew it. The same page renders
 differently under a different font stack, so one recorded on a desk cannot be

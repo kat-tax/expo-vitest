@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 10 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 11 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -291,6 +291,22 @@ below, the build is what holds.
     copy to say whether it can drive iOS, keeps that folder as its own
     for minutes. `scripts/fixture.js` now retries the cleanup, then leaves
     the copy and says so, rather than fail a run whose tests passed.
+- **Item 11: the status bar,** without a warm-up sequence.
+  - agent-device 0.21.27 already makes it the same per picture:
+    - it puts an Android device in demo mode for every screenshot unless
+      given `--no-stabilize`;
+    - it normalises an iOS simulator's under `--normalize-status-bar`.
+  - So `statusBar` reaches the screenshot:
+    - `fixed` asks iOS to normalise and leaves Android's default;
+    - `real` turns Android's stabilising off.
+  - The spellings for the client and the command line are in the mapping,
+    under the gate. No `simctl` or demo-mode broadcasts of the harness's
+    own were needed.
+  - **Seen live:** the emulator took a picture in each mode, through the
+    client and through the command line.
+  - **Not seen:** what either mode shows. This headless emulator composites
+    nothing, so even `adb screencap` gives a picture of transparent black,
+    though Settings has the focus and its tree reads. Nor iOS.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,

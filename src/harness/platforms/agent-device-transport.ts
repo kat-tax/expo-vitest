@@ -35,6 +35,8 @@ import {
   packageFolders,
   parseFailure,
   parsePayload,
+  screenshotArgs,
+  screenshotRequest,
   settingArgs,
   settingRequest,
   settleArgs,
@@ -67,7 +69,8 @@ export interface AgentDeviceTransport {
   scrollUntil(direction: 'up' | 'down', until: string, wait?: Wait): Promise<void>;
   swipe(from: Point, to: Point): Promise<void>;
   type(text: string): Promise<void>;
-  screenshot(file: string): Promise<void>;
+  /** A picture of the screen, with the status bar as the run asks for it. */
+  screenshot(file: string, statusBar?: 'fixed' | 'real'): Promise<void>;
   /** Opens an app by its id, relaunched where asked, with the arguments a fresh launch is given. */
   launch(app: string, relaunch: boolean, launchArguments: string[]): Promise<void>;
   /** Installs a build, in place of the installed app where asked. */
@@ -224,8 +227,8 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async type(text) {
       await call(signal => client.interactions.type({...select, text, signal}), 'ACTION_FAILED');
     },
-    async screenshot(file) {
-      await call(signal => client.capture.screenshot({path: file, signal}), 'ACTION_FAILED');
+    async screenshot(file, statusBar) {
+      await call(signal => client.capture.screenshot({path: file, ...screenshotRequest(options.platform, statusBar), signal}), 'ACTION_FAILED');
     },
     async launch(app, relaunch, launchArguments) {
       await call(signal => client.apps.open({...select, app, relaunch, ...(launchArguments.length ? {launchArgs: launchArguments} : {}), signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
@@ -303,8 +306,8 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     async type(text) {
       await agent(['type', text], 'ACTION_FAILED');
     },
-    async screenshot(file) {
-      await agent(['screenshot', file], 'ACTION_FAILED');
+    async screenshot(file, statusBar) {
+      await agent(['screenshot', file, ...screenshotArgs(options.platform, statusBar)], 'ACTION_FAILED');
     },
     async launch(app, relaunch, launchArguments) {
       await agent(launchArgs(app, relaunch, launchArguments), 'APP_UNREACHABLE', OPEN_TIMEOUT);

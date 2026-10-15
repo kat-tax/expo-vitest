@@ -235,4 +235,6 @@ export interface DriverOptions {
   force?: boolean;
   /** The app, for its fresh launches and its state. */
   app?: AppOptions;
+  /** On a device, whether the status bar is made the same in every screenshot, `fixed`, or left as it is, `real`. */
+  statusBar?: 'fixed' | 'real';
 }

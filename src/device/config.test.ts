@@ -339,8 +339,10 @@ describe('the run a worker hands the device', () => {
       transition: 500,
       assertionTimeout: 5000,
       stable: 1000,
+      statusBar: 'fixed',
     });
-    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000});
+    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000, statusBar: 'fixed'});
+    expect(configFromRun(resolveRun('ios', {statusBar: 'real'}, env(), root), env()).statusBar).toBe('real');
   });
 
   it("carries the app, for its fresh launches and its state, and only what the file gave of it", () => {
