@@ -19,9 +19,12 @@ The app under test needs no SDK and no rebuild. Nothing is installed in it.
 | windows | UI Automation and synthetic input, from this package |
 | android, ios | [`agent-device`](https://www.npmjs.com/package/agent-device) |
 
-[Locators](locators.md) finds nodes with React Native Testing Library's
-queries: `screen.getByRole('button', {name: 'Save'})`. [The harness](harness.md)
-is the same drivers as a command, for looking at a screen by hand.
+| Page | What is in it |
+| --- | --- |
+| [Locators](locators.md) | `screen` and `within`: React Native Testing Library's queries over the running app, the locator they give, its actions on each platform, and `element` with `by`. |
+| [Matchers](matchers.md) | The matchers that wait for the tree, and the four that take a snapshot or the device. |
+| [Evidence](evidence.md) | The screenshot, tree and trace a failing test leaves. |
+| [The harness](harness.md) | The same drivers as a command, for looking at a screen by hand. |
 
 ## Setup
 
@@ -41,9 +44,10 @@ import {deviceConfig} from 'expo-vitest';
 export default defineConfig(deviceConfig());
 ```
 
-The config picks up `device/**/*.test.ts`, registers the matchers, and runs
-one file at a time, since there is one app and one driver.
-[Configuration](configuration.md#deviceconfig) has its options.
+The config picks up `device/**/*.test.ts`, registers the matchers and the
+hook that leaves evidence, and runs one file at a time, since there is one
+app and one driver. [Configuration](configuration.md#deviceconfig) has its
+options.
 
 ```json
 {"scripts": {"test:device": "vitest run --config vitest.config.device.mts"}}
@@ -56,21 +60,25 @@ they need a real app somewhere.
 
 ```ts
 // device/settings.test.ts
-import {by, device, element} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest/device';
 
 afterAll(() => device.close());
 
 it('opens settings', async () => {
   await device.open('/');
-  await element(by.label('Settings')).press();
-  await element(by.label('Name')).waitFor();
+  await screen.getByRole('button', {name: 'Settings'}).press();
+  await screen.getByRole('textbox', {name: 'Name'}).fill('Ada');
+  await expect(screen.getByRole('textbox', {name: 'Name'})).toHaveValue('Ada');
 
-  const tree = await device.fullSnapshot();
-  expect(tree).toHaveElement(by.label('Email'));
   expect(await device.snapshot()).toBeFullyLabelled();
   await expect(device).toMatchScreenshot('settings');
 });
 ```
+
+A locator waits for its node, and a matcher on one waits for the tree to
+agree. A test written for four platforms runs on all of them: a step a
+platform has no counterpart for answers `'skipped'`, or fails saying so where
+going on would hide a mistake.
 
 ## Running
 
@@ -88,14 +96,14 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_URL` | Where the app is served, for web. |
 | `HARNESS_TARGET` | The device, simulator, exe or process to drive. |
 | `HARNESS_SCHEME` | The app's URI scheme, for deep links on a device. |
-| `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots and baselines are kept under it. |
+| `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots, baselines and evidence are kept under it. |
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
 | `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
-| `HARNESS_HEADED`, `HARNESS_SLOWMO` | On web, `1` opens the browser in a window to watch, and a number of ms slows each operation by that much. A window needs the full Chromium, not only the headless shell. |
-| `HARNESS_TRACE` | When a test leaves [evidence](evidence.md): `retain-on-failure` (the default), `on` or `off`. |
 | `HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE` | How long a locator's wait looks, and how long something must stay gone, in ms. `deviceConfig`'s `assertionTimeout` and `stable` set them. |
+| `HARNESS_TRACE` | When a test leaves [evidence](evidence.md): `retain-on-failure` (the default), `on` or `off`. |
+| `HARNESS_HEADED`, `HARNESS_SLOWMO` | On web, `1` opens the browser in a window to watch, and a number of ms slows each operation by that much. A window needs the full Chromium, not only the headless shell. |
 | `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. The harness's own input does not count, from one test file to the next too: what the guard has seen is kept in `.harness/windows-desk.json`. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
@@ -120,26 +128,11 @@ each platform.
 | `device.screenshot(name)` | Saves `.harness/<name>.png` and returns its path. |
 | `device.type(text)` | Types into whatever has focus. |
 | `device.key(name)` | A named key where the focus is: `ArrowDown`, `Home`, `Enter`. Answers `'pressed'`, or `'skipped'` on a backend that cannot send one. |
-| `device.waitFor(selector, {timeout, interval})` | Waits until the selector is in the tree. Ten seconds by default. The error says how many nodes the tree had. |
+| `device.waitFor(selector, {timeout, interval})` | Waits until a [selector](locators.md#by-and-element) is in the tree. Ten seconds by default. The error says how many nodes the tree had. |
 | `device.close()` | Closes the driver. |
+| `device.journal` | The record of the current test's steps, which [evidence](evidence.md) is written from. |
 
 The driver is made on first use and kept for the file's tests.
-
-A step a platform cannot do answers `'skipped'` rather than failing. A test
-written for four platforms then still runs on all of them and says what it
-could not do, instead of failing for the wrong reason.
-
-## element
-
-`element(selector)` names one element. It is found fresh each time it is acted
-on, since a ref from an old tree is stale.
-
-| Call | What it does |
-| --- | --- |
-| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](#waiting-for-the-screen) for this step. On web, a node below the fold is scrolled to first. |
-| `.fill(text, {via, settle, transition})` | Puts text in a field, in place of what it held. On Windows, a field with a Value pattern gets the text set and read back; `{via: 'keys'}` clicks the field, selects what it holds and types over it. `settle` and `transition` as for a press. |
-| `.node()` | The node now, or `undefined`. |
-| `.waitFor({timeout})` | Waits until it is in the tree. |
 
 ## Waiting for the screen
 
@@ -156,7 +149,7 @@ from the reads the wait already made, so it costs no read of its own.
 export default defineConfig(deviceConfig({settle: 300, transition: 0}));
 
 // one step
-await element(by.testID('save')).press({settle: 0});
+await screen.getByTestId('save').press({settle: 0});
 ```
 
 `0` or `false` turns either wait off. On iOS and Android the wait after a
@@ -166,21 +159,7 @@ while the page is unchanged and nothing on it animates. On Windows each read
 is a walk of the tree, so a step costs two of them more.
 
 A change that comes once the screen has held still, such as the answer to a
-network request, is not waited for. Use `device.waitFor`, or a matcher, for
-that.
-
-## Selectors
-
-| Selector | Matches |
-| --- | --- |
-| `by.testID(id)` | The `testID` the component was given. It reaches `data-testid` on web and `AutomationId` on Windows. |
-| `by.label(name)` | The accessible name, exactly. |
-| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. |
-| `by.role(role)` | What it is: the platform's own word (`Button`, `TabItem`, `link`), or its kind, the one word every platform shares (`button`, `tab`, `switch`). |
-| `by.ref(ref)` | A ref from a snapshot (`@e7`). Good for that snapshot only. |
-
-Prefer `by.testID`. A label is copy and changes with wording and language, a
-ref is only good for one snapshot, and a role finds every button on the screen.
+network request, is what a [matcher](matchers.md) waits for.
 
 ## The tree
 
@@ -220,84 +199,6 @@ invisible in a component test and obvious to a user. Windows fills all of them
 but `placeholder` through UI Automation. The other platforms fill what their
 own trees carry.
 
-## Matchers
-
-These take a snapshot or the device. [Matchers](matchers.md) has the ones on
-a locator, which wait for the tree.
-
-| Matcher | Takes | What it asserts |
-| --- | --- | --- |
-| `toHaveElement(selector)` | A snapshot | The tree contains something the selector names. |
-| `toBeFullyLabelled()` | A snapshot | Every element a person can act on carries an accessible name. |
-| `toSupportArrowNavigation(key?)` | The device, awaited | Pressing the key (`ArrowDown` by default) moves the focus. |
-| `toMatchScreenshot(name, {maxRatio})` | The device, awaited | The screen matches a recorded baseline. |
-
-### toBeFullyLabelled
-
-It fails with the ref and position of every control a screen reader would
-announce as its role alone. On Windows a button made of a glyph and a text
-block names nothing by itself, which is what this matcher catches.
-
-```ts
-expect(await device.snapshot({interactive: true})).toBeFullyLabelled();
-```
-
-### toSupportArrowNavigation
-
-This is the half of a composite ARIA role that a static checker such as axe
-cannot check. A `role="menu"` or `role="radiogroup"` with no arrow keys behind
-it passes every static check while being unusable without a pointer. Only a
-real renderer can answer it.
-
-Focus something first. With nothing focused, the matcher fails and says so.
-
-```ts
-await element(by.label('Layout')).press();
-await expect(device).toSupportArrowNavigation('ArrowRight');
-```
-
-On a backend that cannot send keys the matcher passes and says it was not
-checked.
-
-### toMatchScreenshot
-
-Use a screenshot for what a tree cannot see: spacing, colour, the thing
-actually being drawn. The tree is still the better assertion for behaviour.
-
-```ts
-await expect(device).toMatchScreenshot('settings');
-await expect(device).toMatchScreenshot('chart', {maxRatio: 0.01});
-```
-
-Baselines are kept at `device/__screenshots__/<platform>/<name>.png`.
-`maxRatio` is how much of the picture may differ before the test fails, 0.2%
-by default. A small tolerance per channel absorbs the drift text rendering
-produces between runs.
-
-A baseline belongs to the machine that drew it. The same page renders
-differently under a different font stack, so one recorded on a desk cannot be
-asserted on a Linux runner. Recording is therefore deliberate and never a side
-effect of a run:
-
-```sh
-HARNESS_UPDATE_SCREENSHOTS=1 npm run test:device   # record
-npm run test:device                                # assert against what was recorded
-```
-
-| Situation | What happens |
-| --- | --- |
-| No baseline | The picture is kept under `.harness/` as evidence, and the test passes on its tree assertions. |
-| No baseline, with `HARNESS_UPDATE_SCREENSHOTS` | The baseline is recorded. |
-| A baseline that matches | The test passes. |
-| A baseline that differs | The test fails. `.harness/` has the picture it took and a diff with the changed pixels in red over a faded copy. |
-
-Commit a baseline only when the machine that asserts it is the machine that
-drew it. `.harness/` is not for committing.
-
-The comparison reads the 8-bit non-interlaced PNGs that Chromium, GDI+ and
-`adb` write, with Node's own zlib and no image dependency, and says so plainly
-for anything else.
-
 ### On Windows, a flyout is not in the tree
 
 The tree walks the descendants of the app's main window. A WinUI `MenuFlyout`
@@ -313,11 +214,11 @@ test or a script that has to decide what to do next, and `platform` says
 where it happened.
 
 ```ts
-import {by, element, isHarnessError} from 'expo-vitest/device';
+import {isHarnessError, screen} from 'expo-vitest/device';
 
 // A banner that only some accounts see: dismiss it if it is there.
 try {
-  await element(by.testID('banner-dismiss')).press();
+  await screen.getByTestId('banner-dismiss').press({timeout: 1000});
 } catch (error) {
   if (!isHarnessError(error) || error.code !== 'LOCATOR_NOT_FOUND') throw error;
 }
@@ -327,12 +228,12 @@ try {
 | --- | --- |
 | `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
 | `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
-| `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. The message says what was there instead: the names in the role asked for, the testIDs, or what can be acted on. |
+| `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. The message says what was there instead: that it is off screen, the names in the role asked for, names like the one asked for, the testIDs, or what can be acted on. |
 | `LOCATOR_AMBIGUOUS` | A [locator](locators.md) that names one node named several. The message lists them. |
-| `NOT_ACTIONABLE` | The node is there but cannot be acted on: it has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
+| `NOT_ACTIONABLE` | The node is there but cannot be acted on: it stayed disabled, has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
 | `ACTION_FAILED` | The backend refused the step, or failed it, or a locator's `check` did not take. |
 | `ASSERTION_FAILED` | The screen did not come to say what a test waited for, such as a node that never went, within the time allowed. |
-| `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a key the Windows harness cannot send. |
+| `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a long press or the focus where a platform has neither, or a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
 
 `isHarnessError` checks the name and the code rather than using
@@ -342,8 +243,8 @@ browser that crashed, passes through as it was thrown.
 
 ## Using the matchers elsewhere
 
-`deviceConfig` registers the matchers. A config of your own registers them
-with a setup file:
+`deviceConfig` registers the matchers and the evidence hook. A config of your
+own registers them with a setup file:
 
 ```ts
 setupFiles: ['expo-vitest/device/matchers']

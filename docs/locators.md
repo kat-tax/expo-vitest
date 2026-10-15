@@ -149,15 +149,31 @@ An action presses the node by its ref, from the snapshot the locator just
 read, on every platform: agent-device keeps that snapshot's refs until the
 next, a web ref lasts as long as its element, and a Windows ref names the
 same node in every snapshot of a screen. A press then works as
-[`element`'s does](device-tests.md#element): through a control's UI
-Automation pattern on Windows where it has one, and as a person would
-elsewhere.
+[`element`'s does](#by-and-element): through a control's UI Automation
+pattern on Windows where it has one, and as a person would elsewhere.
 
 A press on a Windows text goes to the control it sits in when that control
 has the Invoke pattern, so it needs no quiet desk. A press on a text
 anywhere else lands on its middle, which is inside the control it belongs to.
 On web, a node below the fold is scrolled to before it is pressed, as
 Playwright does.
+
+| Action | web | Windows | Android and iOS |
+| --- | --- | --- | --- |
+| `press` | a click at its middle | the control's pattern where it has one, else the pointer | a tap |
+| `fill`, `clear` | a click, select all, then typing | the Value pattern, else a click, select all, then typing | agent-device's `fill` |
+| `type` | a press, then typing | a press, then typing | a press, then agent-device's `type` |
+| `check`, `uncheck` | a press, read back | a press, read back | a press, read back |
+| `longPress` | the mouse held down | the pointer held down | agent-device's `longpress` |
+| `hover` | the mouse moved over it | the pointer moved over it | `'skipped'` |
+| `focus` | the element's own focus | UI Automation's SetFocus | a touch at its middle |
+| `scrollIntoView` | the page scrolled | the ScrollItem pattern | a scroll until it is seen |
+| `swipe` | a wheel | `'skipped'` | a swipe |
+| `key` | the keyboard | the keyboard | `'skipped'` |
+
+On Windows, the pointer and the keyboard are synthetic input, which waits
+for a quiet desk; a pattern needs none. With `HARNESS_WINDOWS_HOST=0`, a long
+press, a hover, the focus and scrolling are not to be had, and answer so.
 
 ### Scrolling
 
@@ -199,3 +215,45 @@ which a run can set without the config.
 
 `element(by.…)` and `device.waitFor` keep their own rules: `element` acts on
 the first node a selector names, and `device.waitFor` waits ten seconds.
+
+## Roles and kinds
+
+`getByRole` takes either word a node carries: `role`, the platform's own,
+or `kind`, the [one word every platform shares](device-tests.md#the-tree).
+Each platform's word becomes a kind like this:
+
+| Platform | From | Where it reads more than the word |
+| --- | --- | --- |
+| Windows | the UI Automation control type | a `Button` that toggles and does not invoke is a `switch`; a `Button` in a `Tab` is a `tab`; an `Edit` named for searching is a `searchbox` |
+| Android | the widget's class | a named child of a tab bar is a `tab`; a class the table lacks takes agent-device's own word for it |
+| iOS | the XCUIElement type | a button in a tab bar or a segmented control is a `tab` |
+| web | the ARIA role, given or implied by the tag | a plain element kept for its text is `text` |
+
+## by and element
+
+The shorter spelling: `element(by.…)` names a node with a selector, and acts
+on the first node it matches, without waiting.
+
+```ts
+import {by, element} from 'expo-vitest/device';
+
+await element(by.testID('save')).press();
+```
+
+| Call | What it does |
+| --- | --- |
+| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](device-tests.md#waiting-for-the-screen) for this step. On web, a node below the fold is scrolled to first. |
+| `.fill(text, {via, settle, transition})` | Puts text in a field, in place of what it held. On Windows, a field with a Value pattern gets the text set and read back; `{via: 'keys'}` clicks the field, selects what it holds and types over it. `settle` and `transition` as for a press. |
+| `.node()` | The node now, or `undefined`. |
+| `.waitFor({timeout})` | Waits until it is in the tree, ten seconds by default. |
+
+| Selector | Matches |
+| --- | --- |
+| `by.testID(id)` | The `testID` the component was given. It reaches `data-testid` on web and `AutomationId` on Windows. |
+| `by.label(name)` | The accessible name, exactly first, then in any case, then as a part of it. |
+| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. |
+| `by.role(role)` | What it is: the platform's own word (`Button`, `TabItem`, `link`), or its kind (`button`, `tab`, `switch`). |
+| `by.ref(ref)` | A ref from a snapshot (`@e7`). Good for that snapshot only. |
+
+Prefer `by.testID`. A label is copy and changes with wording and language, a
+ref is only good for one snapshot, and a role finds every button on the screen.

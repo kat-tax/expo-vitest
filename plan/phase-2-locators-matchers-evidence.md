@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 12 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 13 done; the React tree from section 5 is next) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -261,6 +261,13 @@ below, the build is what holds.
   `output` or an `h5` or `h6`, though it knew their roles, and that
   Vitest refuses an annotation after a test. Both are fixed in commits of
   their own. CI installs the headless shell before the fixture.
+- **Item 13: the docs.** `docs/device-tests.md` is the front page: setup,
+  a test with `screen`, running, `device`, waiting for the screen, the
+  tree and the errors. `element` and `by` moved to `docs/locators.md` as
+  the shorter spelling, beside a table of each action on each platform and
+  how each platform's words become a kind. The four snapshot matchers
+  moved to `docs/matchers.md`. The README's rows name `screen`, the
+  matchers that wait, and evidence.
 
 ## Purpose and the claims it proves
 

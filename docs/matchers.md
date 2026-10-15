@@ -20,7 +20,7 @@ it('saves the name', async () => {
 ```
 
 `deviceConfig` registers them, beside [the four that take a snapshot or the
-device](device-tests.md#matchers).
+device](#on-a-snapshot-or-the-device).
 
 | Matcher | Passes when | With nothing matching |
 | --- | --- | --- |
@@ -96,3 +96,80 @@ Library and jest-dom name some of them too: `toBeVisible`, `toBeEnabled`,
 Where a project loads their types as well, a component test reads them as it
 did, and a device test takes the forms above. A call with no timeout then
 types as theirs, which is the same call.
+
+## On a snapshot or the device
+
+These take a snapshot or the device, and read it once.
+
+| Matcher | Takes | What it asserts |
+| --- | --- | --- |
+| `toHaveElement(selector)` | A snapshot | The tree contains something the [selector](locators.md#by-and-element) names. |
+| `toBeFullyLabelled()` | A snapshot | Every element a person can act on carries an accessible name. |
+| `toSupportArrowNavigation(key?)` | The device, awaited | Pressing the key (`ArrowDown` by default) moves the focus. |
+| `toMatchScreenshot(name, {maxRatio})` | The device, awaited | The screen matches a recorded baseline. |
+
+### toBeFullyLabelled
+
+It fails with the ref and position of every control a screen reader would
+announce as its role alone. On Windows a button made of a glyph and a text
+block names nothing by itself, which is what this matcher catches.
+
+```ts
+expect(await device.snapshot({interactive: true})).toBeFullyLabelled();
+```
+
+### toSupportArrowNavigation
+
+This is the half of a composite ARIA role that a static checker such as axe
+cannot check. A `role="menu"` or `role="radiogroup"` with no arrow keys behind
+it passes every static check while being unusable without a pointer. Only a
+real renderer can answer it.
+
+Focus something first. With nothing focused, the matcher fails and says so.
+
+```ts
+await screen.getByRole('radio', {name: 'Grid'}).focus();
+await expect(device).toSupportArrowNavigation('ArrowRight');
+```
+
+On a backend that cannot send keys the matcher passes and says it was not
+checked.
+
+### toMatchScreenshot
+
+Use a screenshot for what a tree cannot see: spacing, colour, the thing
+actually being drawn. The tree is still the better assertion for behaviour.
+
+```ts
+await expect(device).toMatchScreenshot('settings');
+await expect(device).toMatchScreenshot('chart', {maxRatio: 0.01});
+```
+
+Baselines are kept at `device/__screenshots__/<platform>/<name>.png`.
+`maxRatio` is how much of the picture may differ before the test fails, 0.2%
+by default. A small tolerance per channel absorbs the drift text rendering
+produces between runs.
+
+A baseline belongs to the machine that drew it. The same page renders
+differently under a different font stack, so one recorded on a desk cannot be
+asserted on a Linux runner. Recording is therefore deliberate and never a side
+effect of a run:
+
+```sh
+HARNESS_UPDATE_SCREENSHOTS=1 npm run test:device   # record
+npm run test:device                                # assert against what was recorded
+```
+
+| Situation | What happens |
+| --- | --- |
+| No baseline | The picture is kept under `.harness/` as evidence, and the test passes on its tree assertions. |
+| No baseline, with `HARNESS_UPDATE_SCREENSHOTS` | The baseline is recorded. |
+| A baseline that matches | The test passes. |
+| A baseline that differs | The test fails. `.harness/` has the picture it took and a diff with the changed pixels in red over a faded copy. |
+
+Commit a baseline only when the machine that asserts it is the machine that
+drew it. `.harness/` is not for committing.
+
+The comparison reads the 8-bit non-interlaced PNGs that Chromium, GDI+ and
+`adb` write, with Node's own zlib and no image dependency, and says so plainly
+for anything else.

@@ -144,7 +144,7 @@ platform's project.
 | Native helpers | `host`, `nodes`, `modifier`, `byComposeTestID`, `stackHeaders`: assert on the payload handed to SwiftUI or Compose. | [Helpers](docs/helpers.md#expo-vitestnative) |
 | Windows helpers | `island`, `islands`, `fireIsland`: find a native component and fire its events as C++ would. | [Helpers](docs/helpers.md#expo-vitestwindows) |
 | Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
-| Device tests | `device`, `element`, `by` and four matchers, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
+| Device tests | `device`, `screen` and the matchers that wait, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
 | Locators | `screen` and `within` with React Native Testing Library's queries, giving strict locators that wait for their node, the same on all four platforms. | [Locators](docs/locators.md) |
 | Matchers that wait | `toBeVisible`, `toHaveText`, `toBeChecked`, `toHaveCount` and fourteen more on a locator, reading the tree until it agrees, and holding a wait for something to be gone. | [Matchers](docs/matchers.md) |
 | Evidence | A failing device test leaves its screenshot, its tree and a trace of its steps, with what each did to the screen. | [Evidence](docs/evidence.md) |
@@ -159,7 +159,7 @@ platform's project.
 | [Projects](docs/projects.md) | How each platform's project works, the file-name rule, the limits. |
 | [Configuration](docs/configuration.md) | Every option of `expoProjects`, `nodeProject` and `deviceConfig`. |
 | [Helpers](docs/helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
-| [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables, errors. |
+| [Device tests](docs/device-tests.md) | Setting up and running device tests, the device, waiting for the screen, the tree, errors. |
 | [Locators](docs/locators.md) | `screen`, `within` and the locator: RNTL's queries over a running app, strictness, waiting. |
 | [Matchers](docs/matchers.md) | The matchers on a locator, how they wait, what a failure says. |
 | [Evidence](docs/evidence.md) | What a failing device test leaves, where, and when. |
