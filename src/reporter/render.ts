@@ -101,8 +101,10 @@ const where = (record: TestRecord) => `${record.name} (${record.file}${record.li
 export function renderSummary(records: TestRecord[], facts: RunFacts, links: Links, limit: number = Number.POSITIVE_INFINITY): string {
   const failures = records.filter(record => record.state === 'failed');
   const flaky = records.filter(record => record.state === 'passed' && record.flaky);
-  const platforms = [...new Set(records.map(record => platformOf(record.project)))];
-  const footer = [`expo-vitest ${facts.version}`, spoken(facts.duration), platforms.join(', ') || 'no tests', ...(facts.attempt ? [`attempt ${facts.attempt}`] : []), ...(facts.artifacts ? [`[artifacts](${facts.artifacts})`] : [])].join(' · ');
+  // A config with no projects runs one that has no name, which names no platform.
+  const platforms = [...new Set(records.map(record => platformOf(record.project)).filter(Boolean))];
+  const ran = records.length === 0 ? ['no tests'] : platforms.length ? [platforms.join(', ')] : [];
+  const footer = [`expo-vitest ${facts.version}`, spoken(facts.duration), ...ran, ...(facts.attempt ? [`attempt ${facts.attempt}`] : []), ...(facts.artifacts ? [`[artifacts](${facts.artifacts})`] : [])].join(' · ');
   const failureRows = failures.map(record => `| ${platformOf(record.project)} | ${cell(where(record))} | ${errorText(record.error)} | ${evidenceLinks(record.evidence, links)} |`);
   const failureTable = (rows: string[]) => (rows.length ? ['', '| Platform | Test | Error | Evidence |', '| --- | --- | --- | --- |', ...rows] : []);
   const folded = (title: string, head: string, rows: string[]) =>

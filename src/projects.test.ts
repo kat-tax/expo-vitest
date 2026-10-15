@@ -221,6 +221,13 @@ describe('deviceConfig with platforms', () => {
     expect(projectsOf(deviceConfig({platforms: ['web']}))[0]!.root).toBe(process.cwd());
   });
 
+  it("keeps the reporters at the config's root, in either form, and adds none unless given", () => {
+    const reporters = ['default', {onTestRunEnd: () => {}}];
+    expect(deviceConfig({reporters}).test?.reporters).toBe(reporters);
+    expect(deviceConfig({platforms: ['web'], reporters}).test?.reporters).toBe(reporters);
+    expect(deviceConfig({platforms: ['web']}).test).not.toHaveProperty('reporters');
+  });
+
   it('refuses a platform it does not know, none at all, and harness or root without platforms', () => {
     expect(() => deviceConfig({platforms: ['macos' as 'web']})).toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'deviceConfig takes platforms from web, windows, android, ios, not "macos"'}));
     expect(() => deviceConfig({platforms: []})).toThrow('deviceConfig takes platforms from web, windows, android, ios, at least one');

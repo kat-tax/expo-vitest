@@ -97,6 +97,10 @@ describe('the summary', () => {
     );
   });
 
+  it('names no platform for a project with no name, as a config without projects runs', () => {
+    expect(renderSummary([record({project: ''})], {version: '0.2.0', duration: 5}, {kind: 'relative', from: 'summary.md'})).toContain('\n\nexpo-vitest 0.2.0 · 5 ms\n');
+  });
+
   it('says so in the footer when there were no tests, and leaves out what it was not told', () => {
     expect(renderSummary([], {version: '0.2.0', duration: 5}, {kind: 'relative', from: 'summary.md'})).toBe('## expo-vitest · 0 passed\n\nexpo-vitest 0.2.0 · 5 ms · no tests\n');
   });

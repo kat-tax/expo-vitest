@@ -28,6 +28,7 @@ export const SUBPATHS: Record<string, string> = {
   router: 'router.tsx',
   device: 'device/index.ts',
   'device/matchers': 'device/matchers.ts',
+  reporter: 'reporter/index.ts',
   'metro-compat': 'metro-compat.ts',
 };
 
@@ -313,6 +314,8 @@ export interface DeviceConfigOptions {
   harness?: string;
   /** With `platforms`: the project's folder. `HARNESS_ROOT`, else the working directory. */
   root?: string;
+  /** Vitest's reporters, kept at the config's root, where Vitest reads them: `summary()` and `github()` from `expo-vitest/reporter` beside its own. */
+  reporters?: NonNullable<ViteUserConfig['test']>['reporters'];
 }
 
 /**
@@ -362,6 +365,7 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
         pool: 'forks',
         maxWorkers: 1,
         ...(Object.keys(env).length > 0 ? {env} : {}),
+        ...(options.reporters ? {reporters: options.reporters} : {}),
       },
     };
   }
@@ -375,6 +379,7 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
   const harness = findHarnessFile(root, options.harness ?? process.env.HARNESS_CONFIG);
   return {
     test: {
+      ...(options.reporters ? {reporters: options.reporters} : {}),
       projects: platforms.map(platform => ({
         root,
         resolve: {alias: selfAliases()},

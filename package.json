@@ -50,6 +50,10 @@
       "types": "./dist/device/matchers.d.ts",
       "default": "./dist/device/matchers.js"
     },
+    "./reporter": {
+      "types": "./dist/reporter/index.d.ts",
+      "default": "./dist/reporter/index.js"
+    },
     "./metro-compat": {
       "types": "./dist/metro-compat.d.ts",
       "default": "./dist/metro-compat.js"

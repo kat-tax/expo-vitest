@@ -645,6 +645,7 @@ describe('the types a consumer compiled against', () => {
       platforms?: Platform[];
       harness?: string;
       root?: string;
+      reporters?: NonNullable<ViteUserConfig['test']>['reporters'];
     }>();
     expectTypeOf<Parameters<typeof nodeProject>[0]>().toMatchObjectType<{name: string; include: string[]; root?: string; timeout?: number}>();
     expectTypeOf<Plain<ExpoProjectsOptions>>().toMatchObjectType<{root?: string; platforms?: Platform[]; include?: string[]; transformPackages?: string[]; timeout?: number}>();

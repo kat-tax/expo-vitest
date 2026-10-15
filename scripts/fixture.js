@@ -91,13 +91,15 @@ try {
   // Beside it, a platform this machine cannot drive: its tests are skipped
   // with the driver's reason, and fail where the run requires the platform.
   const absent = process.platform === 'darwin' ? 'windows' : 'ios';
-  const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts', '--reporter', 'verbose'];
+  const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'];
   const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on'};
   console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
   const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
   process.stdout.write(skipped);
   if (!skipped.includes(`no ${absent} device to drive here`)) throw new Error(`the ${absent} tests were not skipped with the driver's reason`);
   if (!skipped.includes('web cannot home, since a browser has no home screen')) throw new Error('the test that needs a home screen was not skipped on web with the reason');
+  const summarised = fs.readFileSync(path.join(scratch, '.harness', 'summary.md'), 'utf8');
+  if (!/^## expo-vitest · \d+ passed · \d+ skipped/.test(summarised)) throw new Error(`the summary reporter wrote no summary of the run: ${summarised.slice(0, 200)}`);
   console.log(`==== ${absent} required, so its tests fail`);
   try {
     execFileSync(process.execPath, [...device, '--project', `device:${absent}`], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});

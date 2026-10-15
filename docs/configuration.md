@@ -153,6 +153,7 @@ export default defineConfig(deviceConfig());
 | `platforms` | A project for each platform named, which reads the [harness config](#harnessconfigts) and starts what serves each app. | one project, for `HARNESS_PLATFORM` |
 | `harness` | With `platforms`: the harness config, from the root. | `HARNESS_CONFIG`, else `harness.config.ts`, `.mts`, `.js` or `.mjs` at the root |
 | `root` | With `platforms`: the project's folder. Screenshots, baselines and evidence are kept under it. | `HARNESS_ROOT`, else the working directory |
+| `reporters` | Vitest's reporters, kept at the config's root where Vitest reads them: `summary()` and `github()` from `expo-vitest/reporter` beside Vitest's own. See [CI](ci.md#the-summary-and-the-pull-request-comment). | Vitest's default |
 
 The config runs one file at a time in one worker. There is one app and one
 driver, and two files must not press the same window at once.
