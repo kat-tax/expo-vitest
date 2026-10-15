@@ -6,19 +6,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
-import {SecretStore} from '../../agent/secrets.ts';
+import type {SecretStore} from '../../agent/secrets.ts';
 import {toolsOn} from '../../agent/tools.ts';
-import type {Started} from '../../device/app-process.ts';
-import {startCommand} from '../../device/app-process.ts';
-import {capabilitiesOf} from '../../device/capabilities.ts';
-import {findHarnessFile, loadHarness, resolveRun} from '../../device/config.ts';
-import {system} from '../../device/system.ts';
-import {driverFor} from '../lib/drivers.ts';
-import {HarnessError} from '../lib/errors.ts';
-import {DEFAULT_TIMING, timingFor, withTiming} from '../lib/settle.ts';
-import type {Platform} from '../lib/types.ts';
-import {PLATFORMS} from '../lib/types.ts';
+import {findHarnessFile} from '../../device/config.ts';
+import {openApp, projectAt} from '../lib/app.ts';
 import type {McpOptions} from './args.ts';
 import {MCP_USAGE, parseMcpArgs} from './args.ts';
 import {createCatalog} from './catalog.ts';
@@ -26,79 +17,21 @@ import {streamTransport} from './rpc.ts';
 import type {McpSession, OpenArgs} from './server.ts';
 import {McpServer} from './server.ts';
 
-/** The first platform this machine can drive now, for a session that names none. */
-async function firstReady(root: string): Promise<Platform> {
-  for (const platform of PLATFORMS) {
-    const driver = driverFor(platform, {root});
-    const state = await driver.available().catch(() => ({ready: false}));
-    await driver.close();
-    if (state.ready) return platform;
-  }
-  throw new HarnessError('DRIVER_UNAVAILABLE', 'this machine can drive no platform now; expo-harness doctor says why');
-}
-
-/**
- * A session: the app the harness config names, its command started where
- * none answers yet and used as it is where one does, a driver on it, and the
- * catalog over that driver.
- */
+/** A session: the app the harness config names, open, and the catalog over its driver. */
 async function openSession(args: OpenArgs, defaults: McpOptions, root: string, keep: (store: SecretStore) => void): Promise<McpSession> {
-  const platform = (args.target ?? defaults.platform ?? (await firstReady(root))) as Platform;
-  if (!PLATFORMS.includes(platform)) throw new HarnessError('INVALID_ARGUMENT', `${platform} is not a platform: ${PLATFORMS.join(', ')}`);
-  const file = findHarnessFile(root, args.config ?? defaults.config);
-  const config = await loadHarness(file, each => import(/* @vite-ignore */ pathToFileURL(each).href));
-  const run = resolveRun(platform, config, process.env, root);
-  // A coding agent's app is often served already, by the agent or the person: a session uses it as it is.
-  const started: Started | undefined = run.command && run.readyUrl ? await startCommand(platform, {...run.command, reuseExisting: true}, run.readyUrl, system) : undefined;
-  const headed = args.headed ?? defaults.headed;
-  // The web driver reads whether to show its window as it is made.
-  const before = process.env.HARNESS_HEADED;
-  if (headed) process.env.HARNESS_HEADED = '1';
-  const driver = driverFor(platform, {
-    root,
-    ...(run.url ? {url: run.url} : {}),
-    ...(run.scheme ? {scheme: run.scheme} : {}),
-    ...(run.target ? {target: run.target} : {}),
-    force: args.force ?? defaults.force,
-    actionTimeout: run.actionTimeout,
-  });
-  if (headed) {
-    if (before === undefined) delete process.env.HARNESS_HEADED;
-    else process.env.HARNESS_HEADED = before;
-  }
-  const state = await driver.available();
-  if (!state.ready) {
-    await driver.close();
-    await started?.stop();
-    throw new HarnessError('DRIVER_UNAVAILABLE', `no ${platform} device to drive: ${state.reason}`, {platform});
-  }
-  const timed = withTiming(driver, timingFor(DEFAULT_TIMING, {settle: run.settle, transition: run.transition}));
-  if (platform === 'web') await timed.open('/');
-  const secrets = new SecretStore(config?.secrets, process.env);
-  keep(secrets);
+  const project = await projectAt(root, args.config ?? defaults.config);
+  const app = await openApp(project, {platform: args.target ?? defaults.platform, headed: args.headed ?? defaults.headed, force: args.force ?? defaults.force, scratch: path.join(root, '.harness', 'mcp')}, root);
+  keep(app.secrets);
   const controller = new AbortController();
-  const catalog = createCatalog({
-    host: {
-      platform,
-      ready: async () => timed,
-      snapshot: () => timed.snapshot(),
-      capabilities: capabilitiesOf(platform, state.device ? {device: state.device} : {}),
-      scratch: path.join(root, '.harness', 'mcp'),
-      ...(run.scheme ? {scheme: run.scheme} : {}),
-    },
-    secrets,
-    tools: toolsOn(config?.agents?.default?.tools ?? [], platform),
-    signal: controller.signal,
-  });
+  const catalog = createCatalog({host: app.host, secrets: app.secrets, tools: toolsOn(project.config?.agents?.default?.tools ?? [], app.platform), signal: controller.signal});
   return {
-    platform,
-    ...(state.found ? {source: state.found} : {}),
-    config: file,
+    platform: app.platform,
+    ...(app.state.found ? {source: app.state.found} : {}),
+    config: project.file,
     catalog,
     close: async () => {
       controller.abort();
-      await timed.close();
-      await started?.stop();
+      await app.close();
     },
   };
 }
