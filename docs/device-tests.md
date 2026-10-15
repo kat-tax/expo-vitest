@@ -68,8 +68,6 @@ platform](configuration.md#a-project-per-platform) has how.
 // device/settings.test.ts
 import {device, screen} from 'expo-vitest/device';
 
-afterAll(() => device.close());
-
 it('opens settings', async () => {
   await device.open('/');
   await screen.getByRole('button', {name: 'Settings'}).press();
@@ -81,8 +79,9 @@ it('opens settings', async () => {
 });
 ```
 
-A locator waits for its node, and a matcher on one waits for the tree to
-agree. A test written for four platforms runs on all of them: a step a
+The device opens at the file's first step and closes when the file ends,
+after the file's own hooks. A locator waits for its node, and a matcher on
+one waits for the tree to agree. A test written for four platforms runs on all of them: a step a
 platform has no counterpart for answers `'skipped'`, or fails saying so where
 going on would hide a mistake.
 
@@ -180,6 +179,49 @@ one, so a run can go back to a local emulator without editing the config.
 The connection, and its refusal without credentials, are what this
 package's own tests exercise; a provider's device is not in them.
 
+## Pools
+
+A platform's test files run one at a time, unless the platform has more
+than one of what they run on. On iOS and Android that is a pool of devices,
+and on web a number of browsers:
+
+```ts
+// harness.config.ts
+export default defineHarness({
+  app: {
+    android: {bundleId: 'com.example.app', devices: ['Pixel_8_API_35', 'Pixel_9_API_35']},
+    web: {url: 'http://localhost:8081', workers: 3},
+  },
+});
+```
+
+The project then runs as many files at once as the pool has devices, or
+`workers` says, each in a worker of its own. On web each has its own
+browser. Windows is one window, so its files take turns, and the platforms
+take turns too, a pooled one in a group of its own.
+
+On a device, each file claims a device of the pool at its first step and
+holds it until the file ends. It tries them from an offset its name gives,
+so files spread out: first the device's lock in `.harness/locks/<run>/`,
+which no two files can hold, then a session of its own on the device,
+`expo-vitest-<run>-<device>`. agent-device refuses a session on a device
+another session holds with `DEVICE_IN_USE`, so a device in use from outside
+the run is passed over too. When every device is held, the file looks again
+each second, for up to `poolTimeout`, a minute unless the config says, and
+then fails with `DEVICE_POOL_EXHAUSTED`, naming who holds each device. Keep
+`poolTimeout` under the test's timeout, or the timeout says it first.
+
+The warm-up opens each device of the pool by name before the first test, so
+none is left to agent-device's choice, and a device of the pool that is not
+there makes the platform unavailable, naming it. After the run the locks
+go, and agent-device releases any claim whose owner is gone. A device
+`HARNESS_TARGET` names runs the platform's files on that one device alone.
+
+The pool's size is read from the harness config while Vitest's config is
+built, which is synchronous, so the file loads with Node's own type
+stripping there. A file that will not load so, as with a top-level await,
+runs one file at a time.
+
 ## device
 
 | Call | What it does |
@@ -192,7 +234,7 @@ package's own tests exercise; a provider's device is not in them.
 | `device.type(text)` | Types into whatever has focus. |
 | `device.key(name)` | A named key where the focus is: `ArrowDown`, `Home`, `Enter`. Answers `'pressed'`, or `'skipped'` on a backend that cannot send one. |
 | `device.waitFor(selector, {timeout, interval})` | Waits until a [selector](locators.md#by-and-element) is in the tree. Ten seconds by default. The error says how many nodes the tree had. |
-| `device.close()` | Closes the driver. |
+| `device.close()` | Closes the driver, which the device does by itself when its file ends. A device of a [pool](#pools) goes back then. |
 | `device.react()` | The [React tree](#the-react-tree) behind the native one. |
 | `device.journal` | The record of the current test's steps and the app's console, which [evidence](evidence.md) is written from. |
 
@@ -334,6 +376,7 @@ try {
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a long press or the focus where a platform has neither, or a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
 | `INVALID_CONFIG` | A harness config with a key it does not take or a value of the wrong kind, which the message names, or one that changed while the run was going. |
+| `DEVICE_POOL_EXHAUSTED` | Every device of a [pool](#pools) stayed held, by the run's other files or a session outside it, for `poolTimeout`. The message names who held each. |
 
 `isHarnessError` checks the name and the code rather than using
 `instanceof`, so it still answers when a project has loaded two copies of the

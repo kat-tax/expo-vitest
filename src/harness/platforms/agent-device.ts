@@ -32,7 +32,14 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
   /** The transport, chosen on first use and kept until `close()`. */
   function transport(): Promise<AgentDeviceTransport> {
-    connecting ??= transportFor({platform: name, harnessPlatform: platform, root: options.root, device: options.target, ...(options.actionTimeout ? {stepTimeout: options.actionTimeout} : {})});
+    connecting ??= transportFor({
+      platform: name,
+      harnessPlatform: platform,
+      root: options.root,
+      device: options.target,
+      ...(options.session ? {session: options.session} : {}),
+      ...(options.actionTimeout ? {stepTimeout: options.actionTimeout} : {}),
+    });
     return connecting;
   }
 
@@ -165,7 +172,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async connect(hosted: HostedDevice): Promise<StepResult> {
       try {
-        await (await transport()).hosted(connectArgs(hosted.provider, hosted.options));
+        await (await transport()).run(connectArgs(hosted.provider, hosted.options));
         return ok(`connected to ${hosted.provider}; the device is allocated at the first command that needs it`);
       } catch (error) {
         return failed(`could not connect to ${hosted.provider}: ${firstLine((error as Error).message)}`, codeOf(error, 'DRIVER_UNAVAILABLE'));
@@ -174,10 +181,28 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async disconnect(): Promise<StepResult> {
       try {
-        await (await transport()).hosted(['disconnect']);
+        await (await transport()).run(['disconnect']);
         return ok('released the hosted device');
       } catch (error) {
         return failed(`could not release the hosted device: ${firstLine((error as Error).message)}`, codeOf(error, 'ACTION_FAILED'));
+      }
+    },
+
+    async attach(): Promise<StepResult> {
+      try {
+        await (await transport()).attach();
+        return ok(`holds ${options.target ?? 'the device'} in session ${options.session ?? 'default'}`);
+      } catch (error) {
+        return failed(`could not hold ${options.target ?? 'the device'}: ${firstLine((error as Error).message)}`, codeOf(error, 'DRIVER_UNAVAILABLE'));
+      }
+    },
+
+    async releaseStale(): Promise<StepResult> {
+      try {
+        await (await transport()).run(['device', 'release', '--stale']);
+        return ok('released the claims of owners that are gone');
+      } catch (error) {
+        return failed(`could not release stale claims: ${firstLine((error as Error).message)}`, codeOf(error, 'ACTION_FAILED'));
       }
     },
 

@@ -228,6 +228,8 @@ parameter properties.
 | `app.<platform>.stateDir` | Windows: the folder `clearState` deletes, from the root. | |
 | `app.<platform>.command` | What serves the app, started for the run. See [the command](#the-command). | none |
 | `app.<platform>.readyUrl` | Where the run looks until the command answers. | the `url` |
+| `app.<platform>.devices` | iOS and Android: a [pool](device-tests.md#pools) of devices the platform's test files share, a file to a device at a time, in place of one `device`. | |
+| `app.<platform>.workers` | Web: how many test files run at once, each in a browser of its own. | 1 |
 | `assertionTimeout` | How long an action looks for its node and a matcher waits, in ms. | 5000 |
 | `stable` | How long something must stay gone before a wait for it to go passes, in ms. | 1000 |
 | `settle` | How long the screen must hold still after a step, in ms, or `false`. | 150 |
@@ -235,6 +237,7 @@ parameter properties.
 | `statusBar` | On a device, `fixed` makes the status bar the same in every screenshot, and `real` leaves it as it is. | `fixed` |
 | `actionTimeout` | How long one call to a driver may take before it is given up on, in ms: a step through agent-device, and a page's navigation on web. | 30000 |
 | `video` | Which device tests keep a [recording](evidence.md#video) of the screen: `on`, `retain-on-failure` or `off`. `HARNESS_VIDEO` wins over it. | `off` |
+| `poolTimeout` | How long a test file waits for a device of a [pool](device-tests.md#pools) when every one is held, in ms. | 60000 |
 
 A key the file does not take, or a value of the wrong kind, fails the run
 with `INVALID_CONFIG`, naming it and what the file takes there. So does a

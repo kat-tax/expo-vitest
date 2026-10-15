@@ -212,6 +212,19 @@ describe('deviceConfig with platforms', () => {
     expect(() => deviceConfig({platforms: ['web'], root, harness: 'gone.ts'})).toThrow(expect.objectContaining({code: 'INVALID_CONFIG'}));
   });
 
+  it("runs a pool's files side by side, each pooled platform in a group of its own", () => {
+    const root = folder();
+    fs.writeFileSync(path.join(root, 'harness.config.mjs'), "export default {app: {android: {devices: ['Pixel_8', 'Pixel_9']}, web: {workers: 3}}};");
+    const [web, android, ios] = projectsOf(deviceConfig({platforms: ['web', 'android', 'ios'], root}));
+    expect([web, android, ios].map(project => [project!.test.maxWorkers, project!.test.fileParallelism, project!.test.sequence])).toEqual([
+      [3, true, {setupFiles: 'list', groupOrder: 1}],
+      [2, true, {setupFiles: 'list', groupOrder: 2}],
+      [1, false, {setupFiles: 'list'}],
+    ]);
+    vi.stubEnv('HARNESS_TARGET', 'emulator-5554');
+    expect(projectsOf(deviceConfig({platforms: ['android'], root}))[0]!.test.maxWorkers).toBe(1);
+  });
+
   it("takes the root from HARNESS_ROOT, else the working directory, for Vite and for Vitest", () => {
     const root = folder();
     vi.stubEnv('HARNESS_ROOT', root);

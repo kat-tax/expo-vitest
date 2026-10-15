@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {HarnessConfig} from './config.ts';
-import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, portOf, requiresDriver, resolveRun, runId, sameConfig, serialisable, setRun, validate} from './config.ts';
+import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, loadHarnessSync, poolSize, portOf, requiresDriver, resolveRun, runId, sameConfig, serialisable, setRun, validate} from './config.ts';
 
 const root = path.resolve('/project');
 const at = (...parts: string[]) => path.join(root, ...parts);
@@ -100,8 +100,21 @@ describe('checking it', () => {
     expect(failure({app: {web: {device: {provider: 'limrun'}}}})).toBe('harness.config.ts: app.web.device is a hosted device, which is for android and ios');
   });
 
+  it('takes a pool of devices on iOS and Android, and of browsers on web', () => {
+    expect(validate({app: {android: {devices: ['Pixel_8', 'Pixel_9']}, ios: {devices: ['iPhone 17']}, web: {workers: 3}}, poolTimeout: 90_000})).toBeTruthy();
+    expect(failure({app: {android: {devices: []}}})).toBe("harness.config.ts: app.android.devices is a list; it takes a list of devices' names, one at least");
+    expect(failure({app: {android: {devices: ['Pixel_8', '']}}})).toBe("harness.config.ts: app.android.devices is a list; it takes a list of devices' names, one at least");
+    expect(failure({app: {web: {workers: 0}}})).toBe('harness.config.ts: app.web.workers is 0; it takes a whole number, 1 or more');
+    expect(failure({app: {web: {workers: 1.5}}})).toBe('harness.config.ts: app.web.workers is 1.5; it takes a whole number, 1 or more');
+    expect(failure({app: {web: {devices: ['a']}}})).toBe('harness.config.ts: app.web.devices is a pool of devices, which is for android and ios; web takes workers');
+    expect(failure({app: {android: {workers: 2}}})).toBe("harness.config.ts: app.android.workers is for web; a device's pool is its devices");
+    expect(failure({app: {android: {devices: ['a'], device: 'b'}}})).toBe('harness.config.ts: app.android names a pool in devices and one device in device; give one or the other');
+    expect(failure({app: {ios: {devices: ['a'], target: 'b'}}})).toBe('harness.config.ts: app.ios names a pool in devices and one device in target; give one or the other');
+    expect(failure({poolTimeout: -1})).toBe('harness.config.ts: poolTimeout is -1; it takes a number of ms, 0 or more');
+  });
+
   it('names a key it does not take, and what it takes', () => {
-    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video');
+    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video, poolTimeout');
     expect(failure({app: {macos: {}}})).toBe('harness.config.ts: app.macos is not something a harness config takes here; it takes web, windows, android, ios');
     expect(failure({app: {web: {port: 1}}})).toMatch(/^harness\.config\.ts: app\.web\.port is not something .* it takes url, target, device,/);
     expect(failure({app: {web: {command: {executable: 'npx', shell: true}}}})).toMatch(/^harness\.config\.ts: app\.web\.command\.shell is not something/);
@@ -159,8 +172,9 @@ describe('what a run goes by', () => {
       statusBar: 'fixed',
       actionTimeout: 30_000,
       video: 'off',
+      poolTimeout: 60_000,
     });
-    expect(resolveRun('android', null, env(), root)).toEqual({platform: 'android', launchArguments: [], permissions: {}, assertionTimeout: 5000, stable: 1000, settle: 150, transition: 500, statusBar: 'fixed', actionTimeout: 30_000, video: 'off'});
+    expect(resolveRun('android', null, env(), root)).toEqual({platform: 'android', launchArguments: [], permissions: {}, assertionTimeout: 5000, stable: 1000, settle: 150, transition: 500, statusBar: 'fixed', actionTimeout: 30_000, video: 'off', poolTimeout: 60_000});
   });
 
   it("is the defaults the device layer already keeps", () => {
@@ -176,6 +190,36 @@ describe('what a run goes by', () => {
     expect(resolveRun('android', {app: {android: {device: hosted}}}, env({HARNESS_TARGET: 'emulator-5554'}), root)).not.toHaveProperty('hosted');
     expect(resolveRun('android', {app: {android: {device: hosted, target: 'Pixel_9'}}}, env(), root)).not.toHaveProperty('hosted');
     expect(resolveRun('android', {app: {android: {device: 'Pixel_9'}}}, env(), root)).toMatchObject({target: 'Pixel_9'});
+  });
+
+  it('shares a pool where nothing names one device, and waits for it as long as the file says', () => {
+    const pooled = {app: {android: {devices: ['Pixel_8', 'Pixel_9']}, web: {workers: 3}}, poolTimeout: 90_000};
+    expect(resolveRun('android', pooled, env(), root)).toMatchObject({devices: ['Pixel_8', 'Pixel_9'], poolTimeout: 90_000});
+    expect(resolveRun('android', pooled, env({HARNESS_TARGET: 'emulator-5554'}), root)).not.toHaveProperty('devices');
+    expect(resolveRun('web', pooled, env(), root)).toMatchObject({workers: 3, poolTimeout: 90_000});
+    expect(resolveRun('web', null, env(), root)).not.toHaveProperty('workers');
+  });
+
+  it('is loaded while a Vitest config is built, or not at all where it will not load so', () => {
+    expect(loadHarnessSync(null)).toBeNull();
+    expect(loadHarnessSync('/app/harness.config.ts', () => ({default: {poolTimeout: 5}}))).toEqual({poolTimeout: 5});
+    expect(loadHarnessSync('/app/harness.config.cjs', () => ({app: {web: {workers: 2}}}))).toEqual({app: {web: {workers: 2}}});
+    expect(loadHarnessSync('/app/harness.config.ts', () => null)).toEqual(null);
+    expect(
+      loadHarnessSync('/app/harness.config.ts', () => {
+        throw new Error('top-level await');
+      }),
+    ).toBeNull();
+    expect(loadHarnessSync('/app/harness.config.ts', () => ({default: {timeout: 5}}))).toBeNull();
+  });
+
+  it('runs as many files at once as the pool has devices, or web workers, and one otherwise', () => {
+    const pooled = {app: {android: {devices: ['a', 'b']}, ios: {devices: ['c']}, web: {workers: 3}, windows: {target: 'App.exe'}}};
+    expect(['android', 'ios', 'web', 'windows'].map(platform => poolSize(platform as 'web', pooled, env()))).toEqual([2, 1, 3, 1]);
+    expect(poolSize('android', pooled, env({HARNESS_TARGET: 'emulator-5554'}))).toBe(1);
+    expect(poolSize('web', pooled, env({HARNESS_TARGET: 'x'}))).toBe(3);
+    expect(poolSize('android', null, env())).toBe(1);
+    expect(poolSize('web', null, env())).toBe(1);
   });
 
   it('takes the file over the defaults', () => {
@@ -195,6 +239,7 @@ describe('what a run goes by', () => {
       statusBar: 'real',
       actionTimeout: 30_000,
       video: 'retain-on-failure',
+      poolTimeout: 60_000,
     });
     expect(resolveRun('windows', full, env(), root)).toMatchObject({target: 'windows/x64/Release/MyApp.exe', stateDir: at('windows', 'state')});
     expect(resolveRun('windows', full, env(), root)).not.toHaveProperty('identity');

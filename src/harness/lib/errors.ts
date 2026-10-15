@@ -30,7 +30,9 @@ export type HarnessCode =
   /** A call or a command line that cannot be acted on as it stands. */
   | 'INVALID_ARGUMENT'
   /** A harness config that names something it cannot take, or a value of the wrong kind. */
-  | 'INVALID_CONFIG';
+  | 'INVALID_CONFIG'
+  /** Every device in a pool was held by another test file, or a session outside the run, for as long as a file may wait. */
+  | 'DEVICE_POOL_EXHAUSTED';
 
 export class HarnessError extends Error {
   override readonly name = 'HarnessError';

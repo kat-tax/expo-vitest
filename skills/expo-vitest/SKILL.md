@@ -61,8 +61,6 @@ named for it.
 ```ts
 import {device, screen} from 'expo-vitest/device';
 
-afterAll(() => device.close());
-
 it('saves the profile', async () => {
   await device.open('/settings');
   await screen.getByRole('textbox', {name: 'Name'}).fill('Ada');

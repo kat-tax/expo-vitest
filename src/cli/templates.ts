@@ -87,8 +87,6 @@ it('knows its platform', () => {
 export function deviceExampleTest(): string {
   return `import {device} from 'expo-vitest/device';
 
-afterAll(() => device.close());
-
 it('opens the app and reads what it drew', async () => {
   await device.open('/');
   const tree = await device.fullSnapshot();

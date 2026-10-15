@@ -9,17 +9,22 @@
  * under `HARNESS_REQUIRE` or in CI.
  */
 import {pathToFileURL} from 'node:url';
-import {beforeEach, inject} from 'vitest';
+import {afterAll, beforeEach, expect, inject} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {rememberFacts} from './capabilities.ts';
 import {loadHarness, requiresDriver, resolveRun, sameConfig, setRun} from './config.ts';
+import {device} from './index.ts';
 import './provided.ts';
 
 const platform = inject('harness.platform');
 const file = inject('harness.file');
 const config = await loadHarness(file, each => import(/* @vite-ignore */ pathToFileURL(each).href));
 sameConfig(config, inject('harness.config'), file);
-setRun(resolveRun(platform, config, process.env, inject('harness.root')));
+// The run's id and the file name a pool's claim by, so files spread over its devices.
+setRun({...resolveRun(platform, config, process.env, inject('harness.root')), runId: inject('harness.runId'), ...testFileOf(expect.getState().testPath)});
+
+// The device closes with its file, after the file's own hooks: a device of a pool goes back for the next file, and no browser or session is left open.
+afterAll(() => device.close());
 
 const available = inject('harness.available');
 // What the warm-up found of the device, so a capability that depends on it is known before the driver opens here.
@@ -33,4 +38,8 @@ if (!available.ready) {
   } else {
     beforeEach(context => context.skip(reason));
   }
+}
+
+function testFileOf(file: string | undefined): {testFile?: string} {
+  return file ? {testFile: file} : {};
 }

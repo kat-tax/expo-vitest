@@ -53,6 +53,11 @@ the app under test.
   case in each driver, and a platform without it answers `skipped` with the
   table's reason. A control a platform has but this device lacks, as a fold
   on a phone that does not fold, throws with agent-device's reason.
+- **A pool is claimed per test file** (`src/device/pool.ts`): a lock file
+  in `.harness/locks/<run>/`, then a session of its own on the device, which
+  agent-device holds the device for. Every driver in a pool run names its
+  device; none is left to agent-device's choice, which could be any device
+  plugged into the machine.
 - The project root is the working directory, or `HARNESS_ROOT`. Never work it
   out from a file's own location: installed, that is the package.
 - The PNG comparison is `src/harness/lib/png.ts`, on Node's own zlib. It reads

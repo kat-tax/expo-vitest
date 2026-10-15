@@ -94,11 +94,8 @@ test, and the errors it did not catch, on web, the last fifty lines.
 
 The evidence is written after the test file's own `afterEach`. A test that
 closes the driver there leaves no screenshot, and the trace says so, with
-the last tree the test read. Close it in `afterAll` instead:
-
-```ts
-afterAll(() => device.close());
-```
+the last tree the test read. There is nothing to close: the device closes
+by itself when its file ends, after the file's own hooks.
 
 ## Video
 

@@ -12,8 +12,6 @@ before the screen changed still finds what is on it after.
 // device/profile.test.ts
 import {device, screen, within} from 'expo-vitest/device';
 
-afterAll(() => device.close());
-
 it('saves a new name', async () => {
   await device.open('/');
   await screen.getByText('Settings').press();

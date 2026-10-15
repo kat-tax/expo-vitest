@@ -229,6 +229,14 @@ export interface Driver {
   connect?(hosted: HostedDevice): Promise<StepResult>;
   /** The connection released, and the device with it, after the run's last test. */
   disconnect?(): Promise<StepResult>;
+  /**
+   * Opens the driver's session on its device, opening nothing in it, which
+   * claims the device for the session: agent-device refuses one that another
+   * session holds, with `DEVICE_IN_USE`. Left off where there is no such claim.
+   */
+  attach?(): Promise<StepResult>;
+  /** Clears the claims agent-device holds for owners that are gone, after a run. */
+  releaseStale?(): Promise<StepResult>;
   /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
   onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */
@@ -265,4 +273,6 @@ export interface DriverOptions {
   browser?: string;
   /** On web, the endpoint of a Chromium already running, reached over CDP rather than launched, over `HARNESS_CDP`. */
   cdp?: string;
+  /** On a device, the agent-device session to drive it in, where one test file of several holds it. */
+  session?: string;
 }

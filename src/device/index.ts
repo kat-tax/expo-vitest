@@ -25,12 +25,14 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import {describeControl} from '../harness/lib/controls.ts';
-import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, FillOptions, HostedDevice, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
-import {elsewhere} from '../harness/lib/types.ts';
+import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, DriverOptions, FillOptions, HostedDevice, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import {elsewhere, ok} from '../harness/lib/types.ts';
 import type {Capability, Circumstances} from './capabilities.ts';
 import {cannotSentence, capabilitiesOf, knownFacts} from './capabilities.ts';
-import type {AppConfig, CommandConfig, HarnessConfig, Permission} from './config.ts';
+import type {AppConfig, CommandConfig, HarnessConfig, Permission, ResolvedRun} from './config.ts';
 import {configFromRun, currentRun, defineHarness} from './config.ts';
+import type {Claim} from './pool.ts';
+import {claimDevice, sessionName} from './pool.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
 import {Journal} from './evidence.ts';
 import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
@@ -130,6 +132,8 @@ class Device {
   private facts: DeviceFacts | undefined;
   /** Whether the screen is being recorded for the test that is running. */
   private recording = false;
+  /** The device of the pool this file holds, given back when it closes. */
+  private claim: Claim | null = null;
   /** A recording asked for before the device was opened, which starts when it is. */
   private recordWhenReady = false;
   private videoWarned = false;
@@ -215,15 +219,52 @@ class Device {
   async ready(): Promise<Driver> {
     if (this.driver) return this.driver;
     const {platform, url, scheme, target, force, app, statusBar, actionTimeout} = this.config;
-    const driver = driverFor(platform, {root: ROOT, url, scheme, target, force, ...(app ? {app} : {}), ...(statusBar ? {statusBar} : {}), ...(actionTimeout ? {actionTimeout} : {})});
+    const options: DriverOptions = {root: ROOT, url, scheme, target, force, ...(app ? {app} : {}), ...(statusBar ? {statusBar} : {}), ...(actionTimeout ? {actionTimeout} : {})};
+    const run = currentRun();
+    const driver = run?.devices ? await this.claimFrom(run.devices, run, options) : driverFor(platform, options);
     const state = await driver.available();
-    if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
+    if (!state.ready) {
+      await driver.close();
+      this.claim?.release();
+      this.claim = null;
+      throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
+    }
     if (state.device) this.facts = state.device;
     this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
     // What the app writes to its console goes in the journal, beside the steps.
     driver.onConsole?.((level, text) => this.journal.log(level, text));
     if (this.recordWhenReady) await this.startRecording(this.driver);
     return this.driver;
+  }
+
+  /**
+   * A driver on a device of the pool, held for this test file: the device's
+   * lock in the run's folder, then a session of its own on it, which
+   * agent-device holds the device for. The device is the file's until it
+   * closes.
+   */
+  private async claimFrom(devices: string[], run: ResolvedRun, options: DriverOptions): Promise<Driver> {
+    const runId = run.runId ?? 'local';
+    let held: Driver | undefined;
+    this.claim = await claimDevice({
+      devices,
+      folder: path.join(ROOT, '.harness', 'locks', runId, run.platform),
+      file: run.testFile ?? '',
+      timeout: run.poolTimeout,
+      platform: run.platform,
+      open: async device => {
+        const driver = driverFor(run.platform, {...options, target: device, session: sessionName(runId, device)});
+        const attached = (await driver.attach?.()) ?? ok('nothing to hold');
+        if (attached.ok) {
+          held = driver;
+          return 'opened';
+        }
+        await driver.close();
+        if (/\bDEVICE_IN_USE\b/.test(attached.message)) return 'in-use';
+        throw failure(attached, run.platform, 'DRIVER_UNAVAILABLE');
+      },
+    });
+    return held as Driver;
   }
 
   async open(route: string): Promise<void> {
@@ -489,6 +530,9 @@ class Device {
   async close(): Promise<void> {
     await this.driver?.close();
     this.driver = null;
+    // The session is closed, so the device can go back to the pool.
+    this.claim?.release();
+    this.claim = null;
     this.recording = false;
     this.recordWhenReady = false;
     this.feed.invalidate();

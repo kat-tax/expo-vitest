@@ -86,8 +86,10 @@ export interface AgentDeviceTransport {
   command(command: DeviceCommand): Promise<unknown>;
   /** Starts a recording of the screen into a file, or stops it. */
   record(action: 'start' | 'stop', file?: string): Promise<void>;
-  /** Connects to a hosted device's provider, or releases the connection, through the command line: the Node client has neither. */
-  hosted(args: string[]): Promise<void>;
+  /** A command the Node client has no call for, through the command line: connect, disconnect, device release. */
+  run(args: string[]): Promise<void>;
+  /** Opens the session on the device with nothing in it, which claims the device for the session. */
+  attach(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -99,6 +101,8 @@ export interface TransportOptions {
   root: string;
   /** The device to drive, by name or id. */
   device?: string;
+  /** The session to drive it in, where not agent-device's default. */
+  session?: string;
   /** How long one step may take; 30 s unless given. An open, which may boot a device, has its own. */
   stepTimeout?: number;
 }
@@ -197,7 +201,7 @@ function failure(options: TransportOptions, reason: AgentFailure, otherwise: Har
 }
 
 function clientTransport(options: TransportOptions, module: ClientModule, version: string, cli: AgentDeviceTransport): AgentDeviceTransport {
-  const client = module.createAgentDeviceClient({cwd: options.root});
+  const client = module.createAgentDeviceClient({cwd: options.root, ...(options.session ? {session: options.session} : {})});
   const select = {platform: options.platform, ...(options.device ? {device: options.device} : null)};
 
   async function call(work: (signal: AbortSignal) => Promise<unknown>, otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<unknown> {
@@ -270,8 +274,11 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async record(action, file) {
       await call(signal => client.recording.record({...select, action, ...(action === 'start' ? {recordingScope: 'device', ...(file ? {path: file} : {})} : {}), signal}), 'ACTION_FAILED');
     },
-    hosted(args) {
-      return cli.hosted(args);
+    run(args) {
+      return cli.run(args);
+    },
+    async attach() {
+      await call(signal => client.apps.open({...select, signal}), 'DRIVER_UNAVAILABLE', OPEN_TIMEOUT);
     },
     async close() {
       await call(signal => client.sessions.close({signal}), 'ACTION_FAILED', 10_000).catch(() => {});
@@ -280,7 +287,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
 }
 
 function cliTransport(options: TransportOptions, command: string, prefix: string[]): AgentDeviceTransport {
-  const select = ['--platform', options.platform, ...(options.device ? ['--device', options.device] : [])];
+  const select = ['--platform', options.platform, ...(options.device ? ['--device', options.device] : []), ...(options.session ? ['--session', options.session] : [])];
 
   async function agent(args: string[], otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<string> {
     const ran = await runAsync(command, [...prefix, ...args, ...select], {cwd: options.root, timeout});
@@ -354,9 +361,12 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     async record(action, file) {
       await agent(recordArgs(action, file), 'ACTION_FAILED');
     },
-    async hosted(args) {
+    async run(args) {
       // A provider checks its credentials over the network before it answers.
       await agent(args, 'DRIVER_UNAVAILABLE', OPEN_TIMEOUT);
+    },
+    async attach() {
+      await agent(['open'], 'DRIVER_UNAVAILABLE', OPEN_TIMEOUT);
     },
     async close() {
       await agent(['close'], 'ACTION_FAILED', 60_000).catch(() => {});

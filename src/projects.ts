@@ -6,7 +6,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {configDefaults} from 'vitest/config';
 import {vitestExpo, vitestExpoProjects} from 'vitest-expo';
-import {findHarnessFile} from './device/config.ts';
+import {findHarnessFile, loadHarnessSync, poolSize} from './device/config.ts';
 import './device/provided.ts';
 import {HarnessError} from './harness/lib/errors.ts';
 import {PLATFORMS} from './harness/lib/types.ts';
@@ -335,6 +335,15 @@ export interface DeviceConfigOptions {
  *
  *     vitest run --config vitest.config.device.mts --project device:web
  */
+/**
+ * Where a pooled project runs among the rest. Vitest runs the projects of one
+ * worker each in turn, after the others, and a project of more in a group of
+ * its own, which no other may share unless it has as many.
+ */
+function pooled(size: number, index: number): {groupOrder?: number} {
+  return size > 1 ? {groupOrder: index + 1} : {};
+}
+
 export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig {
   const timeout = options.timeout ?? 120_000;
   // How long a step waits for the screen, and how long a wait looks, reach
@@ -377,10 +386,12 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
   const root = path.resolve(options.root ?? process.env.HARNESS_ROOT ?? process.cwd());
   // Found now, and loaded by the global setup, since a config is synchronous and the file may be TypeScript.
   const harness = findHarnessFile(root, options.harness ?? process.env.HARNESS_CONFIG);
+  // A pool's size is a project's workers, which Vitest takes from the config it is building now.
+  const loaded = loadHarnessSync(harness);
   return {
     test: {
       ...(options.reporters ? {reporters: options.reporters} : {}),
-      projects: platforms.map(platform => ({
+      projects: platforms.map((platform, index) => ({
         root,
         resolve: {alias: selfAliases()},
         test: {
@@ -391,16 +402,16 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
           include: options.include ?? ['device/**/*.test.ts'],
           // The run, resolved from the harness config, before anything uses the device: in turn, not side by side as Vitest would have them.
           setupFiles: [file('device/setup.ts'), file('device/matchers.ts')],
-          sequence: {setupFiles: 'list'},
+          sequence: {setupFiles: 'list', ...pooled(poolSize(platform, loaded, process.env), index)},
           // Loads the harness config and starts what serves the app; then opens the app once.
           globalSetup: [file('device/global-setup.ts'), file('device/warm-up.ts')],
           provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': harness},
           testTimeout: timeout,
           hookTimeout: timeout,
-          // One app per platform. Vitest holds this for the whole run, so the platforms take turns.
-          fileParallelism: false,
+          // One app per platform, or a file to each device of a pool. The platforms take turns.
+          fileParallelism: poolSize(platform, loaded, process.env) > 1,
           pool: 'forks',
-          maxWorkers: 1,
+          maxWorkers: poolSize(platform, loaded, process.env),
           // The setup files import the harness config by a path worked out at run time, which only the Vite graph transforms.
           server: {deps: {inline: [SELF]}},
           // The project's own platform and root, whatever the shell says.

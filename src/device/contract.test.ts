@@ -456,6 +456,13 @@ describe('deviceConfig', () => {
     expectTypeOf<AppConfig['device']>().toEqualTypeOf<string | HostedDevice | undefined>();
   });
 
+  it('takes a pool of devices, or of browsers on web, and how long a file waits for one', () => {
+    expectTypeOf<AppConfig['devices']>().toEqualTypeOf<string[] | undefined>();
+    expectTypeOf<AppConfig['workers']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<HarnessConfig['poolTimeout']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<'DEVICE_POOL_EXHAUSTED'>().toExtend<HarnessCode>();
+  });
+
   it('takes the test files and one timeout for tests and hooks', () => {
     expect(deviceConfig({include: ['x/**'], timeout: 5})).toStrictEqual({
       resolve: {alias: selfAliases()},

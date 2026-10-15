@@ -19,6 +19,7 @@
  */
 import {createHash, randomBytes} from 'node:crypto';
 import fs from 'node:fs';
+import {createRequire} from 'node:module';
 import path from 'node:path';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {DEFAULT_TIMING} from '../harness/lib/settle.ts';
@@ -77,6 +78,10 @@ export interface AppConfig {
   command?: CommandConfig;
   /** Polled until the command is ready. The `url` unless given. */
   readyUrl?: string;
+  /** iOS and Android: devices the platform's test files share, a file to a device at a time, in place of one `device`. */
+  devices?: string[];
+  /** Web: how many test files run at once, each in a browser of its own. 1. */
+  workers?: number;
 }
 
 export interface HarnessConfig {
@@ -93,6 +98,8 @@ export interface HarnessConfig {
   statusBar?: 'fixed' | 'real';
   /** How long one call to a driver may take, in ms. 30 s. */
   actionTimeout?: number;
+  /** How long a test file waits for a device of a pool when every one is held, in ms. A minute. */
+  poolTimeout?: number;
   /** When a test's screen is recorded: `on`, `retain-on-failure` or `off`, the default. `HARNESS_VIDEO` beats it. */
   video?: VideoMode;
 }
@@ -130,11 +137,40 @@ export async function loadHarness(file: string | null, load: (file: string) => P
   return validate(module.default, path.basename(file));
 }
 
+/**
+ * The config in a file, while a Vitest config is being built, which is
+ * synchronous: Node strips the file's types, which the docs keep to what it
+ * can, and `require` loads it as the module it is. Null where it will not
+ * load so, as with a top-level await; the global setup loads it then, and
+ * says what is wrong with it.
+ */
+export function loadHarnessSync(file: string | null, load: (file: string) => unknown = each => createRequire(each)(each)): HarnessConfig | null {
+  if (!file) return null;
+  try {
+    const module = load(file) as {default?: unknown} | null;
+    return validate(module?.default ?? module, path.basename(file));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How many test files of a platform run at once: one to each device of its
+ * pool, one to each browser of web's `workers`, and one otherwise. Windows is
+ * one window, and a device the environment names is one device.
+ */
+export function poolSize(platform: Platform, config: HarnessConfig | null, environment: NodeJS.ProcessEnv): number {
+  const app = config?.app?.[platform];
+  if (platform === 'web') return app?.workers ?? 1;
+  if (platform === 'windows' || environment.HARNESS_TARGET) return 1;
+  return app?.devices?.length ?? 1;
+}
+
 /** The keys a later version gives meaning, refused by name until then, so a config written for them is not quietly ignored. */
 const RESERVED = ['agents', 'tools', 'secrets', 'cache'];
 
-const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video'];
-const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'command', 'readyUrl'];
+const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video', 'poolTimeout'];
+const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'command', 'readyUrl', 'devices', 'workers'];
 const COMMAND_KEYS = ['executable', 'args', 'cwd', 'env', 'startupTimeout', 'shutdownTimeout', 'log', 'reuseExisting'];
 
 /** What a value should have been, or null when it is that. */
@@ -165,7 +201,10 @@ const device: Check = value => {
   return hosted ? null : "a device's name, or a hosted device: {provider, options}, its options agent-device's connect flags without their dashes, each a string or true";
 };
 
-const ROOT_CHECKS: Record<string, Check> = {assertionTimeout: ms, stable: ms, settle: msOrOff, transition: msOrOff, statusBar, actionTimeout: ms, video};
+const devices: Check = value => (Array.isArray(value) && value.length > 0 && value.every(each => typeof each === 'string' && each !== '') ? null : "a list of devices' names, one at least");
+const workers: Check = value => (typeof value === 'number' && Number.isInteger(value) && value >= 1 ? null : 'a whole number, 1 or more');
+
+const ROOT_CHECKS: Record<string, Check> = {assertionTimeout: ms, stable: ms, settle: msOrOff, transition: msOrOff, statusBar, actionTimeout: ms, video, poolTimeout: ms};
 const APP_CHECKS: Record<string, Check> = {
   url: text,
   target: text,
@@ -178,6 +217,8 @@ const APP_CHECKS: Record<string, Check> = {
   permissions,
   stateDir: text,
   readyUrl: text,
+  devices,
+  workers,
 };
 const COMMAND_CHECKS: Record<string, Check> = {executable: text, args: texts, cwd: text, env: textMap, startupTimeout: ms, shutdownTimeout: ms, log: logTo, reuseExisting: flag};
 
@@ -213,8 +254,12 @@ export function validate(value: unknown, file = 'harness.config.ts'): HarnessCon
   for (const [platform, each] of Object.entries(app)) {
     if (each === undefined) continue;
     checkObject(each, `app.${platform}`, APP_KEYS, APP_CHECKS, file);
-    if (isObject(each.device) && platform !== 'android' && platform !== 'ios') {
-      throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.device is a hosted device, which is for android and ios`);
+    const device = platform === 'android' || platform === 'ios';
+    if (isObject(each.device) && !device) throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.device is a hosted device, which is for android and ios`);
+    if (each.devices && !device) throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.devices is a pool of devices, which is for android and ios; web takes workers`);
+    if (each.workers !== undefined && platform !== 'web') throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform}.workers is for web; a device's pool is its devices`);
+    if (each.devices && (each.device !== undefined || each.target !== undefined)) {
+      throw new HarnessError('INVALID_CONFIG', `${file}: app.${platform} names a pool in devices and one device in ${each.device === undefined ? 'target' : 'device'}; give one or the other`);
     }
     if (each.command === undefined) continue;
     checkObject(each.command, `app.${platform}.command`, COMMAND_KEYS, COMMAND_CHECKS, file);
@@ -233,6 +278,16 @@ export interface ResolvedRun {
   target?: string;
   /** A device a provider hosts, where the config names one and nothing names a device of this machine's. */
   hosted?: HostedDevice;
+  /** The pool the test files share, where the config names one and nothing names a single device. */
+  devices?: string[];
+  /** On web, how many test files run at once. */
+  workers?: number;
+  /** How long a file waits for a device of the pool, in ms. */
+  poolTimeout: number;
+  /** The run's id, which the setup file adds in each worker, for the pool's locks. */
+  runId?: string;
+  /** The test file this worker runs, which the setup file adds, so a pool's files spread over its devices. */
+  testFile?: string;
   scheme?: string;
   bundleId?: string;
   appPath?: string;
@@ -260,6 +315,7 @@ export const DEFAULTS = {
   transition: DEFAULT_TIMING.transition,
   statusBar: 'fixed',
   actionTimeout: 30_000,
+  poolTimeout: 60_000,
   startupTimeout: 60_000,
   shutdownTimeout: 10_000,
 } as const;
@@ -325,8 +381,9 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
   const url = environment.HARNESS_URL ?? app.url ?? (platform === 'web' ? DEFAULTS.url : undefined);
   const named = typeof app.device === 'string' ? app.device : undefined;
   const target = environment.HARNESS_TARGET ?? app.target ?? named;
-  // A device named here is this machine's, and wins over a hosted one, as the environment wins over the file.
+  // A device named here is this machine's, and wins over a hosted one and a pool, as the environment wins over the file.
   const hosted = !target && isObject(app.device) ? (app.device as HostedDevice) : undefined;
+  const pool = !target && app.devices ? app.devices : undefined;
   const scheme = environment.HARNESS_SCHEME ?? app.scheme;
   const command = app.command && commandOf(platform, app.command, url, environment, root);
   const readyUrl = app.readyUrl ?? (command ? url : undefined);
@@ -337,6 +394,9 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
     ...(url ? {url} : {}),
     ...(target ? {target} : {}),
     ...(hosted ? {hosted} : {}),
+    ...(pool ? {devices: pool} : {}),
+    ...(app.workers ? {workers: app.workers} : {}),
+    poolTimeout: config?.poolTimeout ?? DEFAULTS.poolTimeout,
     ...(scheme ? {scheme} : {}),
     ...(app.bundleId ? {bundleId: app.bundleId} : {}),
     ...(app.appPath ? {appPath: path.resolve(root, app.appPath)} : {}),
