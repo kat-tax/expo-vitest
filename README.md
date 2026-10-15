@@ -135,6 +135,7 @@ platform's project.
 
 | Feature | What it does | Guide |
 | --- | --- | --- |
+| Setting up | `npx expo-vitest init` reads what the project has, asks four things, and writes the configs, an example test and the skill for coding agents, showing each file before it writes it. | [The harness](docs/harness.md#setting-a-project-up) |
 | iOS and Android projects | React Native's own JavaScript with the native boundary mocked, `Platform.OS` set, and platform files resolved in Metro's order. | [Projects](docs/projects.md#ios-and-android) |
 | Web project | react-native-web in jsdom, with Expo's packages pre-bundled with the Metro behaviours they rely on. | [Projects](docs/projects.md#web) |
 | Windows project | The code under test is told it is Windows, and `.windows.*` files resolve first. A native component renders as a host view whose props are what C++ receives. | [Projects](docs/projects.md#windows) |
@@ -146,6 +147,10 @@ platform's project.
 | Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
 | Device tests | `device`, `screen` and the matchers that wait, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
 | Several platforms in one run | `deviceConfig({platforms})` makes a project per platform, and starts the dev server each app needs once, from `harness.config.ts`. A platform the machine cannot drive is skipped with the reason. | [Configuration](docs/configuration.md#a-project-per-platform) |
+| Pools | A platform's test files spread over a pool of devices, or of browsers on web, a file to each at a time. | [Device tests](docs/device-tests.md#pools) |
+| Hosted devices | A device Limrun, BrowserStack or AWS Device Farm hosts, connected for the run through agent-device, with no provider code here. | [Device tests](docs/device-tests.md#hosted-devices) |
+| Browsers | Web device tests in Chromium, Firefox or WebKit, or in a Chromium already running, over CDP. | [The harness](docs/harness.md#the-browser) |
+| The browser's own controls | `device.web`: routes, dialogs, cookies, downloads, a select, a file input, a right click and a frame, answering `'skipped'` on a device. | [Device tests](docs/device-tests.md#deviceweb) |
 | Locators | `screen` and `within` with React Native Testing Library's queries, giving strict locators that wait for their node, the same on all four platforms. | [Locators](docs/locators.md) |
 | Matchers that wait | `toBeVisible`, `toHaveText`, `toBeChecked`, `toHaveCount` and fourteen more on a locator, reading the tree until it agrees, and holding a wait for something to be gone. | [Matchers](docs/matchers.md) |
 | Visual comparison | `toMatchScreenshot` on the screen or one element, with masks over what moves, a clip, and an allowance in a share or a count, against a baseline each machine records on purpose. | [Matchers](docs/matchers.md#tomatchscreenshot) |
@@ -153,6 +158,8 @@ platform's project.
 | The device's settings | Appearance, orientation, network, airplane mode, permissions, location, biometrics, a fold, the clipboard, the keyboard and alerts, from a test, on each platform that has them. | [Controls](docs/controls.md#the-devices-settings) |
 | Gating | `device.can`, and `onlyOn`, `skipOn` and `requires` around a block of tests, which skip with the reason where a platform or a device lacks what the tests need. | [Controls](docs/controls.md#what-a-device-can-do) |
 | Evidence | A failing device test leaves its screenshot, its tree and a trace of its steps, with what each did to the screen, and a recording of the screen where video is on. | [Evidence](docs/evidence.md) |
+| The run's summary | `expo-vitest/reporter`: the failures with their evidence, as a file, a job summary, and a pull request comment a rerun updates. | [CI](docs/ci.md#the-summary-and-the-pull-request-comment) |
+| Coding agents | A skill that tells an agent how to write, run and read the tests, printed by `guide` and copied in by `init`. | [Coding agents](docs/coding-agents.md) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
 | The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |
 
