@@ -55,6 +55,9 @@ node scripts/fixture.js --update-lockfile
 ## Writing a test here
 
 - `vi.*` only; jest compatibility is off.
+- `src/device/contract.test.ts` is the public surface. A change that fails it
+  breaks a consumer; edit it only on purpose, in the commit that makes the
+  change.
 - A test that asserts on a config asserts on what a consumer would see: the
   project's name, its `include` and `exclude`, the plugins it carries. Reaching
   into a plugin's closure proves nothing about the run.

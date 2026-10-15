@@ -27,6 +27,19 @@ bun run test:coverage   # 100% on the files the gate names
 bun run test:fixture    # the package, packed and installed
 ```
 
+## The public surface
+
+`src/device/contract.test.ts` pins what a consumer depends on: the members of
+`device` and `element` and what each takes, the selector and tree shapes, the
+four matchers, what `deviceConfig()` returns, the environment variables, the
+`expo-harness` steps and options, and the messages a person reads most. An
+addition passes it. A rename, a removal, a changed default or a changed
+message fails it, and a changed type fails `bun run typecheck`, which checks
+the tests too.
+
+A failure there means the change would break someone. Edit the test only on
+purpose, in the commit that makes the change, and say why in the message.
+
 ## It runs from source here, and from `dist` installed
 
 The package runs from its TypeScript source in this repository, which Node
