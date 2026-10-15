@@ -27,10 +27,11 @@ with one project per platform. New here? Start with
 | [Matchers](matchers.md) | The eighteen matchers on a locator, which wait for the tree, what a failure says, and the four on a snapshot or the device, screenshots among them. |
 | [Controls](controls.md) | The app's life from a test, and the device's settings: appearance, orientation, network, permissions, location, biometrics, the clipboard and alerts, on each platform. |
 | [Evidence](evidence.md) | The screenshot, tree, trace and recording a failing device test leaves, `HARNESS_TRACE` and `video`. |
-| [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
+| [The harness](harness.md) | The `expo-harness` command: setting a project up, the guide, steps, targets, options, the browser, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
 | [CI](ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, the summary and the pull request comment, and caching. |
 | [Migrating](migrating.md) | From Detox, Maestro, Playwright and e2e: each call, what it is here, and whether it is the same, renamed, different by design or not yet. |
+| [Coding agents](coding-agents.md) | The skill the package ships, `guide`, and what `init` gives an agent. |
 
 ## Build on it
 

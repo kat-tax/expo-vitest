@@ -43,8 +43,54 @@ Nothing is installed in the app itself.
 
 ```sh
 expo-harness doctor
+expo-harness init [--yes]
+expo-harness guide [topic | --list]
 expo-harness -p <platform> [options] <step>...
 ```
+
+The command answers to `expo-vitest` too, the package's own name, so
+`npx expo-vitest init` works in a project that has just installed it.
+
+## Setting a project up
+
+`init` sets a project up to test with this package:
+
+```sh
+npx expo-vitest init
+```
+
+It reads what the project has: the package manager, the Expo SDK, React
+Native Testing Library's version, the platforms the app builds for, the
+app's identity and scheme, TypeScript, and the tests already there. Then it
+asks four things: which platforms, whether to set up device tests, whether
+to add the [skill for coding agents](coding-agents.md), and whether to
+install the packages now.
+
+| File | What init does with it |
+| --- | --- |
+| `vitest.config.mts` | A project per platform. |
+| `vitest.config.device.mts`, `harness.config.ts` | With device tests: the device projects, and the app each platform drives, from what it found. |
+| `device/example.test.ts` | With device tests: one that opens the app and reads what it drew. |
+| `src/platform.test.ts` | Where the project has no tests yet: one that runs in each platform's project. |
+| `package.json` | `test`, `test:watch`, and `test:device` with device tests, among its scripts. |
+| `tsconfig.json` | The types for the globals and the matchers. A file with comments is not plain JSON, so init prints what to add instead. |
+| `.gitignore` | `.harness/`. |
+| `.claude/skills/expo-vitest/` | With the skill: its files. |
+
+It shows each file before it writes it, a diff for a file it edits, and asks
+for each one: `y`, `n`, or `a` for the rest. A config or a test the project
+has already is kept, and init says so; `package.json`, `tsconfig.json` and
+`.gitignore` are edited, and a skill file older than the package's is
+refreshed, each with its diff shown. Without installing
+it prints the commands that would, and it ends with the commands that run
+the tests. `--yes` takes every default, the platforms it found, device
+tests and the skill, writes without asking, and installs nothing.
+
+## The guide
+
+`guide` prints the [skill](coding-agents.md) from the installed package:
+how to write the tests, run them and read a failure, for a person or an
+agent. `guide <topic>` prints one part, and `guide --list` the parts.
 
 Steps run in order in one session, so a sequence is a flow rather than four
 disconnected commands. Each waits for the screen to hold still before the

@@ -173,6 +173,7 @@ platform's project.
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [CI](docs/ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, and the summary that comments on a pull request. |
 | [Migrating](docs/migrating.md) | From Detox, Maestro, Playwright and e2e, call by call. |
+| [Coding agents](docs/coding-agents.md) | The skill for coding agents, `guide`, and `init`. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
 | [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
 
