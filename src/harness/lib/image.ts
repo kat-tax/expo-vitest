@@ -65,3 +65,51 @@ export function cropImage(image: Image, rect: Rect): Image | null {
   }
   return {width: inside.width, height: inside.height, pixels};
 }
+
+/**
+ * A picture made smaller, so its long side is at most `maxSide`: each new
+ * pixel the average of the old ones it covers, each weighted by how much of
+ * it is covered, which is a box filter. A picture already that small comes
+ * back as it is.
+ */
+export function resizeImage(image: Image, maxSide: number): Image {
+  const long = Math.max(image.width, image.height);
+  if (long <= maxSide) return image;
+  const width = Math.max(1, Math.round((image.width * maxSide) / long));
+  const height = Math.max(1, Math.round((image.height * maxSide) / long));
+  const across = image.width / width;
+  const down = image.height / height;
+  const from = image.pixels;
+  const pixels = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    const top = y * down;
+    const bottom = Math.min(top + down, image.height);
+    for (let x = 0; x < width; x++) {
+      const left = x * across;
+      const right = Math.min(left + across, image.width);
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alpha = 0;
+      let total = 0;
+      for (let row = Math.floor(top); row < bottom; row++) {
+        const tall = Math.min(row + 1, bottom) - Math.max(row, top);
+        for (let column = Math.floor(left); column < right; column++) {
+          const weight = tall * (Math.min(column + 1, right) - Math.max(column, left));
+          const at = (row * image.width + column) * 4;
+          red += (from[at] as number) * weight;
+          green += (from[at + 1] as number) * weight;
+          blue += (from[at + 2] as number) * weight;
+          alpha += (from[at + 3] as number) * weight;
+          total += weight;
+        }
+      }
+      const to = (y * width + x) * 4;
+      pixels[to] = Math.round(red / total);
+      pixels[to + 1] = Math.round(green / total);
+      pixels[to + 2] = Math.round(blue / total);
+      pixels[to + 3] = Math.round(alpha / total);
+    }
+  }
+  return {width, height, pixels};
+}

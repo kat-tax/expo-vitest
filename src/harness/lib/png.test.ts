@@ -1,6 +1,6 @@
 import zlib from 'node:zlib';
 import {describe, expect, it} from 'vitest';
-import {clampRect, cropImage, MASK, maskImage, scaleRect} from './image.ts';
+import {clampRect, cropImage, MASK, maskImage, resizeImage, scaleRect} from './image.ts';
 import {compareImages, comparePng, decodePng, encodePng} from './png.ts';
 import type {Image} from './png.ts';
 
@@ -180,5 +180,32 @@ describe('the geometry a screenshot is compared over', () => {
   it('paints a mask the colour asked', () => {
     const painted = maskImage(grey(), [{x: 0, y: 0, width: 1, height: 1}], [1, 2, 3, 4]);
     expect([...painted.pixels.subarray(0, 4)]).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('a picture made smaller', () => {
+  it('keeps its shape, its long side at most the size asked', () => {
+    const big = resizeImage(image(2000, 1000, [10, 20, 30, 255]), 768);
+    expect([big.width, big.height, big.pixels.length]).toEqual([768, 384, 768 * 384 * 4]);
+    expect([...big.pixels.subarray(0, 4)]).toEqual([10, 20, 30, 255]);
+    const tall = resizeImage(image(300, 2000, [0, 0, 0, 255]), 768);
+    expect([tall.width, tall.height]).toEqual([115, 768]);
+    expect(resizeImage(image(4000, 2, [0, 0, 0, 255]), 768).height).toBe(1);
+  });
+
+  it('averages what each new pixel covers, weighted by how much of each', () => {
+    const halves = image(4, 2, [0, 0, 0, 255]);
+    for (const at of [2, 3, 6, 7]) halves.pixels.set([255, 255, 255, 255], at * 4);
+    expect([...resizeImage(halves, 2).pixels]).toEqual([0, 0, 0, 255, 255, 255, 255, 255]);
+    const ramp = image(3, 1, [0, 0, 0, 0]);
+    ramp.pixels.set([90, 90, 90, 90], 4);
+    ramp.pixels.set([180, 180, 180, 180], 8);
+    // Each new pixel covers one and a half old ones: (0 + 90 / 2) / 1.5, then (90 / 2 + 180) / 1.5.
+    expect([...resizeImage(ramp, 2).pixels]).toEqual([30, 30, 30, 30, 150, 150, 150, 150]);
+  });
+
+  it('leaves a picture that is small enough as it is', () => {
+    const small = image(768, 400, [1, 2, 3, 4]);
+    expect(resizeImage(small, 768)).toBe(small);
   });
 });
