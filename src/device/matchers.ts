@@ -14,6 +14,8 @@ import {comparePng} from '../harness/lib/png.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {LOCATOR_MATCHERS} from './expectations.ts';
+// The evidence a failing test leaves: the screen, the tree and a trace.
+import './evidence-hook.ts';
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());

@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 8 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 10 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -218,6 +218,25 @@ below, the build is what holds.
       checked both ways around a check and an uncheck, and a node in the
       tree.
   - **Not seen:** iOS.
+- **Items 9 and 10: the journal, the trace and the hook.**
+  - The journal is on the device (`device.journal`), and steps are
+    recorded where their meaning is known: the device for its own calls
+    and `element`'s, a locator for its actions with the query and the
+    node, `findBy*` and a locator's `waitFor` as waits, and each matcher
+    as an assertion with its polls and readings.
+  - Steps gain `check`, `hover`, `focus`, `scroll` and `swipe` events
+    for item 6's actions.
+  - Every full snapshot the device reads is digested into the step under
+    way, or the last step with none. The driver's `snapshot` is left as
+    it is, since the contract pins that it reads straight through, so a
+    press's screen after comes from the next read, which happens anyway.
+  - A `verified` step names the last action that went through. A
+    skipped one did nothing to see.
+  - The hook skips a test that never used the device.
+  - **Seen live:** a failing test left its screenshot, both trees and a
+    trace on web, on a react-native-windows app and on an Android
+    emulator.
+  - **Still to build from section 5:** the React tree.
 
 ## Purpose and the claims it proves
 
