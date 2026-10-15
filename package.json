@@ -65,6 +65,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "types.d.ts",
     "README.md",
     "docs",

@@ -77,6 +77,12 @@ try {
   fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`${tarball}: ${packed.length} files`);
 
+  // The skill ships, and the command an app has prints it.
+  console.log('==== The guide, from the package');
+  const listed = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'guide', '--list'], {cwd: scratch, encoding: 'utf8'});
+  process.stdout.write(listed);
+  if (!listed.includes('device ')) throw new Error('the packed package does not ship the skill guide prints');
+
   console.log('==== The fixture, on it');
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
 
