@@ -215,6 +215,21 @@ function shownExit(exit: Exit): string {
 }
 
 /**
+ * The environment a command starts in: the run's, less what Vitest set for
+ * itself, then the command's own. Vitest sets `TEST`, `VITEST` and
+ * `VITEST_*`, and `NODE_ENV` to `test` where it was unset, in the process a
+ * device run's global setup runs in, and an app's dev server reads
+ * `NODE_ENV`: React Native's refuses to start under `test`.
+ */
+export function commandEnvironment(env: NodeJS.ProcessEnv, own: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const runner = ([key, value]: [string, string | undefined]) => {
+    const name = key.toUpperCase();
+    return name === 'TEST' || name === 'VITEST' || name.startsWith('VITEST_') || (name === 'NODE_ENV' && value === 'test');
+  };
+  return {...Object.fromEntries(Object.entries(env).filter(entry => !runner(entry))), ...own} as NodeJS.ProcessEnv;
+}
+
+/**
  * Starts a platform's command, unless one already answers at its ready url:
  * that one is used when `reuseExisting` allows, and is otherwise an error,
  * since in CI it would be testing whatever build it serves. A command that
@@ -234,7 +249,7 @@ export async function startCommand(platform: Platform, command: ResolvedCommand,
   const out = log === false ? 'ignore' : system.openLog(log);
   const child = system.spawn(launch.file, launch.args, {
     cwd: command.cwd,
-    env: {...system.env, ...command.env},
+    env: commandEnvironment(system.env, command.env),
     stdio: ['ignore', out, out],
     shell: false,
     windowsHide: true,

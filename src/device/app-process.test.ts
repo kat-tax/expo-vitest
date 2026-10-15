@@ -5,7 +5,7 @@ import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {ResolvedCommand} from './config.ts';
 import type {Fetcher, Started, System} from './app-process.ts';
-import {acquire, backoff, cmdArgument, commandKey, findOnPath, isUp, launchOf, probe, registry, release, startCommand, stopTree, tail, waitUntilReady} from './app-process.ts';
+import {acquire, backoff, cmdArgument, commandEnvironment, commandKey, findOnPath, isUp, launchOf, probe, registry, release, startCommand, stopTree, tail, waitUntilReady} from './app-process.ts';
 
 /** A clock that moves only when something sleeps. */
 function fakeClock(): Clock & {at: number} {
@@ -240,6 +240,13 @@ describe('stopping a process', () => {
   });
 });
 
+describe("a command's environment", () => {
+  it("keeps a NODE_ENV the person set, and lets the command's own env set any of them back", () => {
+    expect(commandEnvironment({NODE_ENV: 'production', HOME: '/home/me'} as unknown as NodeJS.ProcessEnv)).toEqual({NODE_ENV: 'production', HOME: '/home/me'});
+    expect(commandEnvironment({NODE_ENV: 'test', TEST: 'true'} as unknown as NodeJS.ProcessEnv, {NODE_ENV: 'test'})).toEqual({NODE_ENV: 'test'});
+  });
+});
+
 describe("a command's key", () => {
   it('is its program, arguments and folder', () => {
     const one = {executable: 'npx', args: ['expo', 'start'], cwd: '/app'};
@@ -329,6 +336,14 @@ describe('starting a command', () => {
     expect(system.closeLog).toHaveBeenCalledWith(7);
     expect(child.unref).toHaveBeenCalled();
     expect(system.clock.at).toBe(100);
+  });
+
+  it("starts it without what Vitest set for itself, so a dev server does not take the run for a test", async () => {
+    const {system} = machine({up: [false, true]});
+    const run = {PATH: '/usr/bin', NODE_ENV: 'test', TEST: 'true', VITEST: 'true', VITEST_POOL_ID: '1', VITEST_MODE: 'RUN', Vitest_Worker_Id: '3', VITE_API: 'x'};
+    Object.assign(system, {env: run as unknown as NodeJS.ProcessEnv});
+    await startCommand('web', resolved(), 'http://localhost:8081', system);
+    expect((system.spawn.mock.calls[0] as unknown as [string, string[], {env: NodeJS.ProcessEnv}])[2].env).toEqual({PATH: '/usr/bin', VITE_API: 'x', EXPO_NO_DEV_MENU: '1'});
   });
 
   it('runs a .cmd through cmd.exe on Windows, in the same console', async () => {
