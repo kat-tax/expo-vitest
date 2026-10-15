@@ -40,6 +40,9 @@ public static class HarnessHost {
   [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
   [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
   [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [StructLayout(LayoutKind.Sequential)] struct POINT { public int X; public int Y; }
+  [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT point);
+  [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
   delegate bool WindowVisit(IntPtr window, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisit visit, IntPtr data);
 
@@ -109,7 +112,7 @@ public static class HarnessHost {
       case "snapshot": return Snapshot(Text(request, "process"), Flag(request, "interactive"), Number(request, "max", 400));
       case "click": return Click(Text(request, "process"), request.ContainsKey("points") ? request["points"] as IEnumerable : null);
       case "hold": return Hold(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "ms", 800));
-      case "keys": return Keys(Text(request, "keys"));
+      case "keys": return Keys(Text(request, "process"), Text(request, "keys"));
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
       case "idle": return Idle();
       case "raise": return Raise(Text(request, "process"));
@@ -444,10 +447,13 @@ public static class HarnessHost {
   static string Click(string name, IEnumerable points) {
     int originX = 0;
     int originY = 0;
+    uint pid = 0;
     if (!string.IsNullOrEmpty(name)) {
-      RECT rect = WindowRect(Window(name));
+      Process process = Window(name);
+      RECT rect = WindowRect(process);
       originX = rect.Left;
       originY = rect.Top;
+      pid = (uint)process.Id;
     }
     List<string> clicked = new List<string>();
     if (points != null) {
@@ -455,6 +461,16 @@ public static class HarnessHost {
         object[] xy = Pair(point);
         int x = Convert.ToInt32(xy[0], CultureInfo.InvariantCulture) + originX;
         int y = Convert.ToInt32(xy[1], CultureInfo.InvariantCulture) + originY;
+        // A click lands on whatever window is at the point, so with an app
+        // named it is sent only where that window is one of the app's own.
+        if (pid != 0) {
+          POINT at;
+          at.X = x;
+          at.Y = y;
+          uint owner;
+          GetWindowThreadProcessId(GetAncestor(WindowFromPoint(at), 2), out owner);
+          if (owner != pid) throw new InvalidOperationException("a window of " + ProcessName(owner) + " is in front of " + name + " at " + x + "," + y + ", so the press would land in it");
+        }
         SetCursorPos(x, y);
         Thread.Sleep(80);
         mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
@@ -465,6 +481,11 @@ public static class HarnessHost {
       }
     }
     return Json("clicked " + string.Join("; ", clicked.ToArray()));
+  }
+
+  /** A process by its name, which says whose window was in the way without reading anything it shows. */
+  static string ProcessName(uint pid) {
+    try { return Process.GetProcessById((int)pid).ProcessName; } catch { return "another process"; }
   }
 
   static object[] Pair(object point) {
@@ -492,15 +513,22 @@ public static class HarnessHost {
     return Json("held " + (x + originX) + "," + (y + originY) + " for " + ms + " ms");
   }
 
-  static string Keys(string keys) {
+  // Keys go to the window in front, so with an app named they are sent only
+  // while that window is one of its own: an app that did not come to the
+  // front would leave them to whatever was there, such as a window someone
+  // left open when they stepped away.
+  static string Keys(string name, string keys) {
+    if (!string.IsNullOrEmpty(name)) {
+      Process process = Window(name);
+      uint owner;
+      GetWindowThreadProcessId(GetForegroundWindow(), out owner);
+      if (owner != (uint)process.Id) throw new InvalidOperationException(name + " is not the window in front, so the keys would go to " + ProcessName(owner));
+    }
     System.Windows.Forms.SendKeys.SendWait(keys);
     Thread.Sleep(400);
     return Json("sent " + keys);
   }
 
-  // A region of the screen as it is, without touching any window's z-order:
-  // raising the app would hide a share sheet or a flyout that is over it,
-  // which is usually the thing being looked at.
   // A window's picture, drawn by the window itself, so a window over it on
   // the screen is not in it and nothing is raised. Two cases take the picture
   // from the screen instead. One is a menu or popup of the app's own open

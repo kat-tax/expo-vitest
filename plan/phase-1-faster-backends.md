@@ -104,9 +104,11 @@ below, the build is what holds:
   - The refusal text gained a device test's way past it.
   - `bench` reports a refused press as failed, with what it timed, since
     its own check is gone.
-  - Not counting the harness's own input is proved by unit tests only.
-    Seeing Windows count injected input as use needs input sent while
-    nobody is at the desk, which has not happened yet.
+  - Seen live with item 18: after 205 s with nobody at the desk, two taps on
+    an empty spot of Entz both went through, and the idle step read 206 s
+    after each. The machine's own idle time, read straight after, was 12 s,
+    so Windows did count the taps as use, and the second would have been
+    refused without the discount.
 - **Item 14 takes the picture from the screen while a popup is open.**
   - A WinUI menu opens in a window of its own, which the main window's
     picture would leave out. So while a visible window of the app's own
@@ -137,6 +139,16 @@ below, the build is what holds:
   answered, with 12 elements where there had been 94, and a restart brought
   all 94 back with the cached read working again. So the cached read's
   exception came with an app in that state, which bears on item 19.
+- **Item 18 checks where input lands, and puts nothing back.**
+  - A click is sent only where the window at its point belongs to the app.
+  - Keys are sent only while one of the app's windows is in front.
+  - Focus and the caret are not put back after a step. The steps run in a
+    sequence, and a press followed by `type()` would then type into
+    whatever got the focus back.
+  - Seen live: a click asked at a point outside Entz was refused before the
+    pointer moved, naming the editor that was there, through the host and
+    through the script. Two taps on an empty spot went through once nobody
+    had been at the desk for 205 s.
 - **Item 19 found the COM client no better, so nothing changed.** It was
   declared by hand from the SDK's header and asked for the same cached
   subtree.

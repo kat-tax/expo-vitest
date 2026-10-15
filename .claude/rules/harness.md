@@ -28,7 +28,9 @@ the app under test.
   while someone is using it, unless it was made with `force` (`--force`,
   `HARNESS_FORCE`). Its own input is not counted as someone's
   (`src/harness/lib/quiet.ts`). Do not add synthetic input to the driver
-  without that check. A pattern call is not synthetic input: a press goes
+  without that check. The host and the scripts also send a click only where
+  the window at its point is the app's, and keys only while the app's window
+  is in front. A pattern call is not synthetic input: a press goes
   through a control's UI Automation pattern where it has one, and stands
   only where the control's state shows it (`src/harness/lib/patterns.ts`).
   A headless browser and a device are not the desktop, so their

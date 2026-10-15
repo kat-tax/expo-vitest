@@ -140,6 +140,9 @@ Windows driver checks how long the machine has been quiet, and refuses if it
 has been less than three minutes. A device test gets the same refusal.
 Windows counts the harness's own input as use, so the driver does not count
 what it sent itself: a second press is not refused because of the first.
+Even then, a click is sent only where the window at its point is the app's,
+and keys only while the app's window is in front, so neither lands in a window
+someone left open.
 Pass `--force` when you know the desk is free, or set `HARNESS_FORCE=1` for
 a device test. A headless browser and a device are not the desktop, so the
 check does not apply to them.

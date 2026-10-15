@@ -119,7 +119,7 @@ function hostBackend(processName: string): Backend {
     snapshot: interactive => host.request<RawTree>('snapshot', {process: processName, interactive, max: 400}, 30_000),
     raise: () => host.request<string>('raise', {process: processName}),
     click: point => host.request<string>('click', {...windowed, points: [[point.x, point.y]]}),
-    keys: keys => host.request<string>('keys', {keys}, 30_000),
+    keys: keys => host.request<string>('keys', {...windowed, keys}, 30_000),
     screen: out => host.request<string>('screen', {...windowed, out}, 30_000),
     async idle() {
       // A check that fails says the desk is in use, so a broken one never lets synthetic input through.
@@ -160,7 +160,7 @@ function scriptBackend(processName: string): Backend {
       return check(powershell(script('input.ps1'), ['-Points', `${point.x},${point.y}`, ...windowed]));
     },
     async keys(keys) {
-      return check(powershell(script('input.ps1'), ['-Keys', keys]));
+      return check(powershell(script('input.ps1'), ['-Keys', keys, ...windowed]));
     },
     async screen(out) {
       return check(powershell(script('screen.ps1'), ['-Out', out, ...windowed]));
