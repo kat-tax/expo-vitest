@@ -4,7 +4,7 @@ import {describe, expect, it} from 'vitest';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {nodesFrom, toSnapshotNodes} from '../harness/platforms/agent-device-mapping.ts';
 import type {LocatorQuery, Predicate, QueryOptions, Refinement, TextMatch} from './queries.ts';
-import {ambiguity, describeCandidate, describeQuery, inside, matches, nameOf, normalise, resolve} from './queries.ts';
+import {ambiguity, describeCandidate, describeQuery, inside, matches, nameOf, normalise, resolve, suggestions} from './queries.ts';
 
 const query = (predicate: Predicate, match: TextMatch, options: QueryOptions = {}, refinements: Refinement[] = [], cardinality: 'one' | 'many' = 'one'): LocatorQuery => ({predicate, match, options, refinements, cardinality});
 const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: false, ...extra});
@@ -209,6 +209,44 @@ describe('real trees', () => {
     expect(resolve(query('text', 'Dark theme'), display).map(each => each.kind)).toEqual(['text']);
     const settings: Snapshot = {platform: 'android', nodes: toSnapshotNodes(nodesFrom(fixture('android-settings.json')))};
     expect(resolve(query('role', /group|list/, {name: 'network', exact: false}), settings).map(each => nameOf(each, settings))).toEqual(['Network & internet Mobile, Wi‑Fi, hotspot']);
+  });
+});
+
+describe('suggestions', () => {
+  const screen: Snapshot = {
+    platform: 'web',
+    nodes: [
+      node('@e1', 'button', 'Save draft', {kind: 'button', testId: 'save-draft'}),
+      node('@e2', 'button', 'OK', {kind: 'button'}),
+      node('@e3', 'input', 'Email', {kind: 'textbox', placeholder: 'you@example.com', value: 'a@b.c', help: 'Where we write'}),
+      node('@e4', 'Custom', ''),
+    ],
+  };
+
+  it('name the nodes with the role a query asked for, whatever else it asked, or the kinds there are', () => {
+    expect(suggestions(query('role', 'button', {name: 'Delete'}), screen)).toBe('2 nodes have role button: "Save draft", "OK"');
+    expect(suggestions(query('role', 'textbox', {name: 'Name'}), screen)).toBe('1 node has role textbox: "Email"');
+    expect(suggestions(query('role', 'slider'), screen)).toBe('no node has role slider; the kinds there: button, textbox');
+    expect(suggestions(query('role', /slider/), {platform: 'web', nodes: [node('@e1', 'Custom', '')]})).toBe('no node has role /slider/');
+  });
+
+  it('name the names like the one asked for, or all of them, a few at a time', () => {
+    expect(suggestions(query('text', 'save'), screen)).toBe('names like it: "Save draft"');
+    expect(suggestions(query('label', 'Draft copy'), screen)).toBe('names like it: "Save draft"');
+    expect(suggestions(query('label', 'Saved draft'), screen)).toBe('names like it: "Save draft"');
+    expect(suggestions(query('text', 'book'), screen)).toBe('the names there: "Save draft", "OK", "Email"');
+    expect(suggestions(query('text', /book/), screen)).toBe('the names there: "Save draft", "OK", "Email"');
+    const many: Snapshot = {platform: 'web', nodes: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((name, at) => node(`@e${at}`, 'text', name))};
+    expect(suggestions(query('text', 'Z'), many)).toBe('the names there: "A", "B", "C", "D", "E" and 2 more');
+    expect(suggestions(query('text', 'Z'), {platform: 'web', nodes: [node('@e1', 'Custom', '')]})).toBe('no node has a name');
+  });
+
+  it('name the values of the field a query reads', () => {
+    expect(suggestions(query('testId', 'save'), screen)).toBe('the testIDs there: "save-draft"');
+    expect(suggestions(query('placeholder', 'Name'), screen)).toBe('the placeholders there: "you@example.com"');
+    expect(suggestions(query('value', 'Ada'), screen)).toBe('the values there: "a@b.c"');
+    expect(suggestions(query('hint', 'Opens'), screen)).toBe('the hints there: "Where we write"');
+    expect(suggestions(query('testId', 'save'), {platform: 'web', nodes: [node('@e1', 'Custom', '')]})).toBe('no node has a testID');
   });
 });
 

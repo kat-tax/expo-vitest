@@ -48,9 +48,17 @@ describe('codeOf', () => {
 });
 
 describe('HarnessCode', () => {
-  it('is these seven, so a new one is a deliberate edit here', () => {
+  it('is these nine, so a new one is a deliberate edit here', () => {
     expectTypeOf<HarnessCode>().toEqualTypeOf<
-      'DRIVER_UNAVAILABLE' | 'APP_UNREACHABLE' | 'LOCATOR_NOT_FOUND' | 'ACTION_FAILED' | 'NOT_ACTIONABLE' | 'UNSUPPORTED_CAPABILITY' | 'INVALID_ARGUMENT'
+      | 'DRIVER_UNAVAILABLE'
+      | 'APP_UNREACHABLE'
+      | 'LOCATOR_NOT_FOUND'
+      | 'LOCATOR_AMBIGUOUS'
+      | 'ACTION_FAILED'
+      | 'ASSERTION_FAILED'
+      | 'NOT_ACTIONABLE'
+      | 'UNSUPPORTED_CAPABILITY'
+      | 'INVALID_ARGUMENT'
     >();
   });
 });

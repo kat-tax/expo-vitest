@@ -304,14 +304,19 @@ export function nodeProject(options: {name: string; include: string[]; root?: st
  *
  *     HARNESS_PLATFORM=web HARNESS_URL=http://localhost:8081 vitest run --config vitest.config.device.mts
  */
-export function deviceConfig(options: {include?: string[]; timeout?: number; settle?: number | false; transition?: number | false} = {}): ViteUserConfig {
+export function deviceConfig(
+  options: {include?: string[]; timeout?: number; settle?: number | false; transition?: number | false; assertionTimeout?: number; stable?: number} = {},
+): ViteUserConfig {
   const timeout = options.timeout ?? 120_000;
-  // How long a step waits for the screen reaches the test process through
-  // its environment, which is what the device layer reads.
+  // How long a step waits for the screen, and how long a wait looks, reach
+  // the test process through its environment, which is what the device
+  // layer reads, so a run started without this config can set them too.
   const ms = (value: number | false) => String(value === false ? 0 : value);
   const env = {
     ...(options.settle === undefined ? {} : {HARNESS_SETTLE: ms(options.settle)}),
     ...(options.transition === undefined ? {} : {HARNESS_TRANSITION: ms(options.transition)}),
+    ...(options.assertionTimeout === undefined ? {} : {HARNESS_ASSERTION_TIMEOUT: ms(options.assertionTimeout)}),
+    ...(options.stable === undefined ? {} : {HARNESS_STABLE: ms(options.stable)}),
   };
   return {
     resolve: {alias: selfAliases()},

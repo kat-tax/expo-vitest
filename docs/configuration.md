@@ -148,6 +148,8 @@ export default defineConfig(deviceConfig());
 | `timeout` | How long one test or hook may take. A real app is slower than a component test by a lot. | 120 seconds |
 | `settle` | How long the screen must hold still after a step before the next one, in ms; `0` or `false` for no wait. See [waiting for the screen](device-tests.md#waiting-for-the-screen). | 150 |
 | `transition` | How long a control the last step brought in or moved is given before it is pressed, in ms; `0` or `false` for none. | 500 |
+| `assertionTimeout` | How long an action looks for its node, and a `findBy*` or a `waitFor` waits, in ms. See [waiting](locators.md#waiting). | 5000 |
+| `stable` | How long something must stay gone before a wait for it to go passes, in ms. | 1000 |
 
 The config runs one file at a time in one worker. There is one app and one
 driver, and two files must not press the same window at once.

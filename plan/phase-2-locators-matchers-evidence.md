@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 4 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 5 and 7 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -90,6 +90,58 @@ below, the build is what holds.
   - `filter({hasText})` looks inside the node too, as Playwright does.
   - The web fixtures were captured again once nodes carried `kind`, and
     match the first capture node for node apart from it.
+- **Item 7 came before item 5,** so the locator's waits use the
+  scheduler from the start.
+  - `assertionTimeout` and `stable` reach the worker through the
+    environment, `HARNESS_ASSERTION_TIMEOUT` and `HARNESS_STABLE`, as
+    `settle` and `transition` do, rather than `provide`. A run started
+    without `deviceConfig` can set them too.
+  - An action invalidates the feed, a read in flight included, so nothing
+    read before an action answers a wait after it. Spacing alone would let
+    a wait read the tree from before a fast press.
+  - A negated wait times its next reading to the moment its condition
+    will have held for `stable`. The worked example then passes at
+    2213 ms on the ninth reading, as worked.
+- **Item 5: `src/device/locator.ts` and `src/device/screen.ts`.**
+  - Seven predicates in six families make 42 queries.
+  - `element` stays on its own path. Moved under the locator, it would
+    wait before failing, change its messages, and pass a ref where the
+    contract pins the selector it was given.
+  - `targetFor` passes the ref, except that a press on a Windows text
+    goes to the control it sits in when that control has Invoke. In the
+    Windows fixtures, 2 of the 70 texts in a button have one. The rest
+    are in buttons a press reaches only with the pointer either way, and
+    the text's own middle is the safer point.
+  - An action waits for its node to be enabled, as Playwright's do, and a
+    node that stays disabled is `NOT_ACTIONABLE`.
+  - `check` reads the control back by following it into the next
+    snapshot: by its ref where that still names it, else by its place
+    among the nodes alike, since agent-device numbers refs afresh.
+  - `within` takes a locator, or a node, found again by its testID or
+    its role and name.
+  - `ASSERTION_FAILED` arrived here, with `LOCATOR_AMBIGUOUS`, since a
+    `waitFor` for a node to go produces it.
+  - The locator's `key`, `longPress`, `hover`, `focus`,
+    `scrollIntoView` and `swipe` come with item 6.
+  - `docs/locators.md` came with the feature, as AGENTS.md asks.
+  - **Seen live:**
+    - Web, on the page of controls: a native checkbox checked and
+      unchecked with each state read back, an uncheck the page ignores
+      failing as it should, and strictness, suggestions, `findBy`,
+      `within` and a held `hidden`.
+    - Web, on the Expo Router example: a press on the text inside a link
+      navigated, and back.
+    - Windows, on a react-native-windows app: tabs pressed through
+      SelectionItem, and a search field filled through Value and through
+      keys.
+    - Android, on the emulator's Settings: a row found by the text it
+      holds and pressed, and the Dark theme switch checked and unchecked
+      with each state read back.
+  - **Not seen:** iOS.
+  - The live runs found two driver bugs, fixed in commits of their own.
+    A fill appended on web and through keys on Windows, where agent-device
+    and the Value pattern replace. The Windows driver handed typed text
+    to SendKeys as syntax, so `1+1` typed `1!`.
 
 ## Purpose and the claims it proves
 

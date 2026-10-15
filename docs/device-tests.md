@@ -19,8 +19,9 @@ The app under test needs no SDK and no rebuild. Nothing is installed in it.
 | windows | UI Automation and synthetic input, from this package |
 | android, ios | [`agent-device`](https://www.npmjs.com/package/agent-device) |
 
-[The harness](harness.md) is the same drivers as a command, for looking at a
-screen by hand.
+[Locators](locators.md) finds nodes with React Native Testing Library's
+queries: `screen.getByRole('button', {name: 'Save'})`. [The harness](harness.md)
+is the same drivers as a command, for looking at a screen by hand.
 
 ## Setup
 
@@ -92,6 +93,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
 | `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
+| `HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE` | How long a locator's wait looks, and how long something must stay gone, in ms. `deviceConfig`'s `assertionTimeout` and `stable` set them. |
 | `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
@@ -321,8 +323,10 @@ try {
 | `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
 | `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
 | `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. The message says what was there instead: the names in the role asked for, the testIDs, or what can be acted on. |
+| `LOCATOR_AMBIGUOUS` | A [locator](locators.md) that names one node named several. The message lists them. |
 | `NOT_ACTIONABLE` | The node is there but cannot be acted on: it has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
-| `ACTION_FAILED` | The backend refused the step, or failed it. |
+| `ACTION_FAILED` | The backend refused the step, or failed it, or a locator's `check` did not take. |
+| `ASSERTION_FAILED` | The screen did not come to say what a test waited for, such as a node that never went, within the time allowed. |
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
 

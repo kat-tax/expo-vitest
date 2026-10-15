@@ -232,6 +232,59 @@ export function resolve(query: LocatorQuery, snapshot: Snapshot, within?: Snapsh
   return found;
 }
 
+/** A few values for a message, each once: `"a", "b" and 3 more`. */
+function few(values: string[], quoted = true): string {
+  const unique = [...new Set(values)];
+  const shown = unique
+    .slice(0, 5)
+    .map(value => (quoted ? JSON.stringify(value) : value))
+    .join(', ');
+  return unique.length > 5 ? `${shown} and ${unique.length - 5} more` : shown;
+}
+
+/** The words of a name worth comparing: three letters or more, in lower case. */
+function wordsOf(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(word => word.length >= 3);
+}
+
+/** Whether a name is like the one asked for: one holds the other, or they share a word. */
+function like(name: string, wanted: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes(wanted) || (lower.length >= 3 && wanted.includes(lower)) || wordsOf(lower).some(word => wordsOf(wanted).includes(word));
+}
+
+/**
+ * What the tree held instead, for a query that matched nothing: the names of
+ * the nodes with the role it asked for, the names like the one it asked for,
+ * or the values the field it reads has, a few of each.
+ */
+export function suggestions(query: LocatorQuery, snapshot: Snapshot): string {
+  const {match, predicate} = query;
+  const {nodes} = snapshot;
+  if (predicate === 'role') {
+    const named = nodes.filter(node => fits(node, {...query, options: {}}, snapshot));
+    if (named.length > 0) return `${named.length} ${named.length === 1 ? 'node has' : 'nodes have'} role ${String(match)}: ${few(named.map(node => nameOf(node, snapshot)))}`;
+    const kinds = nodes.flatMap(node => (node.kind ? [node.kind] : []));
+    return kinds.length > 0 ? `no node has role ${String(match)}; the kinds there: ${few(kinds, false)}` : `no node has role ${String(match)}`;
+  }
+  if (predicate === 'text' || predicate === 'label') {
+    const names = nodes.map(node => ownName(node, snapshot)).filter(Boolean);
+    if (names.length === 0) return 'no node has a name';
+    const near = typeof match === 'string' ? names.filter(name => like(name, match.toLowerCase())) : [];
+    return near.length > 0 ? `names like it: ${few(near)}` : `the names there: ${few(names)}`;
+  }
+  const field = {placeholder: 'placeholder', value: 'value', testId: 'testId', hint: 'help'} as const;
+  const what = {placeholder: 'placeholders', value: 'values', testId: 'testIDs', hint: 'hints'} as const;
+  const values = nodes.flatMap(node => {
+    const value = node[field[predicate]];
+    return typeof value === 'string' && value !== '' ? [value] : [];
+  });
+  return values.length > 0 ? `the ${what[predicate]} there: ${few(values)}` : `no node has a ${what[predicate].slice(0, -1)}`;
+}
+
 /** Each predicate's word in RNTL's query names. */
 const WORDS: Record<Predicate, string> = {role: 'Role', text: 'Text', label: 'LabelText', placeholder: 'PlaceholderText', value: 'DisplayValue', testId: 'TestId', hint: 'HintText'};
 

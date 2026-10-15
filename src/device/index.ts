@@ -8,9 +8,10 @@
  * (driven by `agent-device`) and on web (a headless Chromium). The app under
  * test needs no SDK and no rebuild.
  *
- *   import {by, device, element} from 'expo-vitest/device';
+ *   import {by, device, element, screen} from 'expo-vitest/device';
  *
  *   await device.open('/');
+ *   await screen.getByRole('button', {name: 'Settings'}).press();
  *   await element(by.label('Settings')).press();
  *   expect(await device.fullSnapshot()).toHaveElement(by.label('Name'));
  */
@@ -23,9 +24,16 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import {Locator} from './locator.ts';
+import type {LocatorState, WaitOptions} from './locator.ts';
+import type {Polling, SnapshotFeed} from './polling.ts';
+import {DEFAULT_POLLING, invalidating, snapshotFeed} from './polling.ts';
+import type {QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
+import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
+import {queriesOn, scopeOf} from './screen.ts';
 
-export {by, HarnessError, isHarnessError};
-export type {HarnessCode, Kind, Selector, Snapshot, SnapshotNode};
+export {by, HarnessError, isHarnessError, Locator};
+export type {FindOptions, HarnessCode, Kind, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -42,6 +50,10 @@ export interface DeviceConfig {
   settle?: number;
   /** How long a control the last step brought in is given before it is pressed, in ms, where the run did not keep the default. */
   transition?: number;
+  /** How long an assertion, an action's search for its node and a `findBy*` wait, in ms, where the run did not keep the default. */
+  assertionTimeout?: number;
+  /** How long something must stay gone before a wait for it to go passes, in ms, where the run did not keep the default. */
+  stable?: number;
 }
 
 /** A count of milliseconds from the environment, with `false` as 0, as e2e spells it; undefined when it is not one. */
@@ -56,6 +68,8 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
   const force = environment.HARNESS_FORCE;
   const settle = milliseconds(environment.HARNESS_SETTLE);
   const transition = milliseconds(environment.HARNESS_TRANSITION);
+  const assertionTimeout = milliseconds(environment.HARNESS_ASSERTION_TIMEOUT);
+  const stable = milliseconds(environment.HARNESS_STABLE);
   return {
     platform,
     url: environment.HARNESS_URL,
@@ -63,9 +77,11 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
     target: environment.HARNESS_TARGET,
     // A device test cannot pass the command's --force, so this is its form.
     ...(force && force !== '0' ? {force: true} : {}),
-    // deviceConfig's settle and transition arrive this way.
+    // deviceConfig's settle, transition, assertionTimeout and stable arrive this way.
     ...(settle === undefined ? {} : {settle}),
     ...(transition === undefined ? {} : {transition}),
+    ...(assertionTimeout === undefined ? {} : {assertionTimeout}),
+    ...(stable === undefined ? {} : {stable}),
   };
 }
 
@@ -76,14 +92,22 @@ function failure(result: StepResult, platform: Platform, otherwise: HarnessCode)
 
 class Device {
   readonly config: DeviceConfig;
+  /** The snapshots every wait shares, so waits at the same moment take one between them. */
+  readonly feed: SnapshotFeed;
   private driver: Driver | null = null;
 
   constructor(config: DeviceConfig) {
     this.config = config;
+    this.feed = snapshotFeed(() => this.fullSnapshot());
   }
 
   get platform(): Platform {
     return this.config.platform;
+  }
+
+  /** How long a wait lasts, and how long an absence must hold, from the run's config. */
+  get polling(): Polling {
+    return {assertionTimeout: this.config.assertionTimeout ?? DEFAULT_POLLING.assertionTimeout, stable: this.config.stable ?? DEFAULT_POLLING.stable};
   }
 
   /** The driver, made on first use and kept for the file's tests; its steps wait for the screen to hold still. */
@@ -92,7 +116,7 @@ class Device {
     const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target, force: this.config.force});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
-    this.driver = withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition}));
+    this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
     return this.driver;
   }
 
@@ -154,10 +178,23 @@ class Device {
   async close(): Promise<void> {
     await this.driver?.close();
     this.driver = null;
+    this.feed.invalidate();
   }
 }
 
 export const device = new Device(configFromEnvironment());
+
+/**
+ * React Native Testing Library's queries over the device's tree:
+ * `screen.getByRole('button', {name: 'Save'})` is a locator, made at no cost
+ * and resolved each time it is acted on or asserted.
+ */
+export const screen: Queries = queriesOn(device);
+
+/** The same queries, kept inside one node: a locator's, or a node a query gave. */
+export function within(target: Locator | SnapshotNode): Queries {
+  return queriesOn(device, scopeOf(target));
+}
 
 /** One element, found fresh each time it is acted on — a ref from an old tree is stale. */
 export function element(selector: Selector) {

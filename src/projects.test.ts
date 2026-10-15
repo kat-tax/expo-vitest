@@ -170,4 +170,8 @@ describe('nodeProject and deviceConfig', () => {
     expect(testOf(deviceConfig({transition: false})).env).toEqual({HARNESS_TRANSITION: '0'});
     expect(testOf(deviceConfig())).not.toHaveProperty('env');
   });
+
+  it('hands how long a wait looks, and how long an absence must hold, to the tests the same way', () => {
+    expect(testOf(deviceConfig({assertionTimeout: 8000, stable: 500})).env).toEqual({HARNESS_ASSERTION_TIMEOUT: '8000', HARNESS_STABLE: '500'});
+  });
 });

@@ -25,7 +25,7 @@ import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, selfAliases} from '../projects.ts';
 import type {DeviceConfig, HarnessCode, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
-import {by, configFromEnvironment, device, element, isHarnessError} from './index.ts';
+import {Locator, by, configFromEnvironment, device, element, isHarnessError, screen, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -113,6 +113,14 @@ describe('the environment', () => {
     const unread = configFromEnvironment({...web, HARNESS_SETTLE: 'soon', HARNESS_TRANSITION: '-5'} as unknown as NodeJS.ProcessEnv);
     expect(unread).not.toHaveProperty('settle');
     expect(unread).not.toHaveProperty('transition');
+  });
+
+  it('reads how long a wait looks from HARNESS_ASSERTION_TIMEOUT, and how long an absence holds from HARNESS_STABLE', () => {
+    const web = {HARNESS_PLATFORM: 'web'};
+    expect(configFromEnvironment({...web, HARNESS_ASSERTION_TIMEOUT: '8000', HARNESS_STABLE: '500'} as unknown as NodeJS.ProcessEnv)).toMatchObject({assertionTimeout: 8000, stable: 500});
+    const unread = configFromEnvironment({...web, HARNESS_ASSERTION_TIMEOUT: 'long'} as unknown as NodeJS.ProcessEnv);
+    expect(unread).not.toHaveProperty('assertionTimeout');
+    expect(unread).not.toHaveProperty('stable');
   });
 
   it('forces synthetic input with HARNESS_FORCE, and only when it is set to something other than 0', () => {
@@ -307,6 +315,38 @@ describe('element', () => {
   });
 });
 
+describe('screen', () => {
+  it("has RNTL's forty-two queries, and within the same", () => {
+    const families = ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy'];
+    const words = ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText'];
+    const expected = families.flatMap(family => words.map(word => `${family}${word}`)).sort();
+    expect(Object.keys(screen).sort()).toEqual(expected);
+    expect(Object.keys(within(screen.getByRole('dialog'))).sort()).toEqual(expected);
+  });
+
+  it('presses the one node a locator names, by its ref, and reads the tree afresh after', async () => {
+    const save: SnapshotNode = {ref: '@e2', role: 'button', name: 'Save', depth: 1, interactive: true};
+    const snapshot = vi.fn(async () => ({platform: 'web', nodes: [save]}));
+    const press = vi.fn(async (): Promise<StepResult> => ok('pressed'));
+    drive(stub({snapshot, press}));
+    const locator = screen.getByRole('button', {name: 'Save'});
+    expect(locator).toBeInstanceOf(Locator);
+    await locator.press({settle: false});
+    expect(press).toHaveBeenCalledWith({ref: '@e2'}, {settle: false});
+    const reads = snapshot.mock.calls.length;
+    expect(await screen.queryByText('Save')).toBe(save);
+    expect(snapshot.mock.calls.length).toBe(reads + 1);
+  });
+
+  it('is ambiguous where a locator names several, and lists them', async () => {
+    const one: SnapshotNode = {ref: '@e2', role: 'button', name: 'Save', depth: 1, interactive: true};
+    drive(stub({snapshot: async () => ({platform: 'web', nodes: [one, {...one, ref: '@e5'}]})}));
+    await expect(screen.getByRole('button').press()).rejects.toThrow(
+      failure('LOCATOR_AMBIGUOUS', 'getByRole("button") matches 2 nodes; narrow it with first(), nth() or filter(), or use getAllByRole:\n  @e2   button "Save"\n  @e5   button "Save"'),
+    );
+  });
+});
+
 describe('the matchers', () => {
   const tree: Snapshot = {
     platform: 'web',
@@ -467,7 +507,17 @@ describe('the types a consumer compiled against', () => {
       patterns?: string[];
     }>();
     expectTypeOf<Plain<Snapshot>>().toMatchObjectType<{platform: string; source?: string; nodes: SnapshotNode[]}>();
-    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string; force?: boolean; settle?: number; transition?: number}>();
+    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{
+      platform: 'web' | 'windows' | 'android' | 'ios';
+      url?: string;
+      scheme?: string;
+      target?: string;
+      force?: boolean;
+      settle?: number;
+      transition?: number;
+      assertionTimeout?: number;
+      stable?: number;
+    }>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();
@@ -476,7 +526,14 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<NonNullable<Parameters<Assertion['toMatchScreenshot']>[1]>>().toMatchObjectType<{maxRatio?: number}>();
 
     expectTypeOf(deviceConfig).returns.toEqualTypeOf<ViteUserConfig>();
-    expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{include?: string[]; timeout?: number; settle?: number | false; transition?: number | false}>();
+    expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{
+      include?: string[];
+      timeout?: number;
+      settle?: number | false;
+      transition?: number | false;
+      assertionTimeout?: number;
+      stable?: number;
+    }>();
     expectTypeOf<Parameters<typeof nodeProject>[0]>().toMatchObjectType<{name: string; include: string[]; root?: string; timeout?: number}>();
     expectTypeOf<Plain<ExpoProjectsOptions>>().toMatchObjectType<{root?: string; platforms?: Platform[]; include?: string[]; transformPackages?: string[]; timeout?: number}>();
   });

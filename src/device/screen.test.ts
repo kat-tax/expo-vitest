@@ -1,0 +1,105 @@
+import {describe, expect, it} from 'vitest';
+import type {Clock} from '../harness/lib/settle.ts';
+import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
+import type {LocatorHost} from './locator.ts';
+import {Locator} from './locator.ts';
+import {DEFAULT_POLLING} from './polling.ts';
+import {queriesOn, queryFor, scopeOf} from './screen.ts';
+
+function fakeClock(): Clock & {at: number} {
+  const clock = {at: 0, now: () => clock.at, sleep: async (ms: number) => void (clock.at += ms)};
+  return clock;
+}
+
+const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: true, ...extra});
+
+/** A device whose screen is whatever `screen` says at the clock's time; nothing here acts, so it has no driver. */
+function rig(screen: (at: number) => SnapshotNode[]) {
+  const clock = fakeClock();
+  const next = async (): Promise<Snapshot> => ({platform: 'web', nodes: screen(clock.now())});
+  const host: LocatorHost = {
+    platform: 'web',
+    ready: () => Promise.reject(new Error('no driver here')),
+    feed: {next, invalidate: () => {}},
+    polling: DEFAULT_POLLING,
+    clock,
+  };
+  return {clock, host, queries: queriesOn(host)};
+}
+
+const failure = (code: string, message: string | RegExp) => expect.objectContaining({name: 'HarnessError', code, message: typeof message === 'string' ? message : expect.stringMatching(message)});
+
+const dialog = node('@e1', 'dialog', 'Confirm', {kind: 'dialog', depth: 0, interactive: false});
+const ok = node('@e2', 'button', 'OK', {kind: 'button', parent: '@e1', testId: 'ok'});
+const outside = node('@e3', 'button', 'OK', {kind: 'button', testId: 'ok-outside'});
+
+describe('the queries', () => {
+  it("are RNTL's six families of seven predicates", () => {
+    const {queries} = rig(() => []);
+    const names = Object.keys(queries).sort();
+    expect(names).toHaveLength(42);
+    for (const family of ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy']) {
+      for (const word of ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText']) expect(names).toContain(`${family}${word}`);
+    }
+  });
+
+  it('make a locator of a getBy and a getAllBy, with what they were asked', () => {
+    const {queries} = rig(() => []);
+    const one = queries.getByRole('button', {name: 'OK'});
+    expect(one).toBeInstanceOf(Locator);
+    expect(one.query).toEqual({predicate: 'role', match: 'button', options: {name: 'OK'}, refinements: [], cardinality: 'one'});
+    expect(String(queries.getAllByPlaceholderText('Email'))).toBe('getAllByPlaceholderText("Email")');
+    expect(queries.getByText('OK').query.options).toEqual({});
+  });
+
+  it('answer a queryBy at once, with the node, null, or the error that it is several', async () => {
+    const {clock, queries} = rig(() => [dialog, ok, outside]);
+    expect(await queries.queryByTestId('ok')).toEqual(ok);
+    expect(await queries.queryByTestId('gone')).toBeNull();
+    await expect(queries.queryByRole('button', {name: 'OK'})).rejects.toThrow(failure('LOCATOR_AMBIGUOUS', /^getByRole\("button", \{name: "OK"\}\) matches 2 nodes/));
+    expect(await queries.queryAllByRole('button')).toEqual([ok, outside]);
+    expect(clock.at).toBe(0);
+  });
+
+  it('wait in a findBy for exactly one, and in a findAllBy for at least one', async () => {
+    const {clock, queries} = rig(at => (at >= 200 ? [dialog, ok] : [dialog]));
+    expect(await queries.findByTestId('ok')).toEqual(ok);
+    expect(clock.at).toBe(250);
+    clock.at = 0;
+    expect(await queries.findAllByRole('button')).toEqual([ok]);
+    clock.at = 0;
+    expect(await queries.findByText('OK', {}, {interval: 50})).toEqual(ok);
+    expect(clock.at).toBe(200);
+  });
+
+  it('wait on the real clock on a device that names no clock of its own', async () => {
+    const {host} = rig(() => [dialog, ok]);
+    expect(await queriesOn({...host, clock: undefined}).findByTestId('ok')).toEqual(ok);
+  });
+
+  it('fail a findBy that never finds one, saying what was there, or that it stayed several', async () => {
+    const {queries} = rig(() => [dialog, ok, outside]);
+    await expect(queries.findByText('Cancel', {}, {timeout: 300})).rejects.toThrow(
+      failure('LOCATOR_NOT_FOUND', 'getByText("Cancel") matched nothing within 300 ms; the tree has 3 nodes; the names there: "Confirm", "OK"'),
+    );
+    await expect(queries.findByRole('button', {}, {timeout: 300})).rejects.toThrow(failure('LOCATOR_AMBIGUOUS', /matches 2 nodes;[^]*\n {2}and still did after 300 ms$/));
+    await expect(queries.findAllByRole('slider', {}, {timeout: 0})).rejects.toThrow(failure('LOCATOR_NOT_FOUND', /^getAllByRole\("slider"\) matched nothing within 0 ms/));
+  });
+});
+
+describe('within', () => {
+  it('keeps every query inside the one node a locator names', async () => {
+    const {host, queries} = rig(() => [dialog, ok, outside]);
+    const inside = queriesOn(host, scopeOf(queries.getByRole('dialog')));
+    expect(await inside.queryAllByText('OK')).toEqual([ok]);
+    expect(String(inside.getByText('OK'))).toBe('within(getByRole("dialog")).getByText("OK")');
+  });
+
+  it('finds a node it was given again, by its testID, else by its role and name', async () => {
+    expect(queryFor(ok)).toEqual({predicate: 'testId', match: 'ok', options: {hidden: true}, refinements: [], cardinality: 'one'});
+    expect(queryFor(dialog)).toEqual({predicate: 'role', match: 'dialog', options: {hidden: true, name: 'Confirm'}, refinements: [], cardinality: 'one'});
+    expect(queryFor(node('@e4', 'Group', '')).options).toEqual({hidden: true});
+    const {host} = rig(() => [dialog, ok, outside]);
+    expect(await queriesOn(host, scopeOf(dialog)).queryAllByRole('button')).toEqual([ok]);
+  });
+});

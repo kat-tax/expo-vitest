@@ -13,8 +13,12 @@ export type HarnessCode =
   | 'APP_UNREACHABLE'
   /** Nothing in the tree matched, within the time allowed. */
   | 'LOCATOR_NOT_FOUND'
+  /** A query that names one node named several, so a step cannot tell which to act on. */
+  | 'LOCATOR_AMBIGUOUS'
   /** The backend refused the step, or failed it. */
   | 'ACTION_FAILED'
+  /** The screen did not come to say what a test waited for, within the time allowed. */
+  | 'ASSERTION_FAILED'
   /** The node is there, but cannot be acted on: it has no bounds, or is off screen. */
   | 'NOT_ACTIONABLE'
   /** Asked of a platform that has no counterpart, where answering `skipped` would hide a mistake. */
