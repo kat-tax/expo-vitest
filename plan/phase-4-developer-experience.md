@@ -1,6 +1,6 @@
 # Phase 4. Developer experience
 
-Status: done, but for what needs an account, a push or a machine this one is not: a provider's hosted device, the pull request comment and the CI jobs, iOS, and `test:device` on an app `init` set up · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs an account, a push or a machine this one is not: a provider's hosted device, the pull request comment and the CI jobs, and iOS · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
 
 The shared goal, the bar, the compatibility contract and the dependency policy
 are in [README.md](README.md). The shared facts this phase builds on, the
@@ -82,9 +82,16 @@ build differs from the design below, the build is what holds.
 Against the exit criteria:
 
 - `init` with every default, then the component tests: green in the
-  fixture. `test:device` on web on an app it set up was not run: the
-  device config it writes serves the app on 8081, where this machine's own
-  dev server is.
+  fixture. `test:device` on web on an app it set up: run by hand on a fresh
+  `create-expo-app` (Expo 57.0.30, React Native 0.86.3) with the packed
+  package, `init --yes` and the packages it named, on port 8097 through
+  `HARNESS_URL`, since the config it writes serves the app on 8081, where
+  this machine's own dev server is. It failed first: the global setup
+  started `expo start` with Vitest's own environment, `NODE_ENV=test`
+  among it, under which React Native's dev middleware will not start. The
+  command now starts without what Vitest set for itself, and the run and
+  the component tests init wrote passed, on the Vitest 5.0.5 its install
+  line chose.
 - A second `init` changes nothing and says so per file: checked in the
   fixture.
 - The pull request comment: not seen, since nothing is pushed.
