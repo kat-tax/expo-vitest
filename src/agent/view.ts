@@ -142,3 +142,43 @@ export function diffViews(before: Snapshot, after: Snapshot, options: {before?: 
   if (changes > Math.max(was.size, now.size) / 2) return {text: renderView(after, options.after), whole: true, changes};
   return {text: lines.join('\n'), whole: false, changes};
 }
+
+/** A snapshot with a step's refs, and the platform's ref for each. */
+export interface Relabeled {
+  /** The snapshot as the model reads it: each node, and each parent, under the step's ref. */
+  snapshot: Snapshot;
+  /** The platform's ref for each of the step's, which an action is sent to. */
+  platformRef: ReadonlyMap<string, string>;
+}
+
+/**
+ * The refs the model knows a step's nodes by. iOS and Android number their
+ * refs afresh in every snapshot, and a diff names only what changed, so a
+ * ref the model read two views ago could name something else by now. Here
+ * a node is known by its identity, and keeps the ref it was first shown
+ * with for the rest of the step, on every platform alike. A node whose name
+ * changed is another node, with a ref of its own.
+ */
+export class RefBook {
+  private readonly refs = new Map<string, string>();
+
+  relabel(snapshot: Snapshot): Relabeled {
+    const byRef = new Map(snapshot.nodes.map(node => [node.ref, node]));
+    const seen = new Map<string, number>();
+    const ours = new Map<string, string>();
+    for (const node of snapshot.nodes) {
+      const identity = identityOf(node, byRef);
+      const count = seen.get(identity) ?? 0;
+      seen.set(identity, count + 1);
+      const key = `${identity}#${count}`;
+      const ref = this.refs.get(key) ?? `@e${this.refs.size + 1}`;
+      this.refs.set(key, ref);
+      ours.set(node.ref, ref);
+    }
+    const nodes = snapshot.nodes.map(({parent, ...node}) => {
+      const above = parent === undefined ? undefined : ours.get(parent);
+      return {...node, ref: ours.get(node.ref) as string, ...(above ? {parent: above} : {})};
+    });
+    return {snapshot: {...snapshot, nodes}, platformRef: new Map([...ours].map(([platform, step]) => [step, platform]))};
+  }
+}

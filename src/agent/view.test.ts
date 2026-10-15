@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
-import {describeNode, diffViews, identityOf, renderView} from './view.ts';
+import {describeNode, diffViews, identityOf, RefBook, renderView} from './view.ts';
 
 const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: false, ...extra});
 
@@ -133,5 +133,48 @@ describe('what changed', () => {
   it('tells apart two nodes with one identity by their order', () => {
     const twice = (names: string[]): Snapshot => ({platform: 'web', nodes: names.map((name, index) => node(`@e${index}`, 'button', name, {interactive: true}))});
     expect(diffViews(twice(['Delete', 'Delete', 'Keep', 'Share']), twice(['Delete', 'Keep', 'Share'])).text).toBe('- @e1  button  "Delete"');
+  });
+});
+
+describe("a step's refs", () => {
+  const screen = (refs: string[], names = ['Cart', 'Checkout', 'Remove', 'Remove']): Snapshot => ({
+    platform: 'android',
+    nodes: [
+      node(refs[0] as string, 'list', names[0] as string),
+      node(refs[1] as string, 'button', names[1] as string, {interactive: true, parent: refs[0]}),
+      node(refs[2] as string, 'button', names[2] as string, {interactive: true, parent: refs[0]}),
+      node(refs[3] as string, 'button', names[3] as string, {interactive: true, parent: refs[0]}),
+    ],
+  });
+
+  it('numbers the nodes in tree order, parents too, and maps each back to the platform', () => {
+    const {snapshot, platformRef} = new RefBook().relabel(screen(['@e21', '@e22', '@e23', '@e24']));
+    expect(snapshot.nodes.map(each => [each.ref, each.parent])).toEqual([
+      ['@e1', undefined],
+      ['@e2', '@e1'],
+      ['@e3', '@e1'],
+      ['@e4', '@e1'],
+    ]);
+    expect([...platformRef]).toEqual([
+      ['@e1', '@e21'],
+      ['@e2', '@e22'],
+      ['@e3', '@e23'],
+      ['@e4', '@e24'],
+    ]);
+  });
+
+  it('keeps a ref through a snapshot that numbered its refs afresh, and gives what changed a new one', () => {
+    const book = new RefBook();
+    book.relabel(screen(['@e1', '@e2', '@e3', '@e4']));
+    const later = book.relabel(screen(['@e9', '@e8', '@e7', '@e6'], ['Cart', 'Pay now', 'Remove', 'Remove']));
+    expect(later.snapshot.nodes.map(each => each.ref)).toEqual(['@e1', '@e5', '@e3', '@e4']);
+    expect([later.platformRef.get('@e5'), later.platformRef.get('@e4')]).toEqual(['@e8', '@e6']);
+    const back = book.relabel(screen(['@e1', '@e2', '@e3', '@e4']));
+    expect(back.snapshot.nodes[1]?.ref).toBe('@e2');
+  });
+
+  it('drops a parent the snapshot does not hold', () => {
+    const lone: Snapshot = {platform: 'web', nodes: [node('@e40', 'button', 'Save', {interactive: true, parent: '@e39'})]};
+    expect(new RefBook().relabel(lone).snapshot.nodes[0]).toEqual({ref: '@e1', role: 'button', name: 'Save', depth: 1, interactive: true});
   });
 });
