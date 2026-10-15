@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 8 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 9 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -237,6 +237,16 @@ below, the build is what holds.
     - In the fixture, installed: `requires(['home'])` skipped on web
       with its reason, which `scripts/fixture.js` now checks, and a block
       for phones skipped.
+- **Item 9: the geometry, in `src/harness/lib/image.ts`** rather than
+  `png.ts`, so the gate covers it without the decoder's defensive reads,
+  which no input reaches.
+  - `scaleRect` rounds outward, so what a rectangle covered stays
+    covered.
+  - `clampRect` keeps what is inside the picture.
+  - `maskImage` paints magenta by default.
+  - `cropImage` answers null for a rectangle wholly outside.
+  - `png.ts` gains `compareImages` over pictures already read, which
+    `comparePng` now calls.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,
