@@ -27,7 +27,6 @@ screen by hand.
 ```sh
 npm install --save-dev playwright-core   # for web
 npm install --global agent-device        # for iOS and Android
-bun add --global agent-device            # the same, on a Windows machine
 ```
 
 Both are optional. `expo-harness doctor` says what this machine can drive, and
@@ -90,6 +89,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_SCHEME` | The app's URI scheme, for deep links on a device. |
 | `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots and baselines are kept under it. |
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
+| `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 
 [The harness](harness.md#getting-an-app-to-drive) says how to get an app up on
 each platform.

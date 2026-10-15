@@ -1,79 +1,16 @@
 import path from 'node:path';
-import {HarnessError} from '../lib/errors.ts';
-import {firstLine, prepare, run} from '../lib/run.ts';
-import type {Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
+import {codeOf} from '../lib/errors.ts';
+import {prepare} from '../lib/run.ts';
+import type {Snapshot, Target} from '../lib/snapshot.ts';
+import {describeTarget} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, Platform, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
+import {nodesFrom, openTarget, toSnapshotNode} from './agent-device-mapping.ts';
+import type {AgentDeviceTransport} from './agent-device-transport.ts';
+import {transportFor} from './agent-device-transport.ts';
 
 /** What `agent-device` calls the platforms we care about. */
 const PLATFORM_NAMES: Partial<Record<Platform, string>> = {ios: 'ios', android: 'android', web: 'web'};
-
-/** A node as `agent-device` reports it (`@agent-device/kernel/snapshot`). */
-interface AgentNode {
-  ref?: string;
-  role?: string;
-  type?: string;
-  label?: string;
-  value?: string;
-  identifier?: string;
-  rect?: {x?: number; y?: number; width?: number; height?: number};
-  enabled?: boolean;
-  focused?: boolean;
-  depth?: number;
-  hittable?: boolean;
-  visibleToUser?: boolean;
-}
-
-/** Their node in our shape, so a test reads the same whichever backend answered. */
-export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
-  const ref = node.ref ? (node.ref.startsWith('@') ? node.ref : `@${node.ref}`) : `@e${index + 1}`;
-  const rect = node.rect;
-  return {
-    ref,
-    role: node.role ?? node.type ?? '',
-    name: node.label ?? node.value ?? node.identifier ?? '',
-    // `identifier` is the accessibility identifier, which is where React
-    // Native's testID lands on both iOS and Android. It stays the last resort
-    // for a name above, for a node that has nothing else to be called.
-    ...(node.identifier ? {testId: node.identifier} : null),
-    depth: node.depth ?? 0,
-    interactive: node.hittable ?? false,
-    focused: node.focused,
-    enabled: node.enabled,
-    offscreen: node.visibleToUser === false,
-    bounds:
-      rect && typeof rect.x === 'number' && typeof rect.width === 'number'
-        ? {x: Math.round(rect.x), y: Math.round(rect.y ?? 0), width: Math.round(rect.width), height: Math.round(rect.height ?? 0)}
-        : null,
-  };
-}
-
-/** The nodes inside whatever shape the command answered with. */
-export function nodesFrom(payload: unknown): AgentNode[] {
-  if (Array.isArray(payload)) return payload as AgentNode[];
-  if (payload && typeof payload === 'object') {
-    const record = payload as Record<string, unknown>;
-    for (const key of ['nodes', 'elements', 'tree', 'snapshot', 'data', 'result']) {
-      const found = nodesFrom(record[key]);
-      if (found.length) return found;
-    }
-  }
-  return [];
-}
-
-/** A target in the spelling `agent-device` takes on its command line. */
-export function toAgentTarget(what: Target): string {
-  const selector = asSelector(what);
-  if (isPoint(selector)) return `${selector.x} ${selector.y}`;
-  if (selector.ref) return selector.ref;
-  // The node field is `identifier`, but the selector key that matches it is `id`.
-  if (selector.testId) return `id="${selector.testId}"`;
-  if (selector.label) return `label="${selector.label}"`;
-  if (selector.role) return `role="${selector.role}"`;
-  if (selector.contains) return `label="${selector.contains}"`;
-  return describeTarget(what);
-}
 
 /**
  * `agent-device` (callstack) driving iOS, Android and its own web backend. It
@@ -87,26 +24,21 @@ export function toAgentTarget(what: Target): string {
  */
 export function agentDeviceDriver(platform: Platform, options: DriverOptions): Driver {
   const name = PLATFORM_NAMES[platform] ?? platform;
-  const base = ['--platform', name, ...(options.target ? ['--device', options.target] : [])];
+  let connecting: Promise<AgentDeviceTransport> | null = null;
 
-  function agent(args: string[]) {
-    return run('agent-device', [...args, ...base], {cwd: options.root, timeout: 180_000});
+  /** The transport, chosen on first use and kept until `close()`. */
+  function transport(): Promise<AgentDeviceTransport> {
+    connecting ??= transportFor({platform: name, harnessPlatform: platform, root: options.root, device: options.target});
+    return connecting;
   }
 
-  function parse(stdout: string): unknown {
+  /** A step, answered rather than thrown: what it did, or what went wrong and what kind of failure it was. */
+  async function step(done: string, failing: string, work: (current: AgentDeviceTransport) => Promise<void>): Promise<StepResult> {
     try {
-      return JSON.parse(stdout);
-    } catch {
-      // Some commands print a line of prose before the payload.
-      const brace = stdout.indexOf('{');
-      const bracket = stdout.indexOf('[');
-      const at = brace < 0 ? bracket : bracket < 0 ? brace : Math.min(brace, bracket);
-      if (at < 0) return null;
-      try {
-        return JSON.parse(stdout.slice(at));
-      } catch {
-        return null;
-      }
+      await work(await transport());
+      return ok(done);
+    } catch (error) {
+      return failed(`${failing}: ${(error as Error).message}`, codeOf(error));
     }
   }
 
@@ -114,49 +46,45 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     platform,
 
     async available(): Promise<Availability> {
-      const version = run('agent-device', ['--version'], {timeout: 60_000});
-      if (version.missing) {
-        // npm's launcher on Windows is a .cmd script, which Node will not start
-        // without a shell, so an npm install there still reads as missing.
-        const install = process.platform === 'win32' ? '`bun add --global agent-device` adds it (npm installs a .cmd launcher, which Node cannot start without a shell)' : '`npm i -g agent-device` adds it';
-        return {ready: false, reason: `agent-device is not installed; ${install}`};
+      try {
+        const current = await transport();
+        return {ready: true, found: `${await current.capabilities()}, through ${current.description}`};
+      } catch (error) {
+        return {ready: false, reason: (error as Error).message};
       }
-      const capabilities = agent(['capabilities']);
-      if (!capabilities.ok) return {ready: false, reason: firstLine(capabilities.stderr) || `agent-device has no ${name} target ready`};
-      return {ready: true, found: firstLine(capabilities.stdout) || `agent-device ${firstLine(version.stdout)}`};
     },
 
     async open(to: string): Promise<StepResult> {
-      const result = agent(['open', to]);
-      return result.ok ? ok(`opened ${to}`) : failed(`could not open ${to}: ${firstLine(result.stderr) || firstLine(result.stdout)}`, 'APP_UNREACHABLE');
+      const where = openTarget(to, options.scheme);
+      if (!where) return failed(`cannot open ${to}: a route needs the app's URI scheme (pass --scheme, or set HARNESS_SCHEME)`, 'INVALID_ARGUMENT');
+      try {
+        await (await transport()).open(where);
+        return ok(`opened ${'url' in where ? where.url : where.app}`);
+      } catch (error) {
+        return failed(`could not open ${to}: ${(error as Error).message}`, codeOf(error, 'APP_UNREACHABLE'));
+      }
     },
 
     async snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
-      const result = agent(['snapshot', ...(snapshotOptions.interactive ? ['-i'] : []), '--json']);
-      if (!result.ok) throw new HarnessError('ACTION_FAILED', firstLine(result.stderr) || 'agent-device could not take a snapshot', {platform});
-      const nodes = nodesFrom(parse(result.stdout)).map(toSnapshotNode);
-      return {platform, source: options.target ?? name, nodes};
+      const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
+      return {platform, source: options.target ?? name, nodes: nodesFrom(payload).map(toSnapshotNode)};
     },
 
-    async press(what: Target): Promise<StepResult> {
-      const result = agent(['press', toAgentTarget(what)]);
-      return result.ok ? ok(`pressed ${describeTarget(what)}`) : failed(`press failed: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+    press(what: Target): Promise<StepResult> {
+      return step(`pressed ${describeTarget(what)}`, 'press failed', current => current.press(what));
     },
 
-    async fill(what: Target, text: string): Promise<StepResult> {
-      const result = agent(['fill', toAgentTarget(what), text]);
-      return result.ok ? ok(`filled ${describeTarget(what)}`) : failed(`fill failed: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+    fill(what: Target, text: string): Promise<StepResult> {
+      return step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(what, text));
     },
 
-    async type(text: string): Promise<StepResult> {
-      const result = agent(['type', text]);
-      return result.ok ? ok(`typed ${JSON.stringify(text)}`) : failed(`typing failed: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+    type(text: string): Promise<StepResult> {
+      return step(`typed ${JSON.stringify(text)}`, 'typing failed', current => current.type(text));
     },
 
     async screenshot(file: string): Promise<StepResult> {
       const out = prepare(file);
-      const result = agent(['screenshot', out]);
-      return result.ok ? ok(`saved ${path.relative(options.root, out)}`) : failed(`screenshot failed: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+      return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out));
     },
 
     async idleSeconds(): Promise<number | null> {
@@ -165,7 +93,9 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     },
 
     async close(): Promise<void> {
-      run('agent-device', ['close', ...base], {timeout: 60_000});
+      const closing = connecting;
+      connecting = null;
+      await (await closing?.catch(() => null))?.close();
     },
   };
 }

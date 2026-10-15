@@ -68,17 +68,33 @@ a fresh tree first.
 
 ## Android
 
-A Pixel 7 Pro on Android 16 over USB, through the agent-device 0.21.27
-command line, at the Settings app's first screen of 62 nodes. `--press`
-named the clock in the status bar, which a tap does nothing to.
+A Pixel 7 Pro on Android 16 over USB, with agent-device 0.21.27, at the
+Settings app's first screen of 62 nodes. `--press` named the clock in the
+status bar, which a tap does nothing to.
+
+Through agent-device's Node client, which the harness uses wherever the
+package loads:
 
 ```
   operation         cold      p50      p95      min      max
-  snapshot        2054.5   1613.0   1867.2   1373.1   1969.1
-  snapshot -i     1819.4   1760.3   1917.7   1461.7   1995.6
-  press           2313.6   2244.4   2484.0   2088.4   2506.8
-  screenshot      3086.6   2997.7   3136.3   2806.0   3136.4
+  snapshot        1729.8   1308.0   1502.7   1103.4   1517.8
+  snapshot -i     1324.1   1321.1   1495.3   1217.6   1501.3
+  press           1998.9   1907.8   2053.8   1550.9   2069.0
+  screenshot      2706.5   2686.4   2770.2   2620.5   2821.4
 ```
 
-Every step starts the agent-device command line, which then talks to its
-daemon and the runner on the phone.
+Through its command line, which `HARNESS_AGENT_DEVICE=cli` picks, measured
+straight after on the same screen:
+
+```
+  operation         cold      p50      p95      min      max
+  snapshot        1732.1   1477.0   1765.3   1378.6   1775.6
+  snapshot -i     1591.5   1529.8   1805.5   1322.2   1862.5
+  press           2015.3   2083.5   2271.2   1794.4   2370.9
+  screenshot      2839.6   2841.9   3014.5   2764.4   3064.6
+```
+
+The client saves the command line's process start on every step, 5 to 14%
+of a step here. The rest is the phone: agent-device's daemon asks its runner
+on the device for the tree, the tap or the picture, and on either path that
+is most of the time.

@@ -32,7 +32,7 @@ nothing here changes your machine; a "no" says what is missing.
 | --- | --- |
 | web | `playwright-core` in the project, and a Chromium: `npx playwright install chromium` |
 | windows | A Windows machine, and a built app |
-| android, ios | `agent-device`: `npm install --global agent-device`. On Windows, `bun add --global agent-device`: npm installs a `.cmd` launcher there, which Node cannot start without a shell. |
+| android, ios | `agent-device`: `npm install --global agent-device`, or in the project. The harness finds it in either, and in bun's global folder. |
 
 Nothing is installed in the app itself.
 
@@ -213,7 +213,7 @@ Screenshots land in `.harness/`. Add it to `.gitignore`.
 | --- | --- | --- |
 | windows | This package: the window manager, UI Automation and synthetic input, through PowerShell | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
 | web | A headless Chromium through `playwright-core` | A browser is already how the web build is tested. |
-| ios, android | `agent-device` | It drives both, and installs its own runners without touching the app. |
+| ios, android | `agent-device`, through its Node client | It drives both, and installs its own runners without touching the app. A step is one request to its daemon; where the client cannot be loaded, the harness runs its command line instead. |
 
 ## On Windows, a flyout is not in the tree
 
