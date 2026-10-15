@@ -147,6 +147,12 @@ try {
   }
   console.log('==== The component tests init wrote, on the config it wrote');
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
+  console.log('==== init --yes again, on what it set up');
+  const again = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes'], {cwd: scratch, encoding: 'utf8'});
+  if (/^ {2}wrote /m.test(again)) throw new Error(`init --yes wrote files a second time:\n${again}`);
+  const unnamed = ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'device/example.test.ts', 'package.json', '.gitignore', '.claude/skills/expo-vitest/SKILL.md'].filter(file => !again.includes(file));
+  if (unnamed.length) throw new Error(`init --yes a second time did not say it kept ${unnamed.join(', ')}:\n${again}`);
+  console.log('it wrote nothing, and said why for each file');
 } finally {
   try {
     fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});
