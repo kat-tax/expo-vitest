@@ -108,6 +108,19 @@ export function diffDigests(before: TreeDigest, after: TreeDigest): string {
 
 export type StepListener = (step: Step) => void;
 
+/** What an agent's step leaves for the trace: what it was, how it ended, and its last turns. */
+export interface AgentNote {
+  /** `act`, `assert`, `waitFor` or `extract`. */
+  kind: string;
+  instruction: string;
+  /** The agent that ran it, by name. */
+  agent: string;
+  /** How it ended, in a line: the verdict, the summary or the explanation, and what it cost. */
+  outcome: string;
+  /** Its last turns, a line each, every secret hidden. */
+  turns: string[];
+}
+
 /** A line the app wrote to its console, or an error it did not catch, and when, in ms since the test began. */
 export interface ConsoleLine {
   level: string;
@@ -122,6 +135,8 @@ export class Journal {
   console: ConsoleLine[] = [];
   /** The last full snapshot seen, for the tree at failure when the driver has gone. */
   last: Snapshot | null = null;
+  /** The agent's steps, for the trace's Agent section. */
+  agents: AgentNote[] = [];
   private began = 0;
   private running: Step | null = null;
   private readonly listeners = new Set<StepListener>();
@@ -136,8 +151,24 @@ export class Journal {
     this.steps = [];
     this.console = [];
     this.last = null;
+    this.agents = [];
     this.running = null;
     this.began = this.now();
+  }
+
+  /** The journal's clock, in ms, for a step noted once it is over. */
+  time(): number {
+    return this.now();
+  }
+
+  /**
+   * A step recorded once it is over, from when it began by the journal's
+   * clock: an agent's act, which the steps it took went through the journal
+   * inside, each as its own.
+   */
+  note(step: {event: StepEvent; what: string; began: number; result: Step['result']; message: string}): Step {
+    const {began, ...rest} = step;
+    return this.add({...rest, startedAt: began - this.began, durationMs: this.now() - began});
   }
 
   /** A line from the app's console, kept with when it came; at most the last 500. */
@@ -252,6 +283,8 @@ export interface TraceInput {
   noScreenshot?: string;
   /** What the app wrote to its console. */
   console?: ConsoleLine[];
+  /** The agent's steps. */
+  agents?: AgentNote[];
   /** The component behind the node the failing step was for, and the chain above it, where the React tree was read. */
   chain?: {node: string; component?: string; chain: string[]};
 }
@@ -285,6 +318,13 @@ export function renderTrace(input: TraceInput): string {
       if (step.treeAfter) before = step.treeAfter;
     }
     lines.push('');
+  }
+  if (input.agents && input.agents.length > 0) {
+    lines.push('## Agent', '');
+    for (const step of input.agents) {
+      lines.push(`### ${step.kind} ${JSON.stringify(step.instruction)} · ${step.agent}`, '', step.outcome, '');
+      if (step.turns.length > 0) lines.push(...step.turns.map(turn => `    ${turn}`), '');
+    }
   }
   if (input.chain) {
     // The end of the chain, nearest the node, is where the app's own components are.
@@ -375,7 +415,7 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
   const {root: _root, ...rest} = input;
   fs.writeFileSync(
     trace,
-    renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})}),
+    renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, agents: source.journal.agents, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})}),
   );
   return {folder, trace, ...(screenshot ? {screenshot} : {})};
 }

@@ -90,6 +90,19 @@ describe('the journal', () => {
     expect(journal.console).toEqual([]);
   });
 
+  it("notes a step once it is over, from when it began, and keeps the agent's steps until the next test", () => {
+    const {time, now} = clock();
+    const journal = new Journal(now);
+    journal.begin();
+    const began = journal.time();
+    time.at += 300;
+    const noted = journal.note({event: 'agent', what: 'act "sign in"', began, result: 'ok', message: 'passed: Signed in.'});
+    expect(noted).toEqual({index: 1, event: 'agent', what: 'act "sign in"', startedAt: 0, durationMs: 300, result: 'ok', message: 'passed: Signed in.'});
+    journal.agents.push({kind: 'act', instruction: 'sign in', agent: 'default', outcome: 'passed', turns: []});
+    journal.begin();
+    expect([journal.steps, journal.agents]).toEqual([[], []]);
+  });
+
   it("says an action was seen to take effect, naming the last that did not fail, and nothing when there was none", async () => {
     const journal = new Journal();
     journal.verified('expect(getByText("Saved")) to be visible');
@@ -197,6 +210,42 @@ describe('the trace', () => {
     expect(plain).toContain('@e1 text "Hi" is drawn by no component of the app:\n\n    View\n');
     const long = Array.from({length: 60}, (_, at) => ({level: 'log', text: `line ${at}`, at}));
     expect(renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, console: long})).toContain('The last 50 of 60 lines.');
+  });
+
+  it("gives each of the agent's steps a section: what it was, who ran it, how it ended, and its last turns", () => {
+    const trace = renderTrace({
+      titlePath: ['sign in'],
+      platform: 'web',
+      file: 'device/a.test.ts',
+      failed: false,
+      duration: 10,
+      at: new Date('2026-10-15T00:00:00Z'),
+      errors: [],
+      steps: [],
+      tree: null,
+      agents: [
+        {kind: 'act', instruction: 'sign in as Ada', agent: 'default', outcome: 'passed: Signed in. · 2 calls · 1 action', turns: ['tap {"ref":"@e5"} -> screen: unchanged', 'complete_step passed: Signed in.']},
+        {kind: 'assert', instruction: 'the welcome shows', agent: 'buyer', outcome: 'pass: The heading reads Welcome back.', turns: []},
+      ],
+    });
+    expect(trace).toContain(
+      [
+        '## Agent',
+        '',
+        '### act "sign in as Ada" · default',
+        '',
+        'passed: Signed in. · 2 calls · 1 action',
+        '',
+        '    tap {"ref":"@e5"} -> screen: unchanged',
+        '    complete_step passed: Signed in.',
+        '',
+        '### assert "the welcome shows" · buyer',
+        '',
+        'pass: The heading reads Welcome back.',
+        '',
+        '## Screen at the end',
+      ].join('\n'),
+    );
   });
 
   it('says so where there were no steps and no tree, a test passed, and the tree is long', () => {
