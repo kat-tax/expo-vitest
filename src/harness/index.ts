@@ -131,6 +131,7 @@ async function main(argv: string[]): Promise<number> {
   if (options.command === 'guide') return (await import('../cli/guide.ts')).guide(options.args);
   if (options.command === 'cache') return cacheCommand(options.args);
   if (options.command === 'mcp') return (await import('./mcp/serve.ts')).serve(options.args, ROOT);
+  if (options.command === 'explore') return (await import('./explore/command.ts')).explore(options.args, ROOT);
   if (!options.platform || !PLATFORMS.includes(options.platform)) {
     console.error(`name a platform with --platform (${PLATFORMS.join(', ')}), or run \`doctor\` to see what this machine can drive`);
     return 2;

@@ -1,7 +1,7 @@
 // A model of rules, for the fixture's agent tests: it reads the screen as
 // the agent sends it and answers as a model would, with no key and no cost,
-// so the tests run anywhere. It knows one app, the sign-in page, and the
-// steps the tests give it.
+// so the tests run anywhere. It knows one app, the sign-in page, the steps
+// the tests give it, and one explore of it.
 import type {Completion, CompletionRequest, Message, Model} from 'expo-vitest/agent';
 
 const usage = {input: 0, output: 0, cacheRead: 0, cacheWrite: 0};
@@ -48,6 +48,22 @@ export const rules: Model = {
     if (process.env.FIXTURE_AGENT_REPLAY) throw new Error('the replay run asked the model to act');
     const [instruction = '', view = ''] = texts;
     const acted = request.messages.filter(message => message.role === 'assistant').length;
+    // An explore: to the sign-in page, a look at it, the form sent empty, and what it did reported.
+    if (instruction.startsWith('Goal: ')) {
+      if (acted === 0) return calls('navigate', {url: '/sign-in'});
+      if (acted === 1) return calls('observe', {});
+      if (acted === 2) return calls('tap', {ref: refOf(texts.at(-1) ?? '', 'button', 'Sign in')});
+      if (acted === 3) {
+        return calls('report_finding', {
+          severity: 'issue',
+          title: 'Sign in with an empty form says nothing',
+          expected: 'a message that names the empty fields',
+          observed: 'the page stayed as it was, with no message',
+          steps: ['open /sign-in', 'tap Sign in with every field empty'],
+        });
+      }
+      return calls('complete_step', {status: 'passed', summary: 'Sent the sign-in form empty; it said nothing.', errorCode: null});
+    }
     if (instruction.startsWith('Instruction: fill the recovery code')) {
       if (acted === 0) return calls('type_secret', {ref: refOf(view, 'textbox', 'Recovery code'), secret: 'FIXTURE_RECOVERY'});
       return calls('complete_step', {status: 'passed', summary: 'Filled the recovery code.', errorCode: null});
