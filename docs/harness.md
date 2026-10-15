@@ -75,7 +75,7 @@ expo-harness -p android --scheme myapp \
 | `snapshot [file]` | The same tree as JSON, to stdout or a file. |
 | `press <target>` | A press on what a ref or a selector names. |
 | `tap <x> <y>` | A press at a point, in the window's own pixels from its top left, when nothing names the thing. |
-| `fill <target> <text>` | Focus a field and put text in it. |
+| `fill <target> <text>` | Put text in a field, in place of what it held. |
 | `type <text>` | Into whatever has focus. |
 | `screenshot <file>` | A PNG, under `.harness/` unless the path says otherwise. |
 | `raise` | Bring the app to the front. Windows only. |

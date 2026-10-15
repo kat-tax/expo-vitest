@@ -133,7 +133,7 @@ on, since a ref from an old tree is stale.
 | Call | What it does |
 | --- | --- |
 | `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](#waiting-for-the-screen) for this step. |
-| `.fill(text, {via, settle, transition})` | Focuses a field and puts text in it. On Windows, a field with a Value pattern gets the text set and read back, replacing what it held; `{via: 'keys'}` clicks and types. `settle` and `transition` as for a press. |
+| `.fill(text, {via, settle, transition})` | Puts text in a field, in place of what it held. On Windows, a field with a Value pattern gets the text set and read back; `{via: 'keys'}` clicks the field, selects what it holds and types over it. `settle` and `transition` as for a press. |
 | `.node()` | The node now, or `undefined`. |
 | `.waitFor({timeout})` | Waits until it is in the tree. |
 

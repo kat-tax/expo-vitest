@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {SEND_KEYS, literal} from './windows-keys.ts';
+import {CLEAR, SEND_KEYS, literal} from './windows-keys.ts';
 
 describe('literal', () => {
   it('leaves plain text as it is', () => {
@@ -16,6 +16,10 @@ describe('literal', () => {
 });
 
 describe('the keys', () => {
+  it('clear a field by selecting what it holds and deleting it', () => {
+    expect(CLEAR).toBe('^a{BACKSPACE}');
+  });
+
   it('are the ones a composite role uses, in SendKeys spelling', () => {
     expect(Object.keys(SEND_KEYS)).toEqual(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab', 'Enter', 'Escape']);
     expect(SEND_KEYS.Escape).toBe('{ESC}');

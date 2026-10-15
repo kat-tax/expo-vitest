@@ -23,6 +23,9 @@ export const SEND_KEYS: Record<string, string> = {
   Escape: '{ESC}',
 };
 
+/** Selects what a field holds and deletes it, so what is typed next replaces it. */
+export const CLEAR = '^a{BACKSPACE}';
+
 /** Text as SendKeys types it: each character it reads as syntax inside braces, a line break as Enter and a tab as Tab. */
 export function literal(text: string): string {
   return text.replace(/\r?\n|\t|[+^%~(){}[\]]/g, found => (found === '\t' ? '{TAB}' : found.endsWith('\n') ? '{ENTER}' : `{${found}}`));

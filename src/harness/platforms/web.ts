@@ -403,6 +403,11 @@ export function webDriver(options: DriverOptions): Driver {
         const current = await open();
         lastRead = null;
         await current.mouse.click(point.x, point.y);
+        // What the field held goes first, so a fill replaces it, as it does
+        // through agent-device and a Windows field's Value pattern. The
+        // browser is this machine's, so its own key selects all.
+        await current.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+        await current.keyboard.press('Backspace');
         await current.keyboard.type(text);
         return ok(`filled ${note} with ${JSON.stringify(text)}`);
       } catch (error) {

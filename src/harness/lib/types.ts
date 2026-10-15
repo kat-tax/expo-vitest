@@ -95,7 +95,7 @@ export interface Driver {
   snapshot(options?: SnapshotOptions): Promise<Snapshot>;
   /** A press on what a ref, a selector or a point names. */
   press(target: Target, options?: PressOptions): Promise<StepResult>;
-  /** Puts text into the field a target names: focus it, then type. */
+  /** Puts text into the field a target names, in place of what it held, as agent-device and Playwright do. */
   fill(target: Target, text: string, options?: FillOptions): Promise<StepResult>;
   /** Types into whatever has focus. */
   type(text: string, options?: StepTiming): Promise<StepResult>;

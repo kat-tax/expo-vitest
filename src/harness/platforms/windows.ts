@@ -15,7 +15,7 @@ import type {Availability, Driver, DriverOptions, FillOptions, PressOptions, Sna
 import {failed, ok} from '../lib/types.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
-import {SEND_KEYS, literal} from './windows-keys.ts';
+import {CLEAR, SEND_KEYS, literal} from './windows-keys.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPTS = path.join(HERE, '..', 'windows');
@@ -349,7 +349,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         if (refusing) return left ? failed(`${note}: ${left}; ${refusing.message}`) : refusing;
         const pressed = await click(point);
         if (!pressed.ok) return pressed;
-        const typed = await keys(literal(text));
+        const typed = await keys(CLEAR + literal(text));
         if (typed instanceof Error) return failed(`typing failed: ${typed.message}`);
         return ok(`filled ${note} with ${JSON.stringify(text)}${left ? ` by typing, since ${left}` : ''}`);
       } catch (error) {
