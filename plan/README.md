@@ -243,6 +243,13 @@ Taken on 2026-10-13. A phase that wants to reopen one amends this list first.
    reads, built on `fetch` so the dependency count stays at zero.
 6. **No Windows engine for e2e.** Windows stays a platform only this package
    drives.
+7. **Our drivers stay, and borrow (2026-10-15).** Five maintained drivers
+   were read as replacements: agent-desktop, Cua's driver, Terminator,
+   agent-browser and argent. None could take over a react-native-windows
+   app, and none did better on web or mobile. The web and Windows drivers
+   stay ours and agent-device stays, with the features listed in
+   [`external-drivers.md`](external-drivers.md) borrowed into Phase 1.
+   agent-desktop's Windows adapter is the one to try again once it ships.
 
 ## 11. Shared facts the phases build on
 
