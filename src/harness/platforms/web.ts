@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, prepare} from '../lib/run.ts';
-import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
+import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
@@ -223,6 +223,24 @@ const LANDS = `(([id, x, y]) => {
   return {tag: top.tagName.toLowerCase()};
 })`;
 
+/**
+ * Runs in the page: where the middle of the element a ref names is outside
+ * the viewport, scrolls it to the middle of the screen. Answers whether the
+ * element is still there, whether it was scrolled, and where it is now.
+ */
+const ON_ELEMENT = `(([id]) => {
+  const refs = window.__harnessRefs;
+  const element = refs && refs.elements.get(id) && refs.elements.get(id).deref();
+  if (!element) return {there: false};
+  const box = element.getBoundingClientRect();
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const outside = x < 0 || y < 0 || x >= innerWidth || y >= innerHeight;
+  if (outside) element.scrollIntoView({block: 'center', inline: 'center'});
+  const now = element.getBoundingClientRect();
+  return {there: true, scrolled: outside, box: {x: now.x, y: now.y, width: now.width, height: now.height}};
+})`;
+
 /** How long a read stands while the page's counter has not moved: a box can move without a mutation, as when an image loads. */
 const KEEP_MS = 2000;
 
@@ -337,18 +355,38 @@ export function webDriver(options: DriverOptions): Driver {
    * something else is over that point, such as an overlay, the press would
    * land on that instead, and the step says what it is rather than press it.
    */
+  /** The node a selector names in a fresh read, and the tree it is in, or the error that there is none. */
+  async function nodeFor(what: Target): Promise<{node: SnapshotNode; tree: Snapshot}> {
+    const selector = asSelector(what);
+    const tree = await snapshot();
+    const node = isPoint(selector) ? undefined : findNode(tree, selector);
+    if (!node) {
+      const instead = isPoint(selector) ? '' : seenInstead(tree, selector);
+      throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the page (${tree.nodes.length} nodes)${instead ? `; ${instead}` : ''}`, {platform: 'web'});
+    }
+    return {node, tree};
+  }
+
+  /** Scrolls the element a node is into view where it is not, or says the node has gone. */
+  async function onElement(node: SnapshotNode): Promise<{there: boolean; scrolled?: boolean; box?: Bounds}> {
+    const current = await open();
+    // A scroll moves boxes without a mutation, so the next read starts again.
+    lastRead = null;
+    return current.evaluate<{there: boolean; scrolled?: boolean; box?: Bounds}>(`(${ON_ELEMENT})(${JSON.stringify([Number(node.ref.slice(2))])})`);
+  }
+
   async function pointFor(what: Target): Promise<{point: Point; note: string}> {
     const selector = asSelector(what);
     if (isPoint(selector)) return {point: selector, note: `${selector.x},${selector.y}`};
-    const tree = await snapshot();
-    const node = findNode(tree, selector);
-    if (!node) {
-      const instead = seenInstead(tree, selector);
-      throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the page (${tree.nodes.length} nodes)${instead ? `; ${instead}` : ''}`, {platform: 'web'});
-    }
+    const {node, tree} = await nodeFor(selector);
     const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
     if (!node.bounds || node.bounds.width === 0) throw new HarnessError('NOT_ACTIONABLE', `${note} is not on screen to press`, {platform: 'web'});
-    const point = {x: Math.round(node.bounds.x + node.bounds.width / 2), y: Math.round(node.bounds.y + node.bounds.height / 2)};
+    // A press outside the viewport lands on nothing, so a node below the fold
+    // is scrolled to first, as Playwright scrolls one before it clicks.
+    const shown = await onElement(node);
+    if (!shown.there) throw new HarnessError('LOCATOR_NOT_FOUND', `${note} has gone from the page`, {platform: 'web'});
+    const box = shown.box ?? node.bounds;
+    const point = {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2)};
     const current = await open();
     const lands = await current.evaluate<{ref?: string; tag?: string} | null>(`(${LANDS})(${JSON.stringify([Number(node.ref.slice(2)), point.x, point.y])})`);
     if (lands) {

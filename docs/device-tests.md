@@ -134,7 +134,7 @@ on, since a ref from an old tree is stale.
 
 | Call | What it does |
 | --- | --- |
-| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](#waiting-for-the-screen) for this step. |
+| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](#waiting-for-the-screen) for this step. On web, a node below the fold is scrolled to first. |
 | `.fill(text, {via, settle, transition})` | Puts text in a field, in place of what it held. On Windows, a field with a Value pattern gets the text set and read back; `{via: 'keys'}` clicks the field, selects what it holds and types over it. `settle` and `transition` as for a press. |
 | `.node()` | The node now, or `undefined`. |
 | `.waitFor({timeout})` | Waits until it is in the tree. |
@@ -194,7 +194,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `depth` | Depth in the tree. |
 | `parent` | The ref of the nearest node in the same snapshot that this one sits inside. Absent at the top, and where the platform does not say: on iOS and Android, a node whose parent an interactive snapshot left out. |
 | `interactive` | Whether a person can act on it. On web that includes a react-native-web Pressable with no role, which is drawn as a div that takes the focus. |
-| `focused`, `focusable`, `enabled`, `offscreen` | State, where the platform reports it. |
+| `focused`, `focusable`, `enabled`, `offscreen` | State, where the platform reports it. `offscreen` on Windows and on a device is a node outside the screen, scrolled out of view or clipped; on web it is a node with no size, as Playwright counts what is visible, so a node below the fold is not off screen there. |
 | `help` | The hint or description: `HelpText` on Windows, `aria-description` on web. |
 | `inSet` | A position in a set, as it is announced: `"2 of 5"`. |
 | `heading` | The heading rank, 1 to 6. |
