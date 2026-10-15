@@ -171,6 +171,7 @@ platform's project.
 | [Evidence](docs/evidence.md) | What a failing device test leaves, where, and when. |
 | [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
+| [CI](docs/ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, and the summary that comments on a pull request. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
 | [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
 

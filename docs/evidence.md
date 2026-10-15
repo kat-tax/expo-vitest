@@ -34,6 +34,22 @@ artifact of type `expo-vitest:evidence`, with the files attached, which a
 reporter sees in `onTestCaseArtifactRecord`, and their paths are on the
 task's `meta.evidence`.
 
+## The run's summary
+
+The [summary reporters](ci.md#the-summary-and-the-pull-request-comment)
+gather a run's failures on one page: `.harness/summary.md`, the job's
+summary, and a comment on the pull request. Each failing test is a row with
+its error and links to its screenshot, tree, trace and recording.
+
+## What to commit
+
+Nothing under `.harness/`: the results, the summary, the downloads, and
+what the harness keeps for itself between runs, such as a pool's locks and
+the desk's quiet on Windows. `init` adds it to `.gitignore`. A screenshot
+baseline is committed, in `device/__screenshots__/<platform>/`, and only from
+the machine that asserts it, since [a baseline belongs to the machine that
+drew it](matchers.md#tomatchscreenshot).
+
 ## The trace
 
 ```markdown

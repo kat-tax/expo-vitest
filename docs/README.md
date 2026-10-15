@@ -29,6 +29,7 @@ with one project per platform. New here? Start with
 | [Evidence](evidence.md) | The screenshot, tree, trace and recording a failing device test leaves, `HARNESS_TRACE` and `video`. |
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
+| [CI](ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, the summary and the pull request comment, and caching. |
 
 ## Build on it
 
@@ -47,9 +48,10 @@ with one project per platform. New here? Start with
 | `expo-vitest/router` | `renderApp` |
 | `expo-vitest/device` | `device`, `element`, `by`, `screen`, `within`, `Locator`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `defineHarness`, `onlyOn`, `skipOn`, `requires`, `HarnessError`, `isHarnessError` |
 | `expo-vitest/device/matchers` | A setup file that registers the device matchers. |
+| `expo-vitest/reporter` | `summary`, `github`: the [run's summary](ci.md#the-summary-and-the-pull-request-comment), as a file, a job summary and a pull request comment. |
 | `expo-vitest/metro-compat` | `metroCompat`, `EXPO_WEB_PACKAGES` |
 | `expo-vitest/types` | Types for `tsconfig.json`: the jest-dom matchers on `expect`. |
-| `expo-harness` | The command. |
+| `expo-harness`, `expo-vitest` | The command, by either name. |
 
 ## Related projects
 

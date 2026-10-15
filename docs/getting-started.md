@@ -213,6 +213,11 @@ Linux runner:
 - run: npx vitest run --coverage
 ```
 
+Device tests need what they drive: a browser, an emulator, a simulator or a
+Windows build. [CI](ci.md) has a job for each, on GitHub Actions, EAS
+Workflows, Bitrise and Codemagic, and the reporter that comments on a pull
+request.
+
 ## Next steps
 
 - Keep native-only modules out of Windows files with
