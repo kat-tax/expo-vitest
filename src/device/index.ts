@@ -24,6 +24,8 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {AppConfig, CommandConfig, HarnessConfig, Permission} from './config.ts';
+import {configFromRun, currentRun, defineHarness} from './config.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
 import {Journal} from './evidence.ts';
 import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
@@ -37,7 +39,8 @@ import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
 
-export {by, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
+export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
+export type {AppConfig, CommandConfig, HarnessConfig, Permission};
 export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
@@ -96,16 +99,22 @@ function failure(result: StepResult, platform: Platform, otherwise: HarnessCode)
 }
 
 class Device {
-  readonly config: DeviceConfig;
   /** The snapshots every wait shares, so waits at the same moment take one between them. */
   readonly feed: SnapshotFeed;
   /** The record of the current test's steps, for the evidence a failing test leaves. */
   readonly journal = new Journal();
   private driver: Driver | null = null;
+  private readonly resolve: () => DeviceConfig;
+  private settled: DeviceConfig | null = null;
 
-  constructor(config: DeviceConfig) {
-    this.config = config;
+  constructor(resolve: () => DeviceConfig) {
+    this.resolve = resolve;
     this.feed = snapshotFeed(() => this.read({interactive: false}));
+  }
+
+  /** How the device under test is named, worked out when first asked for, which is after a project's setup file has resolved the run. */
+  get config(): DeviceConfig {
+    return (this.settled ??= this.resolve());
   }
 
   /** A read of the tree, which the journal digests into the step it belongs to when it is the whole tree. */
@@ -256,7 +265,11 @@ class Device {
   }
 }
 
-export const device = new Device(configFromEnvironment());
+/** The device: on the run a project's setup file resolved from the harness config, or on the environment alone. */
+export const device = new Device(() => {
+  const run = currentRun();
+  return run ? configFromRun(run, process.env) : configFromEnvironment();
+});
 
 /**
  * React Native Testing Library's queries over the device's tree:

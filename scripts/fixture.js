@@ -1,6 +1,7 @@
 // Runs the fixture's tests against the package as an app would have it: the
-// component projects, then the device tests on web, which need a Chromium
-// that `playwright-core install chromium-headless-shell` puts in place.
+// component projects, then the device tests, on web and on a platform this
+// machine cannot drive. Web needs a Chromium, which
+// `playwright-core install chromium-headless-shell` puts in place.
 //
 //   node scripts/fixture.js
 //   node scripts/fixture.js --update-lockfile
@@ -79,10 +80,25 @@ try {
   console.log('==== The fixture, on it');
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
 
-  // A real Chromium over a page the run serves, with a trace kept for every
-  // test, so the last test can read the ones before it.
-  console.log('==== The device tests, on web');
-  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'], {env: {...process.env, HARNESS_PLATFORM: 'web', HARNESS_TRACE: 'on'}});
+  // A real Chromium over a page the harness config's command serves, with a
+  // trace kept for every test, so the last test can read the ones before it.
+  // Beside it, a platform this machine cannot drive: its tests are skipped
+  // with the driver's reason, and fail where the run requires the platform.
+  const absent = process.platform === 'darwin' ? 'windows' : 'ios';
+  const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts', '--reporter', 'verbose'];
+  const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on'};
+  console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
+  const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
+  process.stdout.write(skipped);
+  if (!skipped.includes(`no ${absent} device to drive here`)) throw new Error(`the ${absent} tests were not skipped with the driver's reason`);
+  console.log(`==== ${absent} required, so its tests fail`);
+  try {
+    execFileSync(process.execPath, [...device, '--project', `device:${absent}`], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+    throw new Error(`the ${absent} tests passed under HARNESS_REQUIRE`);
+  } catch (error) {
+    if (!`${error.stdout}${error.stderr}`.includes('DRIVER_UNAVAILABLE')) throw error;
+    console.log('they failed with DRIVER_UNAVAILABLE');
+  }
 } finally {
   fs.rmSync(scratch, {recursive: true, force: true});
 }

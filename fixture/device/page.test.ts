@@ -1,13 +1,19 @@
 // The device layer as an app has it: the packed package, driving a real
 // Chromium over a page served for the run. Each test reads like the ones in
 // the docs, and between them they touch the queries, the actions, the
-// matchers, the evidence, a screenshot and the command.
+// matchers, the evidence, a screenshot, the harness config and the command.
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import {inject} from 'vitest';
 import {device, isHarnessError, screen, within} from 'expo-vitest/device';
 
 afterAll(() => device.close());
+
+it('runs on the app harness.config.ts names, served by the command it starts', () => {
+  expect(device.config).toMatchObject({platform: 'web', url: 'http://127.0.0.1:41731', assertionTimeout: 4000});
+  expect(inject('harness.command')).toMatchObject({key: expect.stringContaining('serve.mjs')});
+});
 
 it('finds the form by role and label, fills it, and waits for the save to show', async () => {
   await device.open('/');
@@ -57,6 +63,6 @@ it('left a trace for each test before it, with its steps', () => {
 
 it('drives the same page with the command an app has installed', () => {
   const bin = path.join(process.cwd(), 'node_modules', 'expo-vitest', 'dist', 'harness', 'index.js');
-  const out = execFileSync(process.execPath, [bin, '-p', 'web', '--url', process.env.HARNESS_URL as string, 'open', '/', 'tree'], {encoding: 'utf8'});
+  const out = execFileSync(process.execPath, [bin, '-p', 'web', '--url', device.config.url as string, 'open', '/', 'tree'], {encoding: 'utf8'});
   expect(out).toContain('h1/heading "Profile"');
 });

@@ -26,5 +26,16 @@ declare module 'vitest' {
     'harness.config': string;
     /** The command that serves the platform's app, or null where it has none. */
     'harness.command': ProvidedCommand | null;
+    /** Whether the platform's driver can work here, as the warm-up found it. */
+    'harness.available': ProvidedAvailability;
   }
+}
+
+/** What the warm-up found of a platform's driver. */
+export interface ProvidedAvailability {
+  ready: boolean;
+  /** The device, browser or window the driver found. */
+  found?: string;
+  /** Why it cannot work here, in the driver's own sentence. */
+  reason?: string;
 }

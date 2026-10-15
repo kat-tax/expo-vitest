@@ -384,9 +384,11 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
           globals: true,
           environment: 'node',
           include: options.include ?? ['device/**/*.test.ts'],
-          setupFiles: [file('device/matchers.ts')],
-          // Loads the harness config, and starts what serves the app.
-          globalSetup: [file('device/global-setup.ts')],
+          // The run, resolved from the harness config, before anything uses the device: in turn, not side by side as Vitest would have them.
+          setupFiles: [file('device/setup.ts'), file('device/matchers.ts')],
+          sequence: {setupFiles: 'list'},
+          // Loads the harness config and starts what serves the app; then opens the app once.
+          globalSetup: [file('device/global-setup.ts'), file('device/warm-up.ts')],
           provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': harness},
           testTimeout: timeout,
           hookTimeout: timeout,
@@ -396,8 +398,8 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
           maxWorkers: 1,
           // The setup files import the harness config by a path worked out at run time, which only the Vite graph transforms.
           server: {deps: {inline: [SELF]}},
-          // The project's own platform, whatever the shell says.
-          env: {...env, HARNESS_PLATFORM: platform},
+          // The project's own platform and root, whatever the shell says.
+          env: {...env, HARNESS_PLATFORM: platform, HARNESS_ROOT: root},
         },
       })),
     },

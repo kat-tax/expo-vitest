@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 4 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 5 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -97,6 +97,43 @@ below, the build is what holds.
     - two projects, each worker on its own platform;
     - one command for both;
     - `--project device:web` ran that one alone.
+- **Item 5: `src/device/setup.ts` and `src/device/warm-up.ts`.**
+  - Each project has two global setups, the command's and then the
+    warm-up, and two setup files, `setup.ts` and then the matchers. Vitest
+    runs setup files side by side unless told otherwise, so the projects set
+    `sequence.setupFiles: 'list'`.
+  - The device's config is also worked out when it is first used, not when
+    the module loads. A first live run showed why: the matchers loaded the
+    device while `setup.ts` was still loading the file.
+  - `setup.ts` hands the device the resolved run through the global object.
+    `configFromRun` maps it to `DeviceConfig`, with `HARNESS_FORCE` from
+    the environment. `HARNESS_ROOT` goes in each project's environment, which
+    is where the three modules that keep files under the root read it.
+  - **The warm-up** opens the base route and does not fail the run when that
+    fails: a test that opens a route of its own reports it better.
+  - **Unavailable:** `HARNESS_REQUIRE` of `1` fails, `0` skips, and unset
+    follows CI. CI of `0` or `false` is not CI.
+  - `defineHarness` and the config's types are exported from
+    `expo-vitest/device`.
+  - **Seen live,** from source:
+    - web on the file's url and timeout, served by the file's command;
+    - iOS skipped with "Apple tools are only available on macOS";
+    - under `HARNESS_REQUIRE=1`, iOS failed with `DRIVER_UNAVAILABLE`.
+- **Item 12, its start.** The fixture's device suite runs a project per
+  platform from `fixture/harness.config.ts`, whose command,
+  `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,
+  since a port chosen at random would differ between the two loads of the
+  file. Beside web is a platform the machine cannot drive: iOS, or Windows
+  on a Mac. `scripts/fixture.js` checks that its tests are skipped with the
+  driver's reason, and that they fail with `DRIVER_UNAVAILABLE` under
+  `HARNESS_REQUIRE=1`. The rest of item 12 waits for items 6 to 10.
+- **Item 13, its start.** `docs/configuration.md` has the three options, a
+  project per platform, and `harness.config.ts` with the precedence and the
+  command. `docs/device-tests.md` has `HARNESS_CONFIG`, `HARNESS_REQUIRE`
+  and the two new codes, and the README a row. The keys the file takes
+  ahead of their items, `bundleId`, `appPath`, `identity`,
+  `launchArguments`, `permissions`, `stateDir`, `statusBar` and
+  `actionTimeout`, are documented with their items.
 
 ## Purpose and the claims it proves
 

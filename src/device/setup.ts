@@ -1,0 +1,33 @@
+/**
+ * A device project's setup file, in the worker before each test file, and
+ * before anything loads the device. It loads the harness config again,
+ * checks it is the one the run started with, and hands the device the run
+ * it resolves to.
+ *
+ * Where the warm-up found the platform cannot be driven here, every test is
+ * skipped with the driver's reason, or failed with `DRIVER_UNAVAILABLE`
+ * under `HARNESS_REQUIRE` or in CI.
+ */
+import {pathToFileURL} from 'node:url';
+import {beforeEach, inject} from 'vitest';
+import {HarnessError} from '../harness/lib/errors.ts';
+import {loadHarness, requiresDriver, resolveRun, sameConfig, setRun} from './config.ts';
+import './provided.ts';
+
+const platform = inject('harness.platform');
+const file = inject('harness.file');
+const config = await loadHarness(file, each => import(/* @vite-ignore */ pathToFileURL(each).href));
+sameConfig(config, inject('harness.config'), file);
+setRun(resolveRun(platform, config, process.env, inject('harness.root')));
+
+const available = inject('harness.available');
+if (!available.ready) {
+  const reason = `no ${platform} device to drive here: ${available.reason}`;
+  if (requiresDriver(process.env)) {
+    beforeEach(() => {
+      throw new HarnessError('DRIVER_UNAVAILABLE', reason, {platform});
+    });
+  } else {
+    beforeEach(context => context.skip(reason));
+  }
+}

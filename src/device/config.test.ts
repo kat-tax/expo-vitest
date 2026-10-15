@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {HarnessConfig} from './config.ts';
-import {DEFAULTS, defineHarness, findHarnessFile, loadHarness, portOf, resolveRun, sameConfig, serialisable, validate} from './config.ts';
+import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, portOf, requiresDriver, resolveRun, sameConfig, serialisable, setRun, validate} from './config.ts';
 
 const root = path.resolve('/project');
 const at = (...parts: string[]) => path.join(root, ...parts);
@@ -235,6 +235,7 @@ describe('the command', () => {
 
   it('does not use one already running in CI unless told to', () => {
     expect(command('web', {command: {executable: 'npx'}}, env({CI: 'true'}))).toMatchObject({command: {reuseExisting: false}});
+    expect(command('web', {command: {executable: 'npx'}}, env({CI: 'false'}))).toMatchObject({command: {reuseExisting: true}});
     expect(command('web', {command: {executable: 'npx', reuseExisting: true}}, env({CI: 'true'}))).toMatchObject({command: {reuseExisting: true}});
   });
 
@@ -289,5 +290,56 @@ describe('what crosses to the workers', () => {
       expect.objectContaining({code: 'INVALID_CONFIG', message: `${at('harness.config.ts')} changed after the run started; start the run again`}),
     );
     expect(() => sameConfig(full, serialisable(null).hash, null)).toThrow('the harness config changed after the run started; start the run again');
+  });
+});
+
+describe('CI and a platform that cannot be driven', () => {
+  it('is CI where CI is set, and not where it says no', () => {
+    expect([isCI(env({CI: 'true'})), isCI(env({CI: '1'})), isCI(env({CI: 'woodpecker'}))]).toEqual([true, true, true]);
+    expect([isCI(env()), isCI(env({CI: ''})), isCI(env({CI: '0'})), isCI(env({CI: 'false'}))]).toEqual([false, false, false, false]);
+  });
+
+  it('fails under HARNESS_REQUIRE, or in CI unless HARNESS_REQUIRE says no', () => {
+    expect(requiresDriver(env())).toBe(false);
+    expect(requiresDriver(env({HARNESS_REQUIRE: '1'}))).toBe(true);
+    expect(requiresDriver(env({CI: 'true'}))).toBe(true);
+    expect(requiresDriver(env({CI: 'true', HARNESS_REQUIRE: '0'}))).toBe(false);
+    expect(requiresDriver(env({CI: 'true', HARNESS_REQUIRE: 'false'}))).toBe(false);
+    expect(requiresDriver(env({CI: 'true', HARNESS_REQUIRE: ''}))).toBe(true);
+  });
+});
+
+describe('the run a worker hands the device', () => {
+  it('is kept on the global object, one per worker', () => {
+    const store = {};
+    expect(currentRun(store)).toBeUndefined();
+    const run = resolveRun('web', null, env(), root);
+    setRun(run, store);
+    expect(currentRun(store)).toBe(run);
+    expect(currentRun({})).toBeUndefined();
+  });
+
+  it("is on the global object unless told otherwise", () => {
+    const before = currentRun();
+    const run = resolveRun('android', null, env(), root);
+    setRun(run);
+    expect(currentRun(globalThis)).toBe(run);
+    setRun(before as typeof run);
+  });
+
+  it("becomes the device's config: the app and the waits, and the environment's force", () => {
+    const run = resolveRun('android', {app: {android: {target: 'Pixel', scheme: 'myapp', url: 'http://localhost:8081'}}, settle: false}, env(), root);
+    expect(configFromRun(run, env({HARNESS_FORCE: '1'}))).toEqual({
+      platform: 'android',
+      url: 'http://localhost:8081',
+      scheme: 'myapp',
+      target: 'Pixel',
+      force: true,
+      settle: 0,
+      transition: 500,
+      assertionTimeout: 5000,
+      stable: 1000,
+    });
+    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000});
   });
 });

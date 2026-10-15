@@ -145,6 +145,7 @@ platform's project.
 | Windows helpers | `island`, `islands`, `fireIsland`: find a native component and fire its events as C++ would. | [Helpers](docs/helpers.md#expo-vitestwindows) |
 | Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
 | Device tests | `device`, `screen` and the matchers that wait, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
+| Several platforms in one run | `deviceConfig({platforms})` makes a project per platform, and starts the dev server each app needs once, from `harness.config.ts`. A platform the machine cannot drive is skipped with the reason. | [Configuration](docs/configuration.md#a-project-per-platform) |
 | Locators | `screen` and `within` with React Native Testing Library's queries, giving strict locators that wait for their node, the same on all four platforms. | [Locators](docs/locators.md) |
 | Matchers that wait | `toBeVisible`, `toHaveText`, `toBeChecked`, `toHaveCount` and fourteen more on a locator, reading the tree until it agrees, and holding a wait for something to be gone. | [Matchers](docs/matchers.md) |
 | Evidence | A failing device test leaves its screenshot, its tree and a trace of its steps, with what each did to the screen. | [Evidence](docs/evidence.md) |

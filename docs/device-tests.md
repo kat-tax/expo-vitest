@@ -56,6 +56,11 @@ options.
 Device tests are opt-in and never part of the component test run, because
 they need a real app somewhere.
 
+To run on several platforms at once, with the dev server each app needs
+started for the run, give `deviceConfig` its `platforms` and keep each
+app's details in `harness.config.ts`. [A project per
+platform](configuration.md#a-project-per-platform) has how.
+
 ## A test
 
 ```ts
@@ -82,7 +87,9 @@ going on would hide a mistake.
 
 ## Running
 
-Start the app, then point the run at it with environment variables:
+Start the app, then point the run at it with environment variables. With
+`platforms`, the run reads [`harness.config.ts`](configuration.md#harnessconfigts)
+too, and a variable here beats it.
 
 ```sh
 HARNESS_PLATFORM=web HARNESS_URL=http://localhost:8081 npm run test:device
@@ -97,6 +104,8 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_TARGET` | The device, simulator, exe or process to drive. |
 | `HARNESS_SCHEME` | The app's URI scheme, for deep links on a device. |
 | `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots, baselines and evidence are kept under it. |
+| `HARNESS_CONFIG` | The harness config, from the root, when it is not `harness.config.ts` there. |
+| `HARNESS_REQUIRE` | `1` to fail the tests of a platform this machine cannot drive, rather than skip them; `0` to skip them in CI, where they fail otherwise. |
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
@@ -262,7 +271,8 @@ try {
 | Code | What happened |
 | --- | --- |
 | `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
-| `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
+| `APP_UNREACHABLE` | The app did not open: a URL that does not answer, a deep link with no exe to launch, or a command that ended or did not answer before its startup timeout. |
+| `APP_ALREADY_RUNNING` | Something already answers where the run's command would serve the app, and `reuseExisting` is off, as it is in CI. |
 | `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. The message says what was there instead: that it is off screen, the names in the role asked for, names like the one asked for, the testIDs, or what can be acted on. |
 | `LOCATOR_AMBIGUOUS` | A [locator](locators.md) that names one node named several. The message lists them. |
 | `NOT_ACTIONABLE` | The node is there but cannot be acted on: it stayed disabled, has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
@@ -270,6 +280,7 @@ try {
 | `ASSERTION_FAILED` | The screen did not come to say what a test waited for, such as a node that never went, within the time allowed. |
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a long press or the focus where a platform has neither, or a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
+| `INVALID_CONFIG` | A harness config with a key it does not take or a value of the wrong kind, which the message names, or one that changed while the run was going. |
 
 `isHarnessError` checks the name and the code rather than using
 `instanceof`, so it still answers when a project has loaded two copies of the

@@ -63,10 +63,13 @@ bun run test:fixture
 This copies the fixture to a folder outside the package, installs it there
 from `bun.lock`, packs the package as `npm publish` would, unpacks that into
 the copy's `node_modules`, names it in the copy's manifest, and runs the tests
-against it by name. Then it runs `fixture/device/`, device tests on web
-against a page a `globalSetup` serves, with a Chromium, as an app's device
-tests run: the queries, the actions, the matchers, the evidence, a
-screenshot and the `expo-harness` command. They need a Chromium in place:
+against it by name. Then it runs `fixture/device/`, device tests on web as an
+app's device tests run: a project per platform, with the page they drive
+served by the command `fixture/harness.config.ts` names. They touch the
+queries, the actions, the matchers, the evidence, a screenshot and the
+`expo-harness` command. Beside web is a platform the machine cannot drive,
+whose tests are skipped with the driver's reason, and fail when the run
+requires it. Web needs a Chromium in place:
 
 ```sh
 bunx playwright-core install chromium --only-shell

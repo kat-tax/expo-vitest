@@ -24,8 +24,8 @@ import type {Driver, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
-import type {DeviceConfig, HarnessCode, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
-import {Locator, by, configFromEnvironment, device, element, isHarnessError, screen, withComponents, within} from './index.ts';
+import type {DeviceConfig, HarnessCode, HarnessConfig, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
+import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, screen, withComponents, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -428,8 +428,9 @@ describe('deviceConfig', () => {
             globals: true,
             environment: 'node',
             include: ['device/**/*.test.ts'],
-            setupFiles: [file('device/matchers.ts')],
-            globalSetup: [file('device/global-setup.ts')],
+            setupFiles: [file('device/setup.ts'), file('device/matchers.ts')],
+            sequence: {setupFiles: 'list'},
+            globalSetup: [file('device/global-setup.ts'), file('device/warm-up.ts')],
             provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': null},
             testTimeout: 120_000,
             hookTimeout: 120_000,
@@ -437,11 +438,17 @@ describe('deviceConfig', () => {
             pool: 'forks',
             maxWorkers: 1,
             server: {deps: {inline: [SELF]}},
-            env: {HARNESS_PLATFORM: platform},
+            env: {HARNESS_PLATFORM: platform, HARNESS_ROOT: root},
           },
         })),
       },
     });
+  });
+
+  it("is given a harness config's type by defineHarness, from the device subpath", () => {
+    const config = {app: {web: {url: 'http://localhost:8081'}}};
+    expect(defineHarness(config)).toBe(config);
+    expectTypeOf(defineHarness).parameter(0).toEqualTypeOf<HarnessConfig>();
   });
 
   it('takes the test files and one timeout for tests and hooks', () => {

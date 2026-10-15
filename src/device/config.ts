@@ -24,6 +24,7 @@ import {HarnessError} from '../harness/lib/errors.ts';
 import {DEFAULT_TIMING} from '../harness/lib/settle.ts';
 import type {Platform} from '../harness/lib/types.ts';
 import {PLATFORMS} from '../harness/lib/types.ts';
+import type {DeviceConfig} from './index.ts';
 import {DEFAULT_POLLING} from './polling.ts';
 
 /** A process started once per run, such as a dev server, and stopped after. */
@@ -249,6 +250,23 @@ function fromEnvironment(value: string | undefined): number | undefined {
 
 const off = (value: number | false | undefined): number | undefined => (value === false ? 0 : value);
 
+/** Whether the run is in CI, by the variable CI services set, unless it is set to say no. */
+export function isCI(environment: NodeJS.ProcessEnv): boolean {
+  const ci = environment.CI;
+  return Boolean(ci) && ci !== '0' && ci !== 'false';
+}
+
+/**
+ * Whether a platform that cannot be driven here fails its tests rather than
+ * skipping them: under `HARNESS_REQUIRE`, or in CI unless it is 0, since a
+ * CI job that skips its device tests in silence is worse than one that fails.
+ */
+export function requiresDriver(environment: NodeJS.ProcessEnv): boolean {
+  const required = environment.HARNESS_REQUIRE;
+  if (required) return required !== '0' && required !== 'false';
+  return isCI(environment);
+}
+
 /** A url's port, its scheme's own where it names none. */
 export function portOf(url: string): string {
   const parsed = new URL(url);
@@ -270,7 +288,7 @@ function commandOf(platform: Platform, command: CommandConfig, url: string | und
     shutdownTimeout: command.shutdownTimeout ?? DEFAULTS.shutdownTimeout,
     log: command.log === false ? false : path.resolve(root, command.log ?? path.join('.harness', `app-${platform}.log`)),
     // Locally a dev server already running is used; in CI it would be testing whatever build it serves.
-    reuseExisting: command.reuseExisting ?? !environment.CI,
+    reuseExisting: command.reuseExisting ?? !isCI(environment),
   };
 }
 
@@ -307,6 +325,38 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
     transition: fromEnvironment(environment.HARNESS_TRANSITION) ?? off(config?.transition) ?? DEFAULTS.transition,
     statusBar: config?.statusBar ?? DEFAULTS.statusBar,
     actionTimeout: config?.actionTimeout ?? DEFAULTS.actionTimeout,
+  };
+}
+
+const RUN = Symbol.for('expo-vitest.run');
+
+/**
+ * Hands the device the run a project's setup file resolved. It is kept on
+ * the global object, which the setup file and the test share whatever copy
+ * of this package each has loaded.
+ */
+export function setRun(run: ResolvedRun, store: object = globalThis): void {
+  (store as {[RUN]?: ResolvedRun})[RUN] = run;
+}
+
+/** The run a project's setup file resolved in this worker, if one did. */
+export function currentRun(store: object = globalThis): ResolvedRun | undefined {
+  return (store as {[RUN]?: ResolvedRun})[RUN];
+}
+
+/** The device's config for a run: its app and waits, and the environment's `HARNESS_FORCE`, which is not a config's to give. */
+export function configFromRun(run: ResolvedRun, environment: NodeJS.ProcessEnv): DeviceConfig {
+  const force = environment.HARNESS_FORCE;
+  return {
+    platform: run.platform,
+    ...(run.url ? {url: run.url} : {}),
+    ...(run.scheme ? {scheme: run.scheme} : {}),
+    ...(run.target ? {target: run.target} : {}),
+    ...(force && force !== '0' ? {force: true} : {}),
+    settle: run.settle,
+    transition: run.transition,
+    assertionTimeout: run.assertionTimeout,
+    stable: run.stable,
   };
 }
 
