@@ -11,7 +11,7 @@ contract, the dependency policy and the feature map are in
 
 ## As built
 
-Work items 1 to 5 are on the `phase-0-foundations` branch, a commit each,
+Work items 1 to 5 are on the `e2e` branch, a commit each,
 with smaller commits beside them: the web driver answers a page that will
 not load with `APP_UNREACHABLE` instead of throwing Playwright's error,
 which the docs needed before they could say a failed call rejects with a

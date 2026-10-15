@@ -1,6 +1,6 @@
 # Phase 1. Faster backends
 
-Status: in progress (items 1 and 2 of 11 done, item 3 dropped) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
+Status: paused for the driver research (items 1, 2, 4 and 8 of 11 done, item 3 dropped, item 5 parked) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
 
 The index is [`README.md`](README.md). Section 5 there is the one-table
 summary of this phase; section 11 holds the agent-device, Playwright and
@@ -11,8 +11,8 @@ runs the same, faster.
 
 ## As built
 
-On the `phase-1-faster-backends` branch, which starts from Phase 0's. Where
-the build differs from the design below, the build is what holds:
+On the `e2e` branch, after Phase 0. Where the build differs from the design
+below, the build is what holds:
 
 - **Work items 1 and 2 are one commit.** The answers item 1 was to find are
   recorded at the top of `src/harness/platforms/agent-device-mapping.ts`,
@@ -54,6 +54,54 @@ the build differs from the design below, the build is what holds:
 - **npm works on Windows again.** The client loads from npm's global
   folder by path, so the `.cmd` launcher npm puts on the PATH is never
   started, and the doctor's advice is `npm i -g agent-device` everywhere.
+- **Item 8 came before item 4.** Every node carries `parent`, from each
+  platform's own structure: agent-device's `parentIndex`, the web
+  collector's map of the nodes it kept, and the Windows walk handing each
+  child the nearest ancestor it kept. `narrow` in `snapshot.ts` points a
+  parent past the nodes an interactive snapshot leaves out.
+- **Item 4's host is C#, not PowerShell.** `src/harness/windows/host.cs`
+  (C# 5) is compiled by `host.ps1` through `Add-Type` once per driver, in
+  about half a second, and answers JSON lines: `hello`, `rect`, `snapshot`,
+  `click`, `hold`, `keys`, `screen`, `idle`, `raise`, `quit`. The tree is
+  one `CacheRequest` over the subtree, control view only, with title bars
+  left out and everything in them. The example app was not built here, so
+  Entz, a react-native-windows 0.84 Release build, stood in. On its 94
+  nodes, with the desk in use, at p50 against the scripts: a snapshot 242
+  ms against 1366, an interactive one 126 against 1068, a screenshot 35
+  against 354. The fetch is 100 to 400 ms of a snapshot and the walk 0 to
+  4 ms, and an MTA host was no faster. The window's `focusable` reads true
+  from the cache and false live, which was accepted.
+- **The managed client cannot always read its cache back.**
+  `CacheHelper.ParseTreeDescription` throws `IndexOutOfRangeException`
+  inside `GetUpdatedCache` on Entz's Inbox and Settings, and later on
+  Documents too, so the host walks the same tree an element at a time
+  where it throws (about 360 ms for the 94 nodes). UIA3, which item 10
+  names, does not go through that reader.
+- **Item 5 is parked on the `parked/windows-patterns` branch.** Driven
+  through the host on Entz: Select on a tab navigated, SetValue on the
+  search field filtered the list, Expand and Collapse answered, and Invoke
+  on a disabled button was refused; the document cards have only
+  ScrollItem. Then react-native-windows 0.84's source
+  (`CompositionDynamicAutomationProvider.cpp`, `ComponentView.cpp`) showed
+  why a pattern cannot stand in for a press in general. Invoke is offered
+  only when a view has `onAccessibilityTap`, and fires that. Toggle is a
+  no-op on any view but a Switch. Select only sends the `select`
+  accessibility action, and only when the view declared it. SetValue
+  changes the text of a TextInput and of nothing else. UI Automation
+  reports success either way, so a react-navigation tab pressed through
+  SelectionItem would report pressed while nothing happened. A pattern
+  press needs the state read back and a pointer fallback, and that
+  fallback needs the idle guard inside the driver first.
+- **On Windows, a ref from an interactive snapshot names another node in
+  a full one.** The host and the scripts number only the nodes they keep,
+  so `@e3` of `snapshot -i` is not `@e3` of the full tree that a press
+  resolves it against. Web numbers every node before it narrows, so its
+  refs agree. Not fixed, for the reason below.
+- **The Windows backend waits on a decision.** The owner would rather
+  adopt a maintained driver than keep this one. agent-desktop and Cua's
+  driver are being read for the desktop, agent-browser for web and argent
+  for mobile, to adopt or to take features from. Items 5, 6 and 10, and
+  item 7 on web, wait on what that finds.
 
 ## Purpose and the claims it proves
 
