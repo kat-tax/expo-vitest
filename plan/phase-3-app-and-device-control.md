@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 and 2 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 3 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -48,6 +48,35 @@ below, the build is what holds.
     differs by platform goes in the file.
   - `HarnessCode` gains `INVALID_CONFIG`. The docs gain its row with the
     file that throws it.
+- **Item 3: the command, in `src/device/app-process.ts` and
+  `src/device/global-setup.ts`.**
+  - **No run-wide global setup.** The spike showed a root global setup
+    runs after the projects' own, so each platform's global setup starts
+    its command. They share a registry on the global object, since every
+    project's setup runs in the one main process. The first platform to
+    name a command starts it, and the last to finish stops it.
+  - **Ready** is Playwright's rule for its web server: 2xx, 3xx, and 400 to
+    403. The looks are 100 ms apart, doubling to 1 s. A command that ends
+    before it answers fails at once, saying how it ended.
+  - **Windows:** a `.cmd` or `.bat`, such as `npx`, goes through cmd.exe,
+    since nothing else can run one. Each argument is escaped twice, because
+    a batch file's `%*` has cmd read its arguments again. Seen live: an npm
+    shim and a plain `.cmd` each received 15 awkward arguments intact, and
+    `npx` ran.
+  - A reused command reports no log. `HarnessCode` gains
+    `APP_ALREADY_RUNNING`.
+  - **Seen live,** in a scratch consumer where web and windows share a
+    command through a `.cmd`, and its server starts a grandchild:
+    - one start, and one pid for both platforms;
+    - after the run, the server, the grandchild and the port were gone;
+    - with a server already up, it was used, and left running;
+    - with `CI` set, `APP_ALREADY_RUNNING`;
+    - a command that never listened failed with `APP_UNREACHABLE` and the
+      end of its log, and left nothing running;
+    - a program not on `PATH` failed with `APP_UNREACHABLE` naming it.
+  - **Not built:** a `SIGINT` handler. The teardown and an `exit` hook stop
+    the command. A hard kill of Vitest leaves it running, and a local run
+    then uses it.
 
 ## Purpose and the claims it proves
 

@@ -11,6 +11,8 @@ export type HarnessCode =
   | 'DRIVER_UNAVAILABLE'
   /** The app did not open: a URL that does not answer, a deep link with no exe to launch. */
   | 'APP_UNREACHABLE'
+  /** Something already answers where the run's command would serve the app, and the run may not use it. */
+  | 'APP_ALREADY_RUNNING'
   /** Nothing in the tree matched, within the time allowed. */
   | 'LOCATOR_NOT_FOUND'
   /** A query that names one node named several, so a step cannot tell which to act on. */

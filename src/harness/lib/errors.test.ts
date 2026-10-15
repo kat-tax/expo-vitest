@@ -48,10 +48,11 @@ describe('codeOf', () => {
 });
 
 describe('HarnessCode', () => {
-  it('is these ten, so a new one is a deliberate edit here', () => {
+  it('is these eleven, so a new one is a deliberate edit here', () => {
     expectTypeOf<HarnessCode>().toEqualTypeOf<
       | 'DRIVER_UNAVAILABLE'
       | 'APP_UNREACHABLE'
+      | 'APP_ALREADY_RUNNING'
       | 'LOCATOR_NOT_FOUND'
       | 'LOCATOR_AMBIGUOUS'
       | 'ACTION_FAILED'
