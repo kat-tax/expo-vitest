@@ -30,6 +30,7 @@ with one project per platform. New here? Start with
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
 | [CI](ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, the summary and the pull request comment, and caching. |
+| [Migrating](migrating.md) | From Detox, Maestro, Playwright and e2e: each call, what it is here, and whether it is the same, renamed, different by design or not yet. |
 
 ## Build on it
 
