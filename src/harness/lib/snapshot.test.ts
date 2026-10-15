@@ -121,6 +121,32 @@ describe('renderSnapshot', () => {
     };
     expect(renderSnapshot(said)).toBe('@e1 ListItem "Inbox" (2 of 5 h2 live:polite status:Busy dialog help:"Opens the inbox")');
   });
+
+  it('prints the state a control is in, both ways, and what a field holds, where the platform reported them', () => {
+    const states: Snapshot = {
+      platform: 'web',
+      nodes: [
+        {ref: '@e1', role: 'checkbox', name: 'News', depth: 0, interactive: true, checked: false},
+        {ref: '@e2', role: 'checkbox', name: 'All', depth: 0, interactive: true, checked: 'mixed'},
+        {ref: '@e3', role: 'tab', name: 'Inbox', depth: 0, interactive: true, selected: true},
+        {ref: '@e4', role: 'combobox', name: 'Dialect', depth: 0, interactive: true, expanded: false},
+        {ref: '@e5', role: 'button', name: 'Bold', depth: 0, interactive: true, pressed: true},
+        {ref: '@e6', role: 'textbox', name: 'Search', depth: 0, interactive: true, value: '', placeholder: 'Search documents'},
+        {ref: '@e7', role: 'textbox', name: 'Password', depth: 0, interactive: true, secure: true},
+        {ref: '@e8', role: 'tab', name: 'Sent', depth: 0, interactive: true, selected: false, checked: true, expanded: true, pressed: false},
+      ],
+    };
+    expect(renderSnapshot(states).split('\n')).toEqual([
+      '@e1 checkbox "News" [unchecked]',
+      '@e2 checkbox "All" [checked:mixed]',
+      '@e3 tab "Inbox" [selected]',
+      '@e4 combobox "Dialect" [collapsed]',
+      '@e5 button "Bold" [pressed]',
+      '@e6 textbox "Search" (value:"" placeholder:"Search documents")',
+      '@e7 textbox "Password" (secure)',
+      '@e8 tab "Sent" [checked,unselected,expanded,unpressed]',
+    ]);
+  });
 });
 
 describe('narrow', () => {

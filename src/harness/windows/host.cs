@@ -267,7 +267,12 @@ public static class HarnessHost {
       AutomationElement.SizeOfSetProperty,
       AutomationElement.HeadingLevelProperty,
       AutomationElement.ItemStatusProperty,
-      AutomationElement.IsDialogProperty
+      AutomationElement.IsDialogProperty,
+      AutomationElement.IsPasswordProperty,
+      TogglePattern.ToggleStateProperty,
+      SelectionItemPattern.IsSelectedProperty,
+      ExpandCollapsePattern.ExpandCollapseStateProperty,
+      ValuePattern.ValueProperty
     };
     foreach (AutomationProperty property in properties) request.Add(property);
     foreach (AutomationProperty property in PatternProperties) request.Add(property);
@@ -403,6 +408,28 @@ public static class HarnessHost {
       if (status != null) node.Append(",\"status\":").Append(Json(status.ToString()));
       object dialog = Prop(walk, element, AutomationElement.IsDialogProperty, false);
       if (dialog is bool && (bool)dialog) node.Append(",\"dialog\":true");
+      // The state a control is in, present only where it has one. A toggle on
+      // a Button is a toggle button, pressed in or not; on anything else it is
+      // checked or not.
+      object toggle = Raw(walk, element, TogglePattern.ToggleStateProperty);
+      if (toggle is ToggleState) {
+        ToggleState on = (ToggleState)toggle;
+        node.Append(role == "Button" ? ",\"pressed\":" : ",\"checked\":").Append(on == ToggleState.On ? "true" : on == ToggleState.Off ? "false" : "\"mixed\"");
+      }
+      object selected = Raw(walk, element, SelectionItemPattern.IsSelectedProperty);
+      if (selected is bool) node.Append(",\"selected\":").Append(Bool((bool)selected));
+      object expanded = Raw(walk, element, ExpandCollapsePattern.ExpandCollapseStateProperty);
+      if (expanded is ExpandCollapseState && (ExpandCollapseState)expanded != ExpandCollapseState.LeafNode) {
+        node.Append(",\"expanded\":").Append(Bool((ExpandCollapseState)expanded != ExpandCollapseState.Collapsed));
+      }
+      object password = Raw(walk, element, AutomationElement.IsPasswordProperty);
+      if (password is bool && (bool)password) {
+        node.Append(",\"secure\":true");
+      } else {
+        // Never a secure field's value, which a tree must not carry.
+        string value = Raw(walk, element, ValuePattern.ValueProperty) as string;
+        if (value != null) node.Append(",\"value\":").Append(Json(value));
+      }
       System.Windows.Rect box = current.BoundingRectangle;
       if (double.IsInfinity(box.X) || box.Width <= 0) {
         node.Append(",\"bounds\":null");
@@ -432,14 +459,26 @@ public static class HarnessHost {
   // looks: react-native-windows returns -1 for an unset position or set size,
   // not 0.
   static object Prop(Walk walk, AutomationElement element, AutomationProperty property, bool unsetBelowOne) {
-    if (property == null) return null;
-    object value;
-    try { value = walk.Live ? element.GetCurrentPropertyValue(property) : element.GetCachedPropertyValue(property); } catch { return null; }
-    if (value == null || value == AutomationElement.NotSupported) return null;
+    object value = Read(walk, element, property, false);
     string text = value as string;
     if (text != null && text.Length == 0) return null;
     if (unsetBelowOne && value is int && (int)value < 1) return null;
     return value;
+  }
+
+  // A control's state, as UIA gave it, null where the control does not
+  // support it: asked for without its default, so a node with no Toggle
+  // pattern reads as no toggle rather than as one switched off. An empty
+  // string stays, since an empty field's value is "".
+  static object Raw(Walk walk, AutomationElement element, AutomationProperty property) {
+    return Read(walk, element, property, true);
+  }
+
+  static object Read(Walk walk, AutomationElement element, AutomationProperty property, bool ignoreDefault) {
+    if (property == null) return null;
+    object value;
+    try { value = walk.Live ? element.GetCurrentPropertyValue(property, ignoreDefault) : element.GetCachedPropertyValue(property, ignoreDefault); } catch { return null; }
+    return value == null || value == AutomationElement.NotSupported ? null : value;
   }
 
   // Synthetic mouse input. SetCursorPos alone raises no pointer move, so the

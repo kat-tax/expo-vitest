@@ -61,6 +61,25 @@ export interface SnapshotNode {
   status?: string | null;
   /** Whether the platform treats this as a dialog (modal semantics, and where the focus goes). */
   dialog?: boolean | null;
+  /**
+   * The state a control is in, each absent where the control has no such
+   * state or the platform did not say, by the same rule as above: a toggle
+   * that reports no state is a finding, not an off switch.
+   */
+  /** A checkbox, radio or switch: on, off, or `mixed` in between. */
+  checked?: boolean | 'mixed';
+  /** A tab, option or item: whether it is the one selected. */
+  selected?: boolean;
+  /** A combo box, menu button or disclosure: whether it is open. */
+  expanded?: boolean;
+  /** A toggle button: whether it is pressed in, or `mixed`. */
+  pressed?: boolean | 'mixed';
+  /** What a field holds, or a slider's value. Never set on a secure field. */
+  value?: string;
+  /** The hint an empty field shows. */
+  placeholder?: string;
+  /** A field whose text is hidden, such as a password. */
+  secure?: true;
   /** In the window's own pixels from its top left; absent when the platform did not say. */
   bounds?: Bounds | null;
   /**
@@ -221,7 +240,18 @@ export function renderSnapshot(snapshot: Snapshot): string {
   return snapshot.nodes
     .map(node => {
       const indent = '  '.repeat(Math.min(node.depth, 12));
-      const state = [node.focused && 'focused', node.enabled === false && 'disabled', node.offscreen && 'offscreen'].filter(Boolean).join(',');
+      const two = (value: boolean | 'mixed' | undefined, on: string, off: string) => (value === undefined ? '' : value === 'mixed' ? `${on}:mixed` : value ? on : off);
+      const state = [
+        node.focused && 'focused',
+        node.enabled === false && 'disabled',
+        node.offscreen && 'offscreen',
+        two(node.checked, 'checked', 'unchecked'),
+        two(node.selected, 'selected', 'unselected'),
+        two(node.expanded, 'expanded', 'collapsed'),
+        two(node.pressed, 'pressed', 'unpressed'),
+      ]
+        .filter(Boolean)
+        .join(',');
       const missing = node.interactive && !node.name ? '  <- no accessible name' : '';
       // The testID is printed so a person reading the tree can copy it
       // straight into `by.testID(…)`, which is the selector that keeps working
@@ -237,6 +267,9 @@ export function renderSnapshot(snapshot: Snapshot): string {
         node.status && `status:${node.status}`,
         node.dialog && 'dialog',
         node.help && `help:${JSON.stringify(node.help)}`,
+        node.value !== undefined && `value:${JSON.stringify(node.value)}`,
+        node.placeholder && `placeholder:${JSON.stringify(node.placeholder)}`,
+        node.secure && 'secure',
       ].filter(Boolean).join(' ');
       return `${indent}${node.ref} ${node.role} ${JSON.stringify(node.name)}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
     })

@@ -47,6 +47,13 @@ export interface AgentNode {
   depth?: number;
   hittable?: boolean;
   visibleToUser?: boolean;
+  checked?: boolean;
+  selected?: boolean;
+  editable?: boolean;
+  password?: boolean;
+  /** The hint an empty field shows, and whether it is showing in place of the text. */
+  hint?: string;
+  hintShowing?: boolean;
 }
 
 /** Their node in our shape, so a test reads the same whichever backend answered. */
@@ -72,6 +79,16 @@ export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
       rect && typeof rect.x === 'number' && typeof rect.width === 'number'
         ? {x: Math.round(rect.x), y: Math.round(rect.y ?? 0), width: Math.round(rect.width), height: Math.round(rect.height ?? 0)}
         : null,
+    ...(typeof node.checked === 'boolean' ? {checked: node.checked} : null),
+    // agent-device reports `selected: false` on every Android node, which
+    // says nothing about whether the node can be selected at all, so only a
+    // selected node carries it.
+    ...(node.selected === true ? {selected: true} : null),
+    ...(node.hint ? {placeholder: node.hint} : null),
+    // What a field holds: never a secure field's, and nothing while Android
+    // shows the hint in place of the text. Only an editable node has one, so
+    // a label's text is not read as a value.
+    ...(node.password ? {secure: true as const} : node.editable && node.value !== undefined ? {value: node.hintShowing ? '' : node.value} : null),
   };
 }
 

@@ -1,12 +1,44 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: not started · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (item 1 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
 does, and a failing test leaves behind what a person needs to see what went
 wrong. Everything is additive beside `element` and `by`; the contract in
 [README.md section 3](README.md#3-the-compatibility-contract) holds.
+
+## As built
+
+On the `e2e` branch, after Phase 1. Where the build differs from the design
+below, the build is what holds.
+
+- **Phase 1 changed what an action can pass.** Web refs now last as long
+  as their element, and a Windows ref means the same node in an
+  interactive and a full snapshot. A Windows press also needs the node,
+  not a point, to go through the control's pattern. So item 5's
+  `targetFor` passes the ref everywhere, not a point on web and Windows.
+- **Item 1: the state fields.**
+  - **Windows** reads them through the host and the scripts, asking UI
+    Automation without its defaults. Otherwise every node reads as a
+    toggle switched off, a selection not made and an empty value. A
+    toggle on a `Button` is `pressed`.
+  - **react-native-windows** reports no placeholder, so a Windows node has
+    none.
+  - **agent-device:**
+    - `checked` passes through.
+    - `password` becomes `secure`, and `hint` becomes `placeholder`.
+    - `value` comes only from an editable node, and is empty while Android
+      shows the hint in place of the text.
+    - `selected` stays only when true: agent-device reports
+      `selected: false` on every Android node, as a snapshot of the phone
+      showed, 62 nodes and every one of them false.
+  - **Seen live:**
+    - Every state on a web page of one control each.
+    - Entz's tabs, favourite stars, fields, theme choice and combo boxes,
+      on its Documents and Settings screens, with the host and the scripts
+      agreeing on every node.
+  - **Not seen:** iOS, which needs a Mac.
 
 ## Purpose and the claims it proves
 

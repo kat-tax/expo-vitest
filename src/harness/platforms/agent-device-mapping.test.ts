@@ -273,3 +273,26 @@ describe('the wait after an action', () => {
     expect(settleArgs()).toEqual([]);
   });
 });
+
+describe('the state a node is in', () => {
+  const base = {ref: 'e1', type: 'android.widget.EditText', depth: 1};
+
+  it('passes checked through, selected where it is true, and the hint as the placeholder', () => {
+    expect(toSnapshotNode({...base, type: 'android.widget.Switch', checked: true, selected: true}, 0)).toMatchObject({checked: true, selected: true});
+    // On Android every node says selected: false, which is no state at all.
+    expect(toSnapshotNode({...base, type: 'android.widget.TextView', selected: false}, 0)).not.toHaveProperty('selected');
+    expect(toSnapshotNode({...base, editable: true, value: 'Ada', hint: 'Name'}, 0)).toMatchObject({value: 'Ada', placeholder: 'Name'});
+  });
+
+  it('reads an empty field as empty while it shows its hint, and gives a secure field no value', () => {
+    expect(toSnapshotNode({...base, editable: true, value: 'Name', hint: 'Name', hintShowing: true}, 0)).toMatchObject({value: '', placeholder: 'Name'});
+    const secret = toSnapshotNode({...base, editable: true, password: true, value: '••••'}, 0);
+    expect(secret.secure).toBe(true);
+    expect(secret).not.toHaveProperty('value');
+  });
+
+  it('leaves out what was not reported, and the value of what cannot be edited', () => {
+    const label = toSnapshotNode({...base, type: 'android.widget.TextView', value: 'Hello'}, 0);
+    for (const field of ['checked', 'selected', 'placeholder', 'secure', 'value']) expect(label).not.toHaveProperty(field);
+  });
+});

@@ -198,6 +198,13 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `live` | A live region, and how urgent: `polite` or `assertive`. |
 | `status` | The item's status, such as "Busy" while something loads. |
 | `dialog` | Whether the platform treats this as a dialog. |
+| `checked` | A checkbox, radio or switch: `true`, `false`, or `'mixed'` in between. From `ToggleState` on Windows, `aria-checked` or the input's own state on web, agent-device's `checked` on Android and iOS. |
+| `selected` | A tab, option or item: whether it is the one selected. `SelectionItem` on Windows, `aria-selected` on web. On Android and iOS only a selected node carries it, since agent-device reports `false` on every Android node. |
+| `expanded` | A combo box, menu button or disclosure: whether it is open. `ExpandCollapse` on Windows, `aria-expanded` on web. |
+| `pressed` | A toggle button: whether it is pressed in, or `'mixed'`. `ToggleState` on a Windows `Button`, `aria-pressed` on web. |
+| `value` | What a field holds, or a slider's value. Never set on a secure field. |
+| `placeholder` | The hint an empty field shows. Not on Windows, where react-native-windows does not report it. |
+| `secure` | `true` on a field whose text is hidden, such as a password. |
 | `bounds` | The rectangle, in the window's own pixels from its top left. |
 | `patterns` | The UI Automation patterns a Windows control implements, each a way to drive it without a pointer: `Invoke`, `Toggle`, `SelectionItem`, `Value`, `ScrollItem`, `ExpandCollapse`. Windows only. |
 
@@ -205,7 +212,8 @@ The fields from `help` down are absent unless the platform reported them. A
 control that sets none reads differently in the tree from one that sets them.
 Nothing else in a test run can see them, and a missing `live` or `inSet` is
 invisible in a component test and obvious to a user. Windows fills all of them
-through UI Automation. The other platforms fill what their own trees carry.
+but `placeholder` through UI Automation. The other platforms fill what their
+own trees carry.
 
 ## Matchers
 

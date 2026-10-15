@@ -148,6 +148,21 @@ const COLLECT = `((last) => {
     // react-native-web writes testID as data-testid, and an app's own DOM
     // components write it directly, so both arrive here the same way.
     const testId = element.getAttribute('data-testid');
+    // The state a control is in, present only where it has one: from ARIA,
+    // and from the native control where there is no ARIA to say.
+    const aria = (attribute) => element.getAttribute(attribute);
+    const tristate = (value) => (value === 'true' ? true : value === 'false' ? false : value === 'mixed' ? 'mixed' : undefined);
+    const type = (element.getAttribute('type') || '').toLowerCase();
+    const choice = element.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio');
+    const checked = tristate(aria('aria-checked')) ?? (choice ? (element.indeterminate ? 'mixed' : element.checked) : undefined);
+    const selected = aria('aria-selected') === null ? undefined : aria('aria-selected') === 'true';
+    const expanded = aria('aria-expanded') === null ? undefined : aria('aria-expanded') === 'true';
+    const pressed = tristate(aria('aria-pressed'));
+    const secure = element.tagName === 'INPUT' && type === 'password';
+    const field = (element.tagName === 'INPUT' && !choice && !['button', 'submit', 'reset', 'hidden', 'file', 'image'].includes(type)) || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT';
+    // Never a secure field's value, which a tree must not carry.
+    const value = secure ? undefined : field ? element.value : (aria('aria-valuetext') ?? aria('aria-valuenow') ?? undefined);
+    const placeholder = aria('placeholder') || undefined;
     nodes.push({
       ref,
       ...(parent ? {parent} : null),
@@ -161,6 +176,13 @@ const COLLECT = `((last) => {
       enabled: !element.hasAttribute('disabled') && element.getAttribute('aria-disabled') !== 'true',
       offscreen: box.width === 0 || box.height === 0,
       bounds: {x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height)},
+      ...(checked === undefined ? null : {checked}),
+      ...(selected === undefined ? null : {selected}),
+      ...(expanded === undefined ? null : {expanded}),
+      ...(pressed === undefined ? null : {pressed}),
+      ...(value === undefined ? null : {value}),
+      ...(placeholder ? {placeholder} : null),
+      ...(secure ? {secure: true} : null),
     });
   }
   // The elements this read named, for a press to find the one it points at.

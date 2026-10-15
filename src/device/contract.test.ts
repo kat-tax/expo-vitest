@@ -455,6 +455,13 @@ describe('the types a consumer compiled against', () => {
       live?: string | null;
       status?: string | null;
       dialog?: boolean | null;
+      checked?: boolean | 'mixed';
+      selected?: boolean;
+      expanded?: boolean;
+      pressed?: boolean | 'mixed';
+      value?: string;
+      placeholder?: string;
+      secure?: true;
       bounds?: {x: number; y: number; width: number; height: number} | null;
       patterns?: string[];
     }>();

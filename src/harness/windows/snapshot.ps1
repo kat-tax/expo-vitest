@@ -67,6 +67,20 @@ function Prop($element, $property, $unsetBelowOne = $true) {
   return $value
 }
 
+# A control's state, $null where the control does not support it: asked for
+# without its default, so a node with no Toggle pattern reads as no toggle
+# rather than one switched off. NotSupported arrives as a bare
+# System.__ComObject. An empty string stays, since an empty field's value is ''.
+function Raw($element, $property) {
+  try { $value = $element.GetCurrentPropertyValue($property, $true) } catch { return $null }
+  if ($null -eq $value -or $value -is [System.__ComObject]) { return $null }
+  return $value
+}
+
+function ToggleValue($state) {
+  switch ("$state") { 'On' { return $true } 'Off' { return $false } default { return 'mixed' } }
+}
+
 # $parent is the ref of the nearest kept ancestor, which is what a node's
 # `parent` names; it passes through a node that is not kept.
 function Walk($element, $depth, $parent) {
@@ -89,6 +103,14 @@ function Walk($element, $depth, $parent) {
     $itemStatus = Prop $element ([System.Windows.Automation.AutomationElement]::ItemStatusProperty)
     $isDialog = Prop $element ([System.Windows.Automation.AutomationElement]::IsDialogProperty) $false
     $live = Prop $element $liveSetting
+    # The state a control is in. A toggle on a Button is a toggle button,
+    # pressed in or not; on anything else it is checked or not.
+    $toggle = Raw $element ([System.Windows.Automation.TogglePattern]::ToggleStateProperty)
+    $isSelected = Raw $element ([System.Windows.Automation.SelectionItemPattern]::IsSelectedProperty)
+    $expandState = Raw $element ([System.Windows.Automation.ExpandCollapsePattern]::ExpandCollapseStateProperty)
+    $password = (Raw $element ([System.Windows.Automation.AutomationElement]::IsPasswordProperty)) -eq $true
+    # Never a secure field's value, which a tree must not carry.
+    $fieldValue = if ($password) { $null } else { Raw $element ([System.Windows.Automation.ValuePattern]::ValueProperty) }
     # A node earns a place if it is actionable, says something, or was
     # deliberately marked with a testID. An interactive snapshot numbers the
     # same nodes as a full one and writes only those that can be acted on, so
@@ -121,6 +143,12 @@ function Walk($element, $depth, $parent) {
         live        = if ($live -is [int] -and $live -gt 0 -and $live -lt $LIVE_NAMES.Count) { $LIVE_NAMES[$live] } else { $null }
         status      = $itemStatus
         dialog      = if ($isDialog -eq $true) { $true } else { $null }
+        checked     = if ($null -ne $toggle -and $role -ne 'Button') { ToggleValue $toggle } else { $null }
+        pressed     = if ($null -ne $toggle -and $role -eq 'Button') { ToggleValue $toggle } else { $null }
+        selected    = if ($isSelected -is [bool]) { $isSelected } else { $null }
+        expanded    = if ($null -ne $expandState -and "$expandState" -ne 'LeafNode') { "$expandState" -ne 'Collapsed' } else { $null }
+        value       = if ($fieldValue -is [string]) { $fieldValue } else { $null }
+        secure      = if ($password) { $true } else { $null }
         # Window-relative, so a press does not care where the window sits.
         bounds      = if ([double]::IsInfinity($box.X) -or $box.Width -le 0) { $null } else {
           [pscustomobject]@{
