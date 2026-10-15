@@ -15,12 +15,13 @@ each file is tested as the platform that loads it.
 | Helpers | Assert on the props handed to SwiftUI, Compose or a Windows native component. Mount an Expo Router app from memory. |
 | Device tests | Drive a running app from Vitest and assert on the accessibility tree a screen reader reads. |
 | A harness | `expo-harness`: open a route, press, type, screenshot and read the tree, on web, Windows, Android and iOS. |
+| An agent | Steps written in words, carried out by a model on the device a test drives, and replayed from a cache once they were seen to work. |
 
 It is built on [`vitest-expo`](https://github.com/niondigital/vitest-expo) and
 [`vitest-native`](https://github.com/danfry1/vitest-native), which run React
 Native's real JavaScript for iOS and Android under Vitest. This package adds
-the Windows project, the web project, the file-name rule, the helpers and the
-device layer.
+the Windows project, the web project, the file-name rule, the helpers, the
+device layer and the agent.
 
 ## Quick start
 
@@ -158,6 +159,7 @@ platform's project.
 | The device's settings | Appearance, orientation, network, airplane mode, permissions, location, biometrics, a fold, the clipboard, the keyboard and alerts, from a test, on each platform that has them. | [Controls](docs/controls.md#the-devices-settings) |
 | Gating | `device.can`, and `onlyOn`, `skipOn` and `requires` around a block of tests, which skip with the reason where a platform or a device lacks what the tests need. | [Controls](docs/controls.md#what-a-device-can-do) |
 | Evidence | A failing device test leaves its screenshot, its tree and a trace of its steps, with what each did to the screen, and a recording of the screen where video is on. | [Evidence](docs/evidence.md) |
+| The agent | `expo-vitest/agent`: `act`, `assert`, `waitFor` and `extract` in words, on the device a test drives, with secrets the model never sees, and a cache that replays a step once it was seen to work, with no model call. | [The agent](docs/agent.md) |
 | The run's summary | `expo-vitest/reporter`: the failures with their evidence, as a file, a job summary, and a pull request comment a rerun updates. | [CI](docs/ci.md#the-summary-and-the-pull-request-comment) |
 | Coding agents | A skill that tells an agent how to write, run and read the tests, printed by `guide` and copied in by `init`. | [Coding agents](docs/coding-agents.md) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
@@ -176,6 +178,7 @@ platform's project.
 | [Controls](docs/controls.md) | The app's life from a device test, and the device's settings: appearance, network, permissions, location and the rest. |
 | [Matchers](docs/matchers.md) | The matchers on a locator, how they wait, what a failure says. |
 | [Evidence](docs/evidence.md) | What a failing device test leaves, where, and when. |
+| [The agent](docs/agent.md) | Steps in words: the four calls, secrets, the cache, several agents, tools, executors, models, errors and cost. |
 | [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [CI](docs/ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, and the summary that comments on a pull request. |

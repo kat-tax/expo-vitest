@@ -23,6 +23,7 @@ evidence: .harness/results/web/device/settings/opens-the-profile-form-3f9a1c/tra
 | `tree.json` | The same tree as JSON. |
 | `trace.md` | The test, its failure, its steps and the screen at the end. |
 | `video.webm` or `video.mp4` | The screen through the test, where [video](#video) is on. |
+| `agent-1.png` and on | The screen after an [agent's](agent.md) assertion, where one may be kept. |
 
 The test file is its path from the project root without the extension, and
 the test is its title, with the suites it sits in, made safe for a folder
@@ -43,9 +44,12 @@ its error and links to its screenshot, tree, trace and recording.
 
 ## What to commit
 
-Nothing under `.harness/`: the results, the summary, the downloads, and
-what the harness keeps for itself between runs, such as a pool's locks and
-the desk's quiet on Windows. `init` adds it to `.gitignore`. A screenshot
+Nothing under `.harness/`: the results, the summary, the downloads, the
+[AI trace](agent.md#debugging-and-cost), and what the harness keeps for
+itself between runs, such as a pool's locks and the desk's quiet on Windows.
+`init` adds it to `.gitignore`. The one exception is the agent's replay
+cache, `.harness/cache/`, which a team commits on purpose to share
+[replays](agent.md#the-cache). A screenshot
 baseline is committed, in `device/__screenshots__/<platform>/`, and only from
 the machine that asserts it, since [a baseline belongs to the machine that
 drew it](matchers.md#tomatchscreenshot).
@@ -99,6 +103,18 @@ chain of components above it:
 
 A `## Console` part lists what the app wrote to its console during the
 test, and the errors it did not catch, on web, the last fifty lines.
+
+An [agent's](agent.md) steps each leave a line among the steps, its actions
+before it, and a section of their own in an `## Agent` part: what the step
+was, which agent ran it, how it ended and what it cost, and its last turns.
+
+## Secrets
+
+Where the harness config has [secrets](agent.md#secrets), every value is
+hidden as `<secret:NAME>` in `trace.md`, `tree.txt` and `tree.json`: a
+secret typed into a field that shows what it holds is in the tree. After a
+secret was filled, the test keeps no screenshot and no recording, and the
+trace says why.
 
 ## When
 

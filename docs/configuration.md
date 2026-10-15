@@ -244,6 +244,20 @@ with `INVALID_CONFIG`, naming it and what the file takes there. So does a
 file that changes while the run is going, since the tests would then be
 reading a different one from the run that started their apps.
 
+### The agent
+
+Three keys are the [agent's](agent.md):
+
+| Key | What it is | Default |
+| --- | --- | --- |
+| `agents` | The agents by name, each with its model, context and limits; `default` runs a step that names none. See [several agents](agent.md#several-agents). | none |
+| `secrets` | Each secret's value by name: a string, or a function that answers one. `HARNESS_SECRET_<NAME>` wins over it. At least 6 characters. See [secrets](agent.md#secrets). | none |
+| `cache` | Whether a verified act is recorded and replayed: `'read-write'`, `'read-only'`, `'off'`, or `{mode, dir, strict}`. `HARNESS_CACHE` wins over it. See [the cache](agent.md#the-cache). | `read-write`, or `read-only` where `CI` is set |
+
+An agent's models and tools are functions, which cannot cross from the run's
+own process to the workers, so the device project's setup file loads the file
+again in each worker, and the agent reads that load.
+
 ### What wins
 
 From strongest to weakest:

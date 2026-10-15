@@ -139,7 +139,7 @@ A flow is a test file, and each command a line of it.
 | `onFlowStart`, `onFlowComplete` | `beforeEach`, `afterEach` | renamed |
 | platform-specific selectors | `onlyOn`, and the [file-name rule](projects.md) | renamed |
 | `clearKeychain`, `addMedia`, `travel` | | not yet |
-| `assertWithAI`, `assertNoDefectsWithAI`, `extractTextWithAI` | `agent.assert`, `agent.extract` | not yet: [the agent](https://github.com/kat-tax/expo-vitest/blob/master/plan/phase-5-agent.md) |
+| `assertWithAI`, `assertNoDefectsWithAI`, `extractTextWithAI` | [`agent.assert`](agent.md), with `vision` for what only a picture shows, and `agent.extract` | renamed |
 
 ## From Playwright
 
@@ -194,4 +194,16 @@ since a test here runs on a phone as well as a page.
 | `.e2e/` | `.harness/` | renamed |
 | reporters | Vitest's, and [`expo-vitest/reporter`](ci.md#the-summary-and-the-pull-request-comment) | renamed |
 | `video` | [`video`](evidence.md#video) | same |
-| `agent.*`, `cache` | `expo-vitest/agent`, `HARNESS_CACHE` | not yet: [the agent](https://github.com/kat-tax/expo-vitest/blob/master/plan/phase-5-agent.md) |
+| `agent.act`, `agent.assert`, `agent.waitFor`, `agent.extract` | the same, from [`expo-vitest/agent`](agent.md) | same |
+| `agents` in `e2e.config.ts` | [`agents`](agent.md#several-agents) in `harness.config.ts` | same |
+| `{agent: ['buyer', 'admin']}` | [`forEachAgent(['buyer', 'admin'], ...)`](agent.md#several-agents), and `agent.as(name)` | renamed |
+| `credentials.user(name)`, `secrets.get(name)` | [`secret(name)`](agent.md#secrets) | renamed |
+| `E2E_SECRET_<NAME>` | `HARNESS_SECRET_<NAME>` | renamed |
+| `unique(value)` | `unique(value)` | same |
+| `defineTool(aiSdkTool, {mutates, platforms})` | [`defineTool({name, description, schema, mutates, platforms, execute})`](agent.md#project-tools), with no AI SDK tool | renamed |
+| `createToolLoopExecutor` | [`toolLoopExecutor`](agent.md#an-executor-of-your-own) | renamed |
+| `cache` modes, `strict` | [`cache`](agent.md#the-cache) in `harness.config.ts`, `HARNESS_CACHE` | same |
+| `e2e cache ls`, `stats`, `clear` | [`expo-harness cache ls`, `stats`, `clear`](harness.md#the-agents-cache) | renamed |
+| `--debug` | `HARNESS_DEBUG=1` | renamed |
+| `--ai-trace`, `.e2e/ai-trace.json` | `HARNESS_AI_TRACE=1`, `.harness/ai-trace.jsonl`, a JSON line a call | renamed |
+| `maxInputTokens`, `providerOptions` | | not yet |
