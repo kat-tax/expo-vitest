@@ -105,6 +105,13 @@ describe('the environment', () => {
       target: 'emulator-5554',
     });
   });
+
+  it('forces synthetic input with HARNESS_FORCE, and only when it is set to something other than 0', () => {
+    const windows = {HARNESS_PLATFORM: 'windows', HARNESS_TARGET: 'MyApp'};
+    expect(configFromEnvironment({...windows, HARNESS_FORCE: '1'} as unknown as NodeJS.ProcessEnv)).toStrictEqual({platform: 'windows', url: undefined, scheme: undefined, target: 'MyApp', force: true});
+    expect(configFromEnvironment({...windows, HARNESS_FORCE: '0'} as unknown as NodeJS.ProcessEnv)).not.toHaveProperty('force');
+    expect(configFromEnvironment({...windows, HARNESS_FORCE: ''} as unknown as NodeJS.ProcessEnv)).not.toHaveProperty('force');
+  });
 });
 
 describe('the project root', () => {
@@ -135,6 +142,24 @@ describe('the project root', () => {
     const {device: fresh, baselineFor} = await loadedWith(root);
     expect(baselineFor('windows', 'home')).toBe(path.join(root, 'device', '__screenshots__', 'windows', 'home.png'));
     expect(await fresh.screenshot('home')).toBe(path.join(root, '.harness', 'home.png'));
+  });
+});
+
+describe('forcing input', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('reaches the driver from HARNESS_FORCE, since a device test cannot pass --force', async () => {
+    vi.stubEnv('HARNESS_PLATFORM', 'windows');
+    vi.stubEnv('HARNESS_FORCE', '1');
+    vi.resetModules();
+    const drivers = await import('../harness/lib/drivers.ts');
+    vi.mocked(drivers.driverFor).mockReturnValue(stub());
+    const {device: fresh} = await import('./index.ts');
+    await fresh.ready();
+    expect(drivers.driverFor).toHaveBeenCalledWith('windows', expect.objectContaining({force: true}));
   });
 });
 
@@ -411,7 +436,7 @@ describe('the types a consumer compiled against', () => {
       patterns?: string[];
     }>();
     expectTypeOf<Plain<Snapshot>>().toMatchObjectType<{platform: string; source?: string; nodes: SnapshotNode[]}>();
-    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string}>();
+    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string; force?: boolean}>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();

@@ -101,35 +101,17 @@ describe('bench', () => {
     expect(press).not.toHaveBeenCalled();
   });
 
-  it('sends no input when it is refused, and says why', async () => {
-    const press = vi.fn(async () => ok('pressed'));
-    const fill = vi.fn(async () => ok('filled'));
-    const refuse = async (what: string) => `refusing ${what}: someone used this machine 3 seconds ago`;
-    const result = await bench(stub({press, fill}), {iterations: 5, press: '@e1', field: '@e3', directory: folder(), refuse});
-    expect(result.samples[2]?.skipped).toBe('refusing a press: someone used this machine 3 seconds ago');
-    expect(result.samples[3]?.skipped).toBe('refusing typing: someone used this machine 3 seconds ago');
-    expect(press).not.toHaveBeenCalled();
-    expect(fill).not.toHaveBeenCalled();
-  });
-
-  it('stops sending input the moment someone comes back, and keeps what it timed', async () => {
-    const press = vi.fn(async () => ok('pressed'));
-    let asked = 0;
-    const refuse = async (what: string) => (++asked > 3 ? `refusing ${what}: someone used this machine 1 seconds ago` : null);
-    const result = await bench(stub({press}), {iterations: 5, press: '@e1', directory: folder(), refuse});
-    expect(press).toHaveBeenCalledTimes(3);
+  it('stops pressing the moment the driver refuses, as when someone comes back, and keeps what it timed', async () => {
+    let presses = 0;
+    const press = vi.fn(async () => (++presses > 3 ? failed('refusing a press: someone used this machine 1 seconds ago') : ok('pressed')));
+    const result = await bench(stub({press}), {iterations: 5, press: '@e1', directory: folder()});
+    expect(press).toHaveBeenCalledTimes(4);
     expect(result.samples[2]).toEqual({
       operation: 'press',
       cold: expect.any(Number),
       ms: [expect.any(Number), expect.any(Number)],
-      skipped: 'refusing a press: someone used this machine 1 seconds ago',
+      failed: 'refusing a press: someone used this machine 1 seconds ago',
     });
-  });
-
-  it('sends input when nothing refuses it', async () => {
-    const result = await bench(stub(), {iterations: 5, press: '@e1', field: '@e3', directory: folder(), refuse: async () => null});
-    expect(result.samples[2]?.ms).toHaveLength(5);
-    expect(result.samples[3]?.ms).toHaveLength(5);
   });
 
   it('stops an operation at its first failure and says what failed, and keeps going with the rest', async () => {

@@ -94,4 +94,10 @@ export interface DriverOptions {
   scheme?: string;
   /** The window, process, device or bundle id to drive, where a platform has more than one. */
   target?: string;
+  /**
+   * Synthetic input even while someone is using the machine. Windows only,
+   * where the driver otherwise refuses a press, a fill, typing or a key until
+   * the desk has been quiet for three minutes.
+   */
+  force?: boolean;
 }

@@ -104,7 +104,7 @@ quotes in it, as your shell requires.
 | `--target <what>` | The device, simulator, exe or process to drive. |
 | `--out <dir>` | Where screenshots go. `.harness` by default. |
 | `-i`, `--interactive` | Snapshot only what can be acted on. |
-| `--force` | Press even when someone is using the machine. |
+| `--force` | On Windows, press, fill and type even when someone is using the machine. |
 | `--iterations <n>` | How many times `bench` runs each operation. The same as `bench <n>`. |
 | `--press <target>` | Something a press does nothing to, for `bench` to time `press` on. |
 | `--field <target>` | A field for `bench` to time `fill` on. |
@@ -135,10 +135,14 @@ heading rank, live regions and status all come from UI Automation.
 
 **Synthetic input goes to whatever is in front.** On Windows, if someone is
 using the machine, a press meant for the app lands in their window instead and
-nothing says so. So `press`, `tap`, `fill` and `type` check first how long the
-machine has been quiet, and refuse if it has been less than three minutes.
-Pass `--force` when you know the desk is free. A headless browser and a device
-are not the desktop, so the check does not apply to them.
+nothing says so. So before `press`, `tap`, `fill` or `type` sends anything, the
+Windows driver checks how long the machine has been quiet, and refuses if it
+has been less than three minutes. A device test gets the same refusal.
+Windows counts the harness's own input as use, so the driver does not count
+what it sent itself: a second press is not refused because of the first.
+Pass `--force` when you know the desk is free, or set `HARNESS_FORCE=1` for
+a device test. A headless browser and a device are not the desktop, so the
+check does not apply to them.
 
 **A screenshot does not raise the window.** Raising it would hide the flyout
 or share sheet that is usually the thing being looked at. Use the `raise` step

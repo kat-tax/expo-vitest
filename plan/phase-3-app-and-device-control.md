@@ -279,7 +279,7 @@ should not get a second one and a port collision; CI turns it off, as e2e does.
 | Source | Example |
 | --- | --- |
 | A per-call option | `device.setAppearance('dark')`, `toMatchScreenshot(name, {maxRatio})` |
-| An environment variable | `HARNESS_URL`, `HARNESS_TARGET`, `HARNESS_SCHEME`, `HARNESS_PLATFORM` (single-project form only), `HARNESS_UPDATE_SCREENSHOTS`, `HARNESS_CONFIG` (the file), `HARNESS_FORCE` (the environment form of the harness's `--force`, since a device test on Windows cannot pass a flag; without it the idle guard applies to device tests as it does to the command) |
+| An environment variable | `HARNESS_URL`, `HARNESS_TARGET`, `HARNESS_SCHEME`, `HARNESS_PLATFORM` (single-project form only), `HARNESS_UPDATE_SCREENSHOTS`, `HARNESS_CONFIG` (the file), `HARNESS_FORCE` (built in Phase 1: the environment form of the harness's `--force`, since a device test on Windows cannot pass a flag; without it the idle guard applies to device tests as it does to the command) |
 | `harness.config.ts` | `app.web.url` |
 | The built-in default | `http://localhost:8081`, `assertionTimeout` 5 s |
 

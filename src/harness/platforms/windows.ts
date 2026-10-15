@@ -3,6 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import {HarnessError, codeOf} from '../lib/errors.ts';
+import {desk, refusal} from '../lib/quiet.ts';
 import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
@@ -188,8 +189,9 @@ export function isWindowsDriver(driver: Driver): driver is WindowsDriver {
  * which of the two is underneath.
  *
  * Synthetic input goes to whatever is in front. If the user is at the desk it
- * lands in their window instead, so the CLI checks how long the machine has
- * been idle before pressing anything.
+ * lands in their window instead, so the driver checks how long the machine
+ * has been quiet before it sends any, and refuses while someone is using it
+ * unless it was made with `force`.
  */
 export function windowsDriver(options: DriverOptions): WindowsDriver {
   const target = options.target ?? findExe(options.root) ?? '';
@@ -197,6 +199,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
   const exe = isExe ? path.resolve(options.root, target) : '';
   const processName = isExe ? path.basename(exe, '.exe') : target;
   const backend = process.env.HARNESS_WINDOWS_HOST === '0' ? scriptBackend(processName) : hostBackend(processName);
+  const quiet = desk();
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     let tree: RawTree;
@@ -220,13 +223,34 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     return {point, note: `${node.ref} ${node.role} ${JSON.stringify(node.name)}`};
   }
 
+  /**
+   * The refusal of a step that sends synthetic input, while someone is using
+   * the machine, or null when it may go. Asked right before the input, after
+   * the target is found, so the gap a person could come back in is as short
+   * as it can be.
+   */
+  async function refused(what: string): Promise<StepResult | null> {
+    const reason = refusal(what, quiet.quiet(await backend.idle()), Boolean(options.force));
+    return reason ? failed(reason) : null;
+  }
+
+  /** Synthetic input, with when it was sent, so the desk can tell it from a person's. */
+  async function sending<T>(send: () => Promise<T>): Promise<T> {
+    const from = Date.now();
+    try {
+      return await send();
+    } finally {
+      quiet.sent(from, Date.now());
+    }
+  }
+
   async function click(point: Point): Promise<StepResult> {
     // Synthetic input goes to the foreground window, so the app has to be it.
     // A test should not have to remember that, and a press into whatever
     // happens to be in front is the failure this whole harness exists to avoid.
     if (processName) await backend.raise().catch(() => {});
     try {
-      return ok(await backend.click(point));
+      return ok(await sending(() => backend.click(point)));
     } catch (error) {
       return failed(`press failed: ${(error as Error).message}`);
     }
@@ -234,7 +258,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
 
   async function keys(sent: string): Promise<string | Error> {
     try {
-      return await backend.keys(sent);
+      return await sending(() => backend.keys(sent));
     } catch (error) {
       return error as Error;
     }
@@ -274,6 +298,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     async press(what: Target): Promise<StepResult> {
       try {
         const {point, note} = await pointFor(what);
+        const refusing = await refused('a press');
+        if (refusing) return refusing;
         const result = await click(point);
         return result.ok ? ok(`pressed ${note}`) : result;
       } catch (error) {
@@ -284,6 +310,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     async fill(what: Target, text: string): Promise<StepResult> {
       try {
         const {point, note} = await pointFor(what);
+        const refusing = await refused('typing');
+        if (refusing) return refusing;
         const pressed = await click(point);
         if (!pressed.ok) return pressed;
         const typed = await keys(text);
@@ -294,6 +322,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     },
 
     async type(text: string): Promise<StepResult> {
+      const refusing = await refused('typing');
+      if (refusing) return refusing;
       const typed = await keys(text);
       return typed instanceof Error ? failed(`typing failed: ${typed.message}`) : ok(`typed ${JSON.stringify(text)}`);
     },
@@ -301,6 +331,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     async key(name: string): Promise<StepResult> {
       const sent = SEND_KEYS[name];
       if (!sent) return failed(`${name} is not a key the Windows harness knows how to send`, 'UNSUPPORTED_CAPABILITY');
+      const refusing = await refused('a key press');
+      if (refusing) return refusing;
       const typed = await keys(sent);
       return typed instanceof Error ? failed(`${name} failed: ${typed.message}`) : ok(`pressed ${name}`);
     },
@@ -314,8 +346,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
       }
     },
 
-    idleSeconds(): Promise<number | null> {
-      return backend.idle();
+    async idleSeconds(): Promise<number | null> {
+      return quiet.quiet(await backend.idle());
     },
 
     async close(): Promise<void> {

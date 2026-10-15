@@ -23,11 +23,13 @@ the app under test.
   (`help`, `inSet`, `heading`, `live`, `status`, `dialog`) are absent unless the
   platform reported them, and that absence is the finding. Never fill one in
   with a guess.
-- **Synthetic input goes to whatever is in front.** On Windows, `press`, `tap`,
-  `fill` and `type` check how long the machine has been quiet and refuse while
-  someone is using it, unless `--force`. Do not add a step that types without
-  that guard. A headless browser and a device are not the desktop, so their
-  `idleSeconds` is `null`.
+- **Synthetic input goes to whatever is in front.** The Windows driver checks
+  how long the machine has been quiet right before it sends any, and refuses
+  while someone is using it, unless it was made with `force` (`--force`,
+  `HARNESS_FORCE`). Its own input is not counted as someone's
+  (`src/harness/lib/quiet.ts`). Do not add synthetic input to the driver
+  without that check. A headless browser and a device are not the desktop,
+  so their `idleSeconds` is `null`.
 - **A screenshot does not raise the window**, because raising it hides the
   flyout or sheet that is usually the thing being looked at.
 - **A baseline belongs to the machine that drew it.** `toMatchScreenshot`

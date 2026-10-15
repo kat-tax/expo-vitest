@@ -31,19 +31,9 @@ import {PLATFORMS, elsewhere, failed, ok} from './lib/types.ts';
 
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
 
-/** How long the machine must have been quiet before the harness presses anything. */
-const QUIET_SECONDS = 180;
-
-async function guard(driver: Driver, options: Options, what: string): Promise<StepResult | null> {
-  if (options.force) return null;
-  const idle = await driver.idleSeconds();
-  if (idle === null || idle >= QUIET_SECONDS) return null;
-  return failed(
-    `refusing ${what}: someone used this machine ${Math.round(idle)} seconds ago, and synthetic input goes to whatever is in front. ` +
-      `Leave it alone for ${QUIET_SECONDS} seconds, or pass --force.`,
-  );
-}
-
+// A press, a fill and typing are synthetic input on Windows, and the driver
+// refuses them while someone is using the machine, unless it was made with
+// --force: the same refusal a device test gets.
 async function step(driver: Driver, options: Options, [name, ...args]: string[]): Promise<StepResult> {
   switch (name) {
     case 'open':
@@ -61,22 +51,14 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
       const tree = await driver.snapshot({interactive: options.interactive});
       return ok(`${tree.nodes.length} nodes`, renderSnapshot(tree));
     }
-    case 'press': {
-      const refusal = await guard(driver, options, 'a press');
-      return refusal ?? driver.press(args[0] ?? '');
-    }
-    case 'tap': {
-      const refusal = await guard(driver, options, 'a press');
-      return refusal ?? driver.press({x: Number(args[0]), y: Number(args[1])});
-    }
-    case 'fill': {
-      const refusal = await guard(driver, options, 'typing');
-      return refusal ?? driver.fill(args[0] ?? '', args[1] ?? '');
-    }
-    case 'type': {
-      const refusal = await guard(driver, options, 'typing');
-      return refusal ?? driver.type(args[0] ?? '');
-    }
+    case 'press':
+      return driver.press(args[0] ?? '');
+    case 'tap':
+      return driver.press({x: Number(args[0]), y: Number(args[1])});
+    case 'fill':
+      return driver.fill(args[0] ?? '', args[1] ?? '');
+    case 'type':
+      return driver.type(args[0] ?? '');
     case 'screenshot':
       return driver.screenshot(path.resolve(ROOT, screenshotPath(args[0] ?? 'screen.png', options.out)));
     case 'raise':
@@ -94,9 +76,7 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
       if (iterations === null) return failed(`bench takes a whole number of iterations, at least ${FEWEST}: of fewer, the p95 is only the slowest`, 'INVALID_ARGUMENT');
       const folder = path.resolve(ROOT, options.out, 'bench');
       fs.mkdirSync(folder, {recursive: true});
-      // The press and the fill are synthetic input, so they wait on the same quiet desk as the steps.
-      const refuse = async (what: string) => (await guard(driver, options, what))?.message ?? null;
-      const result = await bench(driver, {iterations, press: options.press, field: options.field, directory: folder, refuse});
+      const result = await bench(driver, {iterations, press: options.press, field: options.field, directory: folder});
       const file = path.join(folder, `${result.platform}-${result.at.replace(/:/g, '-')}.json`);
       fs.writeFileSync(file, `${JSON.stringify(result, null, 1)}\n`);
       const filled = result.samples.some(sample => sample.operation === 'fill' && sample.cold !== null);
@@ -144,7 +124,7 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
-  const driver = driverFor(options.platform, {root: ROOT, url: options.url, scheme: options.scheme, target: options.target});
+  const driver = driverFor(options.platform, {root: ROOT, url: options.url, scheme: options.scheme, target: options.target, force: options.force});
   const state = await driver.available();
   if (!state.ready) {
     console.error(`${options.platform}: ${state.reason}`);

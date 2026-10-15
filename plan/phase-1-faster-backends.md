@@ -97,6 +97,15 @@ below, the build is what holds:
   so `@e3` of `snapshot -i` is not `@e3` of the full tree that a press
   resolves it against. Web numbers every node before it narrows, so its
   refs agree. Not fixed, for the reason below.
+- **Item 12: the refusal is the driver's.**
+  - It is asked right before input, after the target is found, so a
+    missing target still says it is missing.
+  - The refusal text gained a device test's way past it.
+  - `bench` reports a refused press as failed, with what it timed, since
+    its own check is gone.
+  - Not counting the harness's own input is proved by unit tests only.
+    Seeing Windows count injected input as use needs input sent while
+    nobody is at the desk, which has not happened yet.
 - **Our drivers stay, and borrow.** The owner would rather adopt a
   maintained driver than keep this one, so five were read. What they do
   with a react-native-windows app, and what to take from them, is in

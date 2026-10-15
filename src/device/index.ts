@@ -34,15 +34,20 @@ export interface DeviceConfig {
   url?: string;
   scheme?: string;
   target?: string;
+  /** Synthetic input on Windows even while someone is using the machine, which the driver otherwise refuses. */
+  force?: boolean;
 }
 
 export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.env): DeviceConfig {
   const platform = (environment.HARNESS_PLATFORM ?? 'web') as Platform;
+  const force = environment.HARNESS_FORCE;
   return {
     platform,
     url: environment.HARNESS_URL,
     scheme: environment.HARNESS_SCHEME,
     target: environment.HARNESS_TARGET,
+    // A device test cannot pass the command's --force, so this is its form.
+    ...(force && force !== '0' ? {force: true} : {}),
   };
 }
 
@@ -66,7 +71,7 @@ class Device {
   /** The driver, made on first use and kept for the file's tests. */
   async ready(): Promise<Driver> {
     if (this.driver) return this.driver;
-    const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target});
+    const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target, force: this.config.force});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
     this.driver = driver;

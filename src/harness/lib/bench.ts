@@ -53,8 +53,6 @@ export interface BenchOptions {
   field?: Target;
   /** Where screenshots go while they are taken. Each is removed afterwards. */
   directory: string;
-  /** Why the operations that send input must not run, or null when they may. Asked before each of their calls. */
-  refuse?: (what: string) => Promise<string | null>;
 }
 
 /**
@@ -82,15 +80,14 @@ function skipped(operation: string, reason: string): Sample {
 }
 
 /**
- * Times a call once, kept apart, and then `iterations` more times. `refuse`
- * is asked before every call, outside the timing, and a reason from it stops
- * the operation there.
+ * Times a call once, kept apart, and then `iterations` more times. A call
+ * that fails stops the operation there, with what it timed kept: that is
+ * also how a press the driver refuses ends it, once someone comes back to
+ * the desk.
  */
-async function measure(operation: string, iterations: number, call: () => Promise<StepResult | void>, refuse?: () => Promise<string | null>): Promise<Sample> {
+async function measure(operation: string, iterations: number, call: () => Promise<StepResult | void>): Promise<Sample> {
   const sample: Sample = {operation, ms: [], cold: null};
   for (let at = 0; at <= iterations; at++) {
-    const refusal = await refuse?.();
-    if (refusal) return {...sample, skipped: refusal};
     const started = performance.now();
     let result: StepResult | void;
     try {
@@ -108,16 +105,14 @@ async function measure(operation: string, iterations: number, call: () => Promis
 }
 
 /**
- * The input operations, each only when it has a target, and each call only
- * while nothing refuses it: someone can come back to the desk partway through.
- * Both find their target afresh every time, as `element(…).press()` and
- * `.fill()` do in a test, so what they cost is what a test pays.
+ * The input operations, each only when it has a target. Both find their
+ * target afresh every time, as `element(…).press()` and `.fill()` do in a
+ * test, and the Windows driver checks the desk before each, so what they cost
+ * is what a test pays.
  */
 async function input(operation: 'press' | 'fill', target: Target | undefined, flag: string, options: BenchOptions, call: (target: Target) => Promise<StepResult>): Promise<Sample> {
   if (target === undefined) return skipped(operation, `pass ${flag} <target> to measure it`);
-  const {refuse} = options;
-  const what = operation === 'press' ? 'a press' : 'typing';
-  return measure(operation, options.iterations, () => call(target), refuse && (() => refuse(what)));
+  return measure(operation, options.iterations, () => call(target));
 }
 
 /**
