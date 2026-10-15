@@ -94,11 +94,14 @@ const COLLECT = `((last) => {
   const parentOf = (node) => { for (let p = node.parentElement; p; p = p.parentElement) if (kept.has(p)) return kept.get(p); return undefined; };
   const nodes = [];
   const PLAIN = new Set(['P', 'LI', 'TD', 'LABEL', 'SPAN', 'DIV']);
-  // An element's text, as a screen reader reads it: what is inside it, less
-  // what is hidden from one, with a space where the text passes from one
-  // element to another. react-native-web puts each line of a Pressable in a
-  // div of its own with nothing between them, and joined bare they would run
-  // together.
+  // Text as a screen reader reads it. An icon font, as @expo/vector-icons
+  // draws icons, puts a character from the Private Use Area in the page for
+  // each icon, which no screen reader reads as a word, so it is not text here.
+  const readable = (text) => text.replace(/[\\uE000-\\uF8FF\\u{F0000}-\\u{FFFFD}\\u{100000}-\\u{10FFFD}]/gu, '').replace(/\\s+/g, ' ').trim();
+  // An element's text: what is inside it, less what is hidden from a screen
+  // reader, with a space where the text passes from one element to another.
+  // react-native-web puts each line of a Pressable in a div of its own with
+  // nothing between them, and joined bare they would run together.
   const textOf = (root) => {
     let text = '';
     let previous = null;
@@ -109,7 +112,7 @@ const COLLECT = `((last) => {
       text += (previous && previous !== node.parentElement ? ' ' : '') + node.data;
       previous = node.parentElement;
     }
-    return text.replace(/\\s+/g, ' ').trim();
+    return readable(text);
   };
   for (const element of document.querySelectorAll(selector)) {
     const box = element.getBoundingClientRect();
@@ -120,7 +123,7 @@ const COLLECT = `((last) => {
     const pressable = PLAIN.has(element.tagName) && !element.hasAttribute('role') &&
       ((element.hasAttribute('tabindex') && element.tabIndex >= 0) || element.getAttribute('aria-disabled') === 'true' || element.isContentEditable);
     // A plain container earns a place only when it is the leaf holding the text.
-    if (PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && (element.childElementCount > 0 || !(element.textContent ?? '').trim())) continue;
+    if (PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && (element.childElementCount > 0 || !readable(element.textContent ?? ''))) continue;
     // The accessible name, in the order a screen reader works it out. The last
     // two steps are not optional niceties: a checkbox is an empty <input> with
     // no text of its own, and it takes its name from the <label> wrapped round
@@ -137,7 +140,7 @@ const COLLECT = `((last) => {
       name = [...element.labels].map((each) => each.textContent ?? '').join(' ').replace(/\\s+/g, ' ').trim();
     }
     if (!name) name = textOf(element);
-    name = name.slice(0, 80);
+    name = readable(name).slice(0, 80);
     const id = idOf(element);
     const ref = '@e' + id;
     elements.set(id, new WeakRef(element));
