@@ -158,6 +158,7 @@ platform's project.
 | [Helpers](docs/helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
 | [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables. |
 | [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
+| [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
 | [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
 

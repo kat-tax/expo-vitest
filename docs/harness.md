@@ -193,7 +193,8 @@ that as the reason, and the rest is still timed.
 
 Every run writes its result, every sample included, to
 `.harness/bench/<platform>-<time>.json`, so a before and an after can be
-compared.
+compared. [Performance](performance.md) has the numbers for web, Windows and
+Android on real apps.
 
 ## Getting an app to drive
 

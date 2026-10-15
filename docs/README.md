@@ -24,6 +24,7 @@ with one project per platform. New here? Start with
 | --- | --- |
 | [Device tests](device-tests.md) | Drive a running app from Vitest: `device`, `element`, selectors, the tree, the four matchers, screenshots, errors. |
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
+| [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
 
 ## Build on it
 
