@@ -220,7 +220,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
       return {line: describeDevice(capabilities), device: factsOf(capabilities)};
     },
     async open(to) {
-      await call(signal => client.apps.open({...select, ...to, signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
+      // A link goes where the command line's first word does, as the app to open: the client's own url is a second
+      // one, for the app named, and alone it opens nothing and fails nothing.
+      await call(signal => client.apps.open({...select, app: 'url' in to ? to.url : to.app, signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
     },
     snapshot(interactive) {
       return call(signal => client.capture.snapshot({...select, interactiveOnly: interactive, signal}), 'ACTION_FAILED');
