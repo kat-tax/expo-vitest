@@ -15,30 +15,13 @@ import type {Availability, Driver, DriverOptions, FillOptions, PressOptions, Sna
 import {failed, ok} from '../lib/types.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
+import {SEND_KEYS, literal} from './windows-keys.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPTS = path.join(HERE, '..', 'windows');
 
 /** Where a built app tends to be, when nobody said. */
 const GUESSES = ['example/windows/x64/Release', 'example/windows/x64/Debug', 'windows/x64/Release', 'windows/x64/Debug'];
-
-/**
- * DOM key names, which is what a test writes, in the spelling `SendKeys` takes.
- * Only the keys a composite role's pattern uses: anything else is refused by
- * name rather than passed through, because `SendKeys` reads a bare letter as
- * text and `{` as the start of a token of its own.
- */
-const SEND_KEYS: Record<string, string> = {
-  ArrowDown: '{DOWN}',
-  ArrowUp: '{UP}',
-  ArrowLeft: '{LEFT}',
-  ArrowRight: '{RIGHT}',
-  Home: '{HOME}',
-  End: '{END}',
-  Tab: '{TAB}',
-  Enter: '{ENTER}',
-  Escape: '{ESC}',
-};
 
 function findExe(root: string): string | null {
   for (const guess of GUESSES) {
@@ -366,7 +349,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         if (refusing) return left ? failed(`${note}: ${left}; ${refusing.message}`) : refusing;
         const pressed = await click(point);
         if (!pressed.ok) return pressed;
-        const typed = await keys(text);
+        const typed = await keys(literal(text));
         if (typed instanceof Error) return failed(`typing failed: ${typed.message}`);
         return ok(`filled ${note} with ${JSON.stringify(text)}${left ? ` by typing, since ${left}` : ''}`);
       } catch (error) {
@@ -377,7 +360,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     async type(text: string): Promise<StepResult> {
       const refusing = await refused('typing');
       if (refusing) return refusing;
-      const typed = await keys(text);
+      const typed = await keys(literal(text));
       return typed instanceof Error ? failed(`typing failed: ${typed.message}`) : ok(`typed ${JSON.stringify(text)}`);
     },
 
