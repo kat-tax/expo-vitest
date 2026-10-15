@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 11 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 12 done, and the start of 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -314,7 +314,20 @@ below, the build is what holds.
   file. Beside web is a platform the machine cannot drive: iOS, or Windows
   on a Mac. `scripts/fixture.js` checks that its tests are skipped with the
   driver's reason, and that they fail with `DRIVER_UNAVAILABLE` under
-  `HARNESS_REQUIRE=1`. The rest of item 12 waits for items 6 to 10.
+  `HARNESS_REQUIRE=1`.
+  - **Then the rest,** with items 6 to 10 built:
+    - `requires(['home'])` skipped on web with its reason, which the
+      runner checks;
+    - the masked screenshot over a clock;
+    - a restart in a fresh context, and a cleared state;
+    - back from a link, with the page in front each time;
+    - the appearance and the network, each set and put back;
+    - the clipboard.
+    - Its page shows its colour scheme and whether it is online, as the
+      device's settings look from inside it.
+  - **The absent platform** is iOS beside web, rather than Windows as the
+    design has it, since this Windows machine can drive Windows. On a Mac
+    it is Windows.
 - **Item 13, its start.** `docs/configuration.md` has the three options, a
   project per platform, and `harness.config.ts` with the precedence and the
   command. `docs/device-tests.md` has `HARNESS_CONFIG`, `HARNESS_REQUIRE`

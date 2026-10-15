@@ -71,6 +71,38 @@ it('matches a masked baseline with the clock moved on, and not without the mask'
   for (const kind of ['expected', 'actual', 'diff']) expect(fs.existsSync(path.join(process.cwd(), '.harness', `web-masked.${kind}.png`)), kind).toBe(true);
 });
 
+it("restarts the app in a fresh context, and clears what it kept", async () => {
+  await screen.getByPlaceholderText('Your name').fill('Ada');
+  expect(await device.restart()).toBe('done');
+  await expect(screen.getByPlaceholderText('Your name')).toHaveValue('');
+  await expect(screen.getByText('Tick 0')).toBeVisible();
+  expect(await device.clearState()).toBe('done');
+  await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+});
+
+it('goes back from a link, and says which page is in front', async () => {
+  await screen.getByRole('link', {name: 'All drafts'}).press();
+  expect(await device.foregroundApp()).toBe(`${device.config.url}/drafts`);
+  expect(await device.back()).toBe('done');
+  expect(await device.foregroundApp()).toBe(`${device.config.url}/`);
+});
+
+it("sets the device's appearance and network, and puts each back", async () => {
+  expect(await device.setAppearance('dark')).toBe('done');
+  await expect(screen.getByText('Scheme: dark')).toBeVisible();
+  expect(await device.setAppearance('light')).toBe('done');
+  await expect(screen.getByText('Scheme: light')).toBeVisible();
+  expect(await device.setNetwork('offline')).toBe('done');
+  await expect(screen.getByText('Online: false')).toBeVisible();
+  expect(await device.setNetwork('online')).toBe('done');
+  await expect(screen.getByText('Online: true')).toBeVisible();
+});
+
+it('keeps text on the clipboard', async () => {
+  expect(await device.setClipboard('from the fixture')).toBe('done');
+  expect(await device.clipboard()).toBe('from the fixture');
+});
+
 it('left a trace for each test before it, with its steps', () => {
   const folder = path.join(process.cwd(), '.harness', 'results', 'web', 'device', 'page');
   const traces = fs.readdirSync(folder).map(test => fs.readFileSync(path.join(folder, test, 'trace.md'), 'utf8'));

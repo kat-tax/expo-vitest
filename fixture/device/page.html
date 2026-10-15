@@ -17,6 +17,9 @@
   <button data-testid="reset">Reset</button>
   <div role="progressbar" aria-label="Saving" data-testid="spinner" hidden>Saving</div>
   <p role="status" data-testid="saved" hidden>Saved</p>
+  <p data-testid="scheme">Scheme: light</p>
+  <p data-testid="online">Online: true</p>
+  <a href="/drafts">All drafts</a>
   <p data-testid="clock">Tick 0</p>
   <button data-testid="clock-start">Start the clock</button>
   <ul aria-label="Drafts">
@@ -36,6 +39,15 @@
         saved.hidden = false;
       }, 400);
     });
+    // What the device's settings look like from the page.
+    const dark = matchMedia('(prefers-color-scheme: dark)');
+    const scheme = () => (document.querySelector('[data-testid=scheme]').textContent = 'Scheme: ' + (dark.matches ? 'dark' : 'light'));
+    const online = () => (document.querySelector('[data-testid=online]').textContent = 'Online: ' + navigator.onLine);
+    dark.addEventListener('change', scheme);
+    addEventListener('online', online);
+    addEventListener('offline', online);
+    scheme();
+    online();
     // A clock that ticks once it is started, so the screen holds still for every test but the one about it.
     document.querySelector('[data-testid=clock-start]').addEventListener('click', () => {
       let tick = 0;
