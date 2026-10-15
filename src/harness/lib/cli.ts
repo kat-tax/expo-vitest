@@ -3,6 +3,7 @@
  * which runs the moment it is imported, so that reading it can be tested.
  */
 import path from 'node:path';
+import {HarnessError} from './errors.ts';
 import type {Platform} from './types.ts';
 import {PLATFORMS} from './types.ts';
 
@@ -89,13 +90,13 @@ export function parse(argv: string[]): Options {
   for (let at = 0; at < rest.length; at++) {
     const name = rest[at];
     const takes = STEP_ARGUMENTS[name];
-    if (takes === undefined) throw new Error(`${name} is not a step; try --help`);
+    if (takes === undefined) throw new HarnessError('INVALID_ARGUMENT', `${name} is not a step; try --help`);
     // An optional argument is taken only when the next word is not itself a step.
     const next = rest[at + 1];
     const optional = OPTIONAL_ARGUMENT.has(name) && next !== undefined && STEP_ARGUMENTS[next] === undefined;
     const wanted = optional ? 1 : takes;
     const args = rest.slice(at + 1, at + 1 + wanted);
-    if (args.length < wanted) throw new Error(`${name} takes ${wanted} argument${wanted === 1 ? '' : 's'}`);
+    if (args.length < wanted) throw new HarnessError('INVALID_ARGUMENT', `${name} takes ${wanted} argument${wanted === 1 ? '' : 's'}`);
     options.steps.push([name, ...args]);
     at += wanted;
   }

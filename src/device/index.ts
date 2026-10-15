@@ -16,12 +16,14 @@
  */
 import path from 'node:path';
 import {driverFor} from '../harness/lib/drivers.ts';
+import type {HarnessCode} from '../harness/lib/errors.ts';
+import {HarnessError, isHarnessError} from '../harness/lib/errors.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
-import type {Driver, Platform} from '../harness/lib/types.ts';
+import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
 
-export {by};
-export type {Selector, Snapshot, SnapshotNode};
+export {by, HarnessError, isHarnessError};
+export type {HarnessCode, Selector, Snapshot, SnapshotNode};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -44,6 +46,11 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
   };
 }
 
+/** A step that did not work, as the error a test sees: the driver's message, and what kind of failure it was. */
+function failure(result: StepResult, platform: Platform, otherwise: HarnessCode): HarnessError {
+  return new HarnessError(result.code ?? otherwise, result.message, {platform});
+}
+
 class Device {
   readonly config: DeviceConfig;
   private driver: Driver | null = null;
@@ -61,14 +68,14 @@ class Device {
     if (this.driver) return this.driver;
     const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target});
     const state = await driver.available();
-    if (!state.ready) throw new Error(`no ${this.config.platform} device to drive: ${state.reason}`);
+    if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
     this.driver = driver;
     return driver;
   }
 
   async open(route: string): Promise<void> {
     const result = await (await this.ready()).open(route);
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw failure(result, this.platform, 'APP_UNREACHABLE');
   }
 
   async snapshot(options: {interactive?: boolean} = {interactive: true}): Promise<Snapshot> {
@@ -83,13 +90,13 @@ class Device {
   async screenshot(name: string): Promise<string> {
     const file = path.join(ROOT, '.harness', `${name}.png`);
     const result = await (await this.ready()).screenshot(file);
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
     return file;
   }
 
   async type(text: string): Promise<void> {
     const result = await (await this.ready()).type(text);
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
   }
 
   /**
@@ -103,7 +110,7 @@ class Device {
     const driver = await this.ready();
     if (!driver.key) return 'skipped';
     const result = await driver.key(name);
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
     return result.skipped ? 'skipped' : 'pressed';
   }
 
@@ -118,7 +125,7 @@ class Device {
       if (Date.now() >= deadline) break;
       await new Promise(resolve => setTimeout(resolve, interval));
     }
-    throw new Error(`${describeTarget(selector)} never appeared within ${timeout} ms; the tree has ${last.nodes.length} nodes`);
+    throw new HarnessError('LOCATOR_NOT_FOUND', `${describeTarget(selector)} never appeared within ${timeout} ms; the tree has ${last.nodes.length} nodes`, {platform: this.platform});
   }
 
   async close(): Promise<void> {
@@ -135,11 +142,11 @@ export function element(selector: Selector) {
     selector,
     async press(): Promise<void> {
       const result = await (await device.ready()).press(selector);
-      if (!result.ok) throw new Error(result.message);
+      if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
     },
     async fill(text: string): Promise<void> {
       const result = await (await device.ready()).fill(selector, text);
-      if (!result.ok) throw new Error(result.message);
+      if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
     },
     async node(): Promise<SnapshotNode | undefined> {
       return findNode(await device.fullSnapshot(), selector);

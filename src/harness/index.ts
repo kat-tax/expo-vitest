@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import type {Options} from './lib/cli.ts';
 import {USAGE, parse, screenshotPath, unmangleRoute} from './lib/cli.ts';
 import {driverFor} from './lib/drivers.ts';
+import {codeOf} from './lib/errors.ts';
 import {raiseWindows} from './platforms/windows.ts';
 import {renderSnapshot} from './lib/snapshot.ts';
 import type {Driver, StepResult} from './lib/types.ts';
@@ -88,7 +89,7 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
       return idle === null ? ok('idleness does not apply to this platform') : ok(`quiet for ${Math.round(idle)} seconds`);
     }
     default:
-      return failed(`${name} is not a step`);
+      return failed(`${name} is not a step`, 'INVALID_ARGUMENT');
   }
 }
 
@@ -142,7 +143,7 @@ async function main(argv: string[]): Promise<number> {
       try {
         result = await step(driver, options, current);
       } catch (error) {
-        result = failed(`${current[0]} threw: ${(error as Error).message}`);
+        result = failed(`${current[0]} threw: ${(error as Error).message}`, codeOf(error));
       }
       console.log(`  ${result.skipped ? '–' : result.ok ? '·' : '✗'} ${result.message}`);
       if (result.output) console.log(result.output.replace(/^/gm, '      '));

@@ -56,9 +56,10 @@ describe('parse', () => {
   });
 
   it('refuses a word that is not a step, and a step short of its arguments', () => {
-    expect(() => parse(['jump'])).toThrow(/^jump is not a step; try --help$/);
-    expect(() => parse(['press'])).toThrow(/^press takes 1 argument$/);
-    expect(() => parse(['fill', '@e1'])).toThrow(/^fill takes 2 arguments$/);
+    const invalid = (message: string) => expect.objectContaining({name: 'HarnessError', code: 'INVALID_ARGUMENT', message});
+    expect(() => parse(['jump'])).toThrow(invalid('jump is not a step; try --help'));
+    expect(() => parse(['press'])).toThrow(invalid('press takes 1 argument'));
+    expect(() => parse(['fill', '@e1'])).toThrow(invalid('fill takes 2 arguments'));
   });
 
   it('has every step in the usage', () => {

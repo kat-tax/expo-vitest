@@ -51,5 +51,6 @@ screen leaves no trace in it. That is what screenshots are for.
 ## Testing
 
 None of this runs in the unit tests: they cover the logic (the snapshot shapes,
-the PNG reader, the command line). The drivers are proved by running them
-against a real app, and the device matchers by a device suite in a consumer.
+the PNG reader, the command line, the error codes). The drivers are proved by
+running them against a real app, and the device matchers by a device suite in
+a consumer.

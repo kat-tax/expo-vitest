@@ -1,3 +1,4 @@
+import type {HarnessCode} from './errors.ts';
 import type {Snapshot, Target} from './snapshot.ts';
 
 /** The platforms the harness can drive. */
@@ -22,14 +23,16 @@ export interface StepResult {
   message: string;
   /** What the step read, when it read something (a tree, a number). */
   output?: string;
+  /** What kind of failure it was, when it was one. */
+  code?: HarnessCode;
 }
 
 export function ok(message: string, output?: string): StepResult {
   return {ok: true, message, output};
 }
 
-export function failed(message: string): StepResult {
-  return {ok: false, message};
+export function failed(message: string, code: HarnessCode = 'ACTION_FAILED'): StepResult {
+  return {ok: false, message, code};
 }
 
 /** For what this platform cannot do, said honestly, and not as an error. */

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
+import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
@@ -79,7 +80,9 @@ export function windowsDriver(options: DriverOptions): Driver {
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     const result = powershell(script('snapshot.ps1'), ['-Process', processName, ...(snapshotOptions.interactive ? ['-Interactive'] : [])]);
-    if (!result.ok) throw new Error(`could not read the tree of ${processName}: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+    if (!result.ok) {
+      throw new HarnessError('ACTION_FAILED', `could not read the tree of ${processName}: ${firstLine(result.stderr) || firstLine(result.stdout)}`, {platform: 'windows'});
+    }
     const parsed = JSON.parse(result.stdout) as {process: string; nodes: (SnapshotNode & {testId?: string | null})[]};
     // PowerShell writes a null for a control with no AutomationId; the node
     // shape says a testId is a string or is not there at all.
@@ -93,9 +96,9 @@ export function windowsDriver(options: DriverOptions): Driver {
     if (isPoint(selector)) return {point: selector, note: `${selector.x},${selector.y}`};
     const tree = await snapshot();
     const node = findNode(tree, selector);
-    if (!node) throw new Error(`nothing matches ${describeTarget(what)} in the window (${tree.nodes.length} nodes)`);
+    if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} in the window (${tree.nodes.length} nodes)`, {platform: 'windows'});
     const point = centreOf(node);
-    if (!point) throw new Error(`${node.ref} ${node.role} ${JSON.stringify(node.name)} has no bounds to press`);
+    if (!point) throw new HarnessError('NOT_ACTIONABLE', `${node.ref} ${node.role} ${JSON.stringify(node.name)} has no bounds to press`, {platform: 'windows'});
     return {point, note: `${node.ref} ${node.role} ${JSON.stringify(node.name)}`};
   }
 
@@ -125,7 +128,7 @@ export function windowsDriver(options: DriverOptions): Driver {
       // A second launch with the link as its argument: the app's single-instance
       // check redirects it to the window already open, as React Native's `url` event.
       const url = /^[a-z]+:/i.test(to) ? to : `${options.scheme ?? processName.toLowerCase()}://${to.replace(/^\//, '')}`;
-      if (!exe) return failed(`cannot open ${url}: no exe to launch (pass --target <exe>)`);
+      if (!exe) return failed(`cannot open ${url}: no exe to launch (pass --target <exe>)`, 'APP_UNREACHABLE');
       const child = spawn(exe, [url], {cwd: path.dirname(exe), detached: true, stdio: 'ignore'});
       child.unref();
       return ok(`sent ${url} to ${processName}`);
@@ -139,7 +142,7 @@ export function windowsDriver(options: DriverOptions): Driver {
         const result = click(point);
         return result.ok ? ok(`pressed ${note}`) : result;
       } catch (error) {
-        return failed((error as Error).message);
+        return failed((error as Error).message, codeOf(error));
       }
     },
 
@@ -151,7 +154,7 @@ export function windowsDriver(options: DriverOptions): Driver {
         const typed = powershell(script('input.ps1'), ['-Keys', text]);
         return typed.ok ? ok(`filled ${note} with ${JSON.stringify(text)}`) : failed(`typing failed: ${firstLine(typed.stderr)}`);
       } catch (error) {
-        return failed((error as Error).message);
+        return failed((error as Error).message, codeOf(error));
       }
     },
 
@@ -162,7 +165,7 @@ export function windowsDriver(options: DriverOptions): Driver {
 
     async key(name: string): Promise<StepResult> {
       const keys = SEND_KEYS[name];
-      if (!keys) return failed(`${name} is not a key the Windows harness knows how to send`);
+      if (!keys) return failed(`${name} is not a key the Windows harness knows how to send`, 'UNSUPPORTED_CAPABILITY');
       const result = powershell(script('input.ps1'), ['-Keys', keys]);
       return result.ok ? ok(`pressed ${name}`) : failed(`${name} failed: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
     },
@@ -186,7 +189,7 @@ export function windowsDriver(options: DriverOptions): Driver {
 
 /** Brings the app to the front, which synthetic input needs and screenshots do not. */
 export function raiseWindows(processName: string): StepResult {
-  if (!processName) return failed('no process was named to raise');
+  if (!processName) return failed('no process was named to raise', 'INVALID_ARGUMENT');
   const result = powershell(script('raise.ps1'), ['-Process', processName]);
   return result.ok ? ok(firstLine(result.stdout)) : failed(firstLine(result.stderr) || 'could not raise the window');
 }

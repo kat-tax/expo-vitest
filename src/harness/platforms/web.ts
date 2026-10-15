@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
+import {HarnessError, codeOf} from '../lib/errors.ts';
 import {prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
@@ -139,7 +140,7 @@ export function webDriver(options: DriverOptions): Driver {
   async function open(): Promise<Page> {
     if (page) return page;
     const driver = playwright();
-    if (!driver) throw new Error('playwright-core is not installed in this project');
+    if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core is not installed in this project', {platform: 'web'});
     let launched: typeof browser = null;
     const reasons: string[] = [];
     for (const executablePath of [undefined, ...shells()]) {
@@ -150,7 +151,7 @@ export function webDriver(options: DriverOptions): Driver {
         reasons.push((error as Error).message.split('\n')[0] ?? '');
       }
     }
-    if (!launched) throw new Error(`no Chromium to drive (${reasons[0] ?? 'unknown reason'}); run \`bunx playwright install chromium\``);
+    if (!launched) throw new HarnessError('DRIVER_UNAVAILABLE', `no Chromium to drive (${reasons[0] ?? 'unknown reason'}); run \`bunx playwright install chromium\``, {platform: 'web'});
     browser = launched;
     page = await launched.newPage({viewport: {width: 1280, height: 900}});
     return page;
@@ -194,8 +195,10 @@ export function webDriver(options: DriverOptions): Driver {
     if (isPoint(selector)) return {point: selector, note: `${selector.x},${selector.y}`};
     const tree = await snapshot();
     const node = findNode(tree, selector);
-    if (!node) throw new Error(`nothing matches ${describeTarget(what)} on the page (${tree.nodes.length} nodes)`);
-    if (!node.bounds || node.bounds.width === 0) throw new Error(`${node.ref} ${node.role} ${JSON.stringify(node.name)} is not on screen to press`);
+    if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the page (${tree.nodes.length} nodes)`, {platform: 'web'});
+    if (!node.bounds || node.bounds.width === 0) {
+      throw new HarnessError('NOT_ACTIONABLE', `${node.ref} ${node.role} ${JSON.stringify(node.name)} is not on screen to press`, {platform: 'web'});
+    }
     return {
       point: {x: Math.round(node.bounds.x + node.bounds.width / 2), y: Math.round(node.bounds.y + node.bounds.height / 2)},
       note: `${node.ref} ${node.role} ${JSON.stringify(node.name)}`,
@@ -227,7 +230,7 @@ export function webDriver(options: DriverOptions): Driver {
         await current.mouse.click(point.x, point.y);
         return ok(`pressed ${note}`);
       } catch (error) {
-        return failed((error as Error).message.split('\n')[0] ?? 'press failed');
+        return failed((error as Error).message.split('\n')[0] ?? 'press failed', codeOf(error));
       }
     },
 
@@ -239,7 +242,7 @@ export function webDriver(options: DriverOptions): Driver {
         await current.keyboard.type(text);
         return ok(`filled ${note} with ${JSON.stringify(text)}`);
       } catch (error) {
-        return failed((error as Error).message.split('\n')[0] ?? 'fill failed');
+        return failed((error as Error).message.split('\n')[0] ?? 'fill failed', codeOf(error));
       }
     },
 

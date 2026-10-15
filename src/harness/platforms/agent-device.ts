@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {HarnessError} from '../lib/errors.ts';
 import {firstLine, prepare, run} from '../lib/run.ts';
 import type {Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
@@ -121,12 +122,12 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async open(to: string): Promise<StepResult> {
       const result = agent(['open', to]);
-      return result.ok ? ok(`opened ${to}`) : failed(`could not open ${to}: ${firstLine(result.stderr) || firstLine(result.stdout)}`);
+      return result.ok ? ok(`opened ${to}`) : failed(`could not open ${to}: ${firstLine(result.stderr) || firstLine(result.stdout)}`, 'APP_UNREACHABLE');
     },
 
     async snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
       const result = agent(['snapshot', ...(snapshotOptions.interactive ? ['-i'] : []), '--json']);
-      if (!result.ok) throw new Error(firstLine(result.stderr) || 'agent-device could not take a snapshot');
+      if (!result.ok) throw new HarnessError('ACTION_FAILED', firstLine(result.stderr) || 'agent-device could not take a snapshot', {platform});
       const nodes = nodesFrom(parse(result.stdout)).map(toSnapshotNode);
       return {platform, source: options.target ?? name, nodes};
     },
