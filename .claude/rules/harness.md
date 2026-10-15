@@ -31,7 +31,10 @@ the app under test.
   without that check. A headless browser and a device are not the desktop,
   so their `idleSeconds` is `null`.
 - **A screenshot does not raise the window**, because raising it hides the
-  flyout or sheet that is usually the thing being looked at.
+  flyout or sheet that is usually the thing being looked at. On Windows the
+  window draws its own picture (`PrintWindow`), so a window covering it is not
+  in it. The picture comes from the screen while a menu or popup of the app's
+  own is open over it, or when the window draws nothing.
 - **A baseline belongs to the machine that drew it.** `toMatchScreenshot`
   records one only under `HARNESS_UPDATE_SCREENSHOTS`; without one it keeps the
   picture as evidence and passes on the tree assertions. Nothing records a

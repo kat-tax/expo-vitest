@@ -71,7 +71,7 @@ measured straight after on the same screen:
   screenshot       353.8    354.4    398.2    341.3    427.2
 ```
 
-Someone was using the machine for both, so the guard skipped the press and
+Someone was using the machine for both, so the driver refused the press and
 every number carries that load. With the desk left alone and `--force`, a
 press on the tab already selected took 2227 ms at p50 through the scripts.
 
@@ -84,6 +84,10 @@ react-native-windows screens, the host walks the same tree an element at a
 time instead, which took 359 ms for the 94 nodes in one reading. What is left
 of a snapshot is that request: the app's own provider answering for every
 element, which is most of the time here.
+
+A screenshot is the window drawing itself, so a window over it is not in the
+picture. That costs what copying the screen did: 35 ms at p50 in a run of
+ten, through either backend.
 
 ## Android
 

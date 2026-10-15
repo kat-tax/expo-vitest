@@ -107,6 +107,14 @@ below, the build is what holds:
   - Not counting the harness's own input is proved by unit tests only.
     Seeing Windows count injected input as use needs input sent while
     nobody is at the desk, which has not happened yet.
+- **Item 14 takes the picture from the screen while a popup is open.**
+  - A WinUI menu opens in a window of its own, which the main window's
+    picture would leave out. So while a visible window of the app's own
+    lies over the main window, the screenshot is what the screen shows, as
+    every screenshot was before.
+  - The Settings screen's Dialect combo box, opened through its pattern,
+    showed in neither the picture nor the list of windows. Whether it
+    opened on screen could not be seen, since Entz was covered.
 - **Our drivers stay, and borrow.** The owner would rather adopt a
   maintained driver than keep this one, so five were read. What they do
   with a react-native-windows app, and what to take from them, is in

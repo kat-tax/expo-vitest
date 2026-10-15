@@ -37,6 +37,11 @@ public static class HarnessHost {
   [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
   [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int w, int c, uint flags);
   [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+  [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  delegate bool WindowVisit(IntPtr window, IntPtr data);
+  [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisit visit, IntPtr data);
 
   // What a person can act on. Text and images are structure, not affordances.
   static readonly HashSet<string> Actionable = new HashSet<string>(new string[] {
@@ -395,29 +400,88 @@ public static class HarnessHost {
   // A region of the screen as it is, without touching any window's z-order:
   // raising the app would hide a share sheet or a flyout that is over it,
   // which is usually the thing being looked at.
+  // A window's picture, drawn by the window itself, so a window over it on
+  // the screen is not in it and nothing is raised. Two cases take the picture
+  // from the screen instead. One is a menu or popup of the app's own open
+  // over it: a WinUI menu opens in a window of its own, which a picture the
+  // main window draws would leave out, though it is often the thing being
+  // looked at. The other is a window that draws nothing.
   static string Screen(string name, string output) {
     if (string.IsNullOrEmpty(output)) throw new InvalidOperationException("no file to save the screen to");
-    int x, y, width, height;
-    if (!string.IsNullOrEmpty(name)) {
-      RECT rect = WindowRect(Window(name));
-      x = rect.Left;
-      y = rect.Top;
-      width = rect.Right - rect.Left;
-      height = rect.Bottom - rect.Top;
-    } else {
+    if (string.IsNullOrEmpty(name)) {
       System.Drawing.Rectangle screen = System.Windows.Forms.SystemInformation.VirtualScreen;
-      x = screen.X;
-      y = screen.Y;
-      width = screen.Width;
-      height = screen.Height;
+      SaveScreen(screen.X, screen.Y, screen.Width, screen.Height, output);
+      return Json("saved " + output + " (" + screen.Width + " x " + screen.Height + " at " + screen.X + "," + screen.Y + ")");
     }
+    Process process = Window(name);
+    IntPtr handle = process.MainWindowHandle;
+    // There is no picture of a minimized window short of raising it, and a
+    // screenshot never raises a window.
+    if (IsIconic(handle)) throw new InvalidOperationException(process.ProcessName + "'s window is minimized, and a screenshot does not raise it");
+    RECT rect = WindowRect(process);
+    int width = rect.Right - rect.Left;
+    int height = rect.Bottom - rect.Top;
+    if (PopupOver(process, handle, rect)) {
+      SaveScreen(rect.Left, rect.Top, width, height, output);
+      return Json("saved " + output + " (" + width + " x " + height + " at " + rect.Left + "," + rect.Top + ", from the screen, since a menu or popup of its own is open over it)");
+    }
+    using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb)) {
+      bool drawn;
+      using (Graphics graphics = Graphics.FromImage(bitmap)) {
+        IntPtr dc = graphics.GetHdc();
+        // PW_RENDERFULLCONTENT, so what DirectComposition draws is in it too:
+        // that is how react-native-windows draws.
+        try { drawn = PrintWindow(handle, dc, 2); } finally { graphics.ReleaseHdc(dc); }
+      }
+      if (drawn && !Blank(bitmap)) {
+        bitmap.Save(output, ImageFormat.Png);
+        return Json("saved " + output + " (" + width + " x " + height + ", drawn by the window)");
+      }
+    }
+    SaveScreen(rect.Left, rect.Top, width, height, output);
+    return Json("saved " + output + " (" + width + " x " + height + " at " + rect.Left + "," + rect.Top + ", from the screen, since the window drew nothing)");
+  }
+
+  /** Whether another visible window of the process, a menu or a popup, lies over its main window. */
+  static bool PopupOver(Process process, IntPtr main, RECT area) {
+    bool found = false;
+    uint pid = (uint)process.Id;
+    EnumWindows(delegate (IntPtr window, IntPtr data) {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (window == main || owner != pid || !IsWindowVisible(window) || IsIconic(window)) return true;
+      RECT rect;
+      GetWindowRect(window, out rect);
+      if (rect.Right <= rect.Left || rect.Bottom <= rect.Top) return true;
+      if (rect.Right <= area.Left || rect.Left >= area.Right || rect.Bottom <= area.Top || rect.Top >= area.Bottom) return true;
+      found = true;
+      return false;
+    }, IntPtr.Zero);
+    return found;
+  }
+
+  static void SaveScreen(int x, int y, int width, int height, string output) {
     using (Bitmap bitmap = new Bitmap(width, height)) {
       using (Graphics graphics = Graphics.FromImage(bitmap)) {
         graphics.CopyFromScreen(x, y, 0, 0, bitmap.Size);
       }
       bitmap.Save(output, ImageFormat.Png);
     }
-    return Json("saved " + output + " (" + width + " x " + height + " at " + x + "," + y + ")");
+  }
+
+  /** Whether every pixel is black, which is what a window that did not draw itself leaves. */
+  static bool Blank(Bitmap bitmap) {
+    BitmapData data = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+    try {
+      byte[] row = new byte[bitmap.Width * 3];
+      for (int y = 0; y < bitmap.Height; y++) {
+        Marshal.Copy(new IntPtr(data.Scan0.ToInt64() + (long)y * data.Stride), row, 0, row.Length);
+        foreach (byte value in row) if (value != 0) return false;
+      }
+      return true;
+    } finally {
+      bitmap.UnlockBits(data);
+    }
   }
 
   static string Idle() {

@@ -149,6 +149,13 @@ or share sheet that is usually the thing being looked at. Use the `raise` step
 when the app really does need to be in front, which is what synthetic input
 needs.
 
+On Windows the window draws its own picture, so another window over it on the
+screen is not in it. While a menu or popup of the app's own is open over it,
+the picture is what the screen shows instead, since a WinUI menu opens in a
+window of its own, which the main window's picture would leave out. A window
+that draws nothing is taken from the screen the same way. A minimized window
+is refused, since it cannot be pictured without raising it.
+
 ## Timing a platform
 
 `bench` measures what each thing a driver does costs, so a change meant to
