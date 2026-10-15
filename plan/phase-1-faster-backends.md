@@ -115,6 +115,28 @@ below, the build is what holds:
   - The Settings screen's Dialect combo box, opened through its pattern,
     showed in neither the picture nor the list of windows. Whether it
     opened on screen could not be seen, since Entz was covered.
+- **Items 15 and 17 are one commit, and item 16 moved.**
+  - Whether a press was seen to work needs the control's own state, read
+    back by the host after the pattern call. A snapshot carries no checked
+    or selected state for a diff to see. So item 15's `verified` came with
+    item 17, which is what sets it.
+  - A press's expectation is what Phase 2's polling matchers and `verified`
+    events give a test, and a diff in a step's output belongs with the
+    agent surfaces. Item 16 moved there.
+  - Driven on Entz with the desk in use:
+    - The Inbox and Documents tabs were pressed through SelectionItem, and
+      the screen changed.
+    - The search field was filled through Value, the tree going from 94
+      nodes to 61 and back.
+    - The selected tab, and a card that offers no press pattern, fell back
+      to the pointer and were refused.
+  - Invoke and Toggle were not driven: every such control Entz has changes
+    its data or starts a sign-in, except the disabled Back.
+- **A long-running Entz lost its accessibility tree.** Its main window
+  listed no children, even in the raw view. The island's child window still
+  answered, with 12 elements where there had been 94, and a restart brought
+  all 94 back with the cached read working again. So the cached read's
+  exception came with an app in that state, which bears on item 19.
 - **Our drivers stay, and borrow.** The owner would rather adopt a
   maintained driver than keep this one, so five were read. What they do
   with a react-native-windows app, and what to take from them, is in

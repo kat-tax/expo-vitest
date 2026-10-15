@@ -25,6 +25,8 @@ export interface StepResult {
   output?: string;
   /** What kind of failure it was, when it was one. */
   code?: HarnessCode;
+  /** Set when the driver saw the step take effect, as when a Windows press read the control's new state back. */
+  verified?: boolean;
 }
 
 export function ok(message: string, output?: string): StepResult {
@@ -45,6 +47,20 @@ export interface SnapshotOptions {
   interactive?: boolean;
 }
 
+export interface PressOptions {
+  /**
+   * `pointer` presses with the pointer even where the control has a pattern
+   * to press it by, for a control whose pattern does not do what a press
+   * does. Windows only; the other platforms always press as a person would.
+   */
+  via?: 'pointer';
+}
+
+export interface FillOptions {
+  /** `keys` clicks and types even where the field could be filled through its Value pattern. Windows only. */
+  via?: 'keys';
+}
+
 /**
  * One platform's driver, in the shape `agent-device` uses so a test reads the
  * same whichever is underneath: take a snapshot, then act on what it named.
@@ -62,9 +78,9 @@ export interface Driver {
   /** The accessibility tree, with a ref and bounds for every node. */
   snapshot(options?: SnapshotOptions): Promise<Snapshot>;
   /** A press on what a ref, a selector or a point names. */
-  press(target: Target): Promise<StepResult>;
+  press(target: Target, options?: PressOptions): Promise<StepResult>;
   /** Puts text into the field a target names: focus it, then type. */
-  fill(target: Target, text: string): Promise<StepResult>;
+  fill(target: Target, text: string, options?: FillOptions): Promise<StepResult>;
   /** Types into whatever has focus. */
   type(text: string): Promise<StepResult>;
   /**

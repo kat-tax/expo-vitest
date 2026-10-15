@@ -144,6 +144,18 @@ Pass `--force` when you know the desk is free, or set `HARNESS_FORCE=1` for
 a device test. A headless browser and a device are not the desktop, so the
 check does not apply to them.
 
+**A press on Windows goes through the control where it can.** A control that
+implements Invoke, Toggle or SelectionItem is pressed through that UI
+Automation pattern. That is not synthetic input, so it needs no window in
+front and is not refused while someone is at the desk. The press stands only
+when it shows. After a Toggle or a Select the control's state is read back,
+and where it stayed as it was, the pointer presses it instead, with the check
+above. react-native-windows leaves a view that way when the view declares no
+accessibility action to answer the pattern. A field with a Value pattern is
+filled by setting its text and reading it back, and a read-only one is
+refused. In a device test, `press({via: 'pointer'})` and
+`fill(text, {via: 'keys'})` ask for synthetic input instead.
+
 **A screenshot does not raise the window.** Raising it would hide the flyout
 or share sheet that is usually the thing being looked at. Use the `raise` step
 when the app really does need to be in front, which is what synthetic input

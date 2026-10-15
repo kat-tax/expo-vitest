@@ -113,8 +113,109 @@ public static class HarnessHost {
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
       case "idle": return Idle();
       case "raise": return Raise(Text(request, "process"));
+      case "invoke": return Act(Text(request, "ref"), "Invoke");
+      case "toggle": return Act(Text(request, "ref"), "Toggle");
+      case "select": return Act(Text(request, "ref"), "SelectionItem");
+      case "scrollInto": return Act(Text(request, "ref"), "ScrollItem");
+      case "expand": return Act(Text(request, "ref"), "Expand");
+      case "collapse": return Act(Text(request, "ref"), "Collapse");
+      case "setValue": return SetValue(Text(request, "ref"), Text(request, "text") ?? "");
       default: throw new InvalidOperationException("unknown op " + op);
     }
+  }
+
+  /** An element of the newest snapshot, by the ref it was given there. */
+  static AutomationElement Element(string reference) {
+    AutomationElement element;
+    if (reference == null || !refs.TryGetValue(reference, out element)) throw new InvalidOperationException("no " + (reference ?? "ref") + " in the newest snapshot");
+    return element;
+  }
+
+  const string Unsupported = "{\"unsupported\":true}";
+
+  // How long a pattern's effect is given to show in the control's state. In
+  // react-native-windows, Toggle on any view but a Switch, and Select and
+  // SetValue on any view but a TextInput, only send an accessibility action,
+  // which the app may never answer and answers through a render when it does.
+  // UI Automation reports success either way.
+  const int EffectMs = 1000;
+
+  /** Whether done() came to hold within EffectMs. An element that went away counts, since the action moved the screen on. */
+  static bool Until(Func<bool> done) {
+    int started = Environment.TickCount;
+    while (true) {
+      try { if (done()) return true; } catch (ElementNotAvailableException) { return true; }
+      if (Environment.TickCount - started >= EffectMs) return false;
+      Thread.Sleep(25);
+    }
+  }
+
+  // A control driven through its UI Automation pattern, which reaches it on
+  // UI Automation's own channel: no pointer, no foreground window, and so
+  // nothing that minds someone being at the desk.
+  static string Act(string reference, string name) {
+    AutomationElement element = Element(reference);
+    object pattern;
+    switch (name) {
+      case "Invoke":
+        if (!element.TryGetCurrentPattern(InvokePattern.Pattern, out pattern)) return Unsupported;
+        // No state to read back. react-native-windows offers Invoke only on a
+        // view with onAccessibilityTap, and fires that.
+        ((InvokePattern)pattern).Invoke();
+        return "{\"pattern\":\"Invoke\"}";
+      case "Toggle": {
+        if (!element.TryGetCurrentPattern(TogglePattern.Pattern, out pattern)) return Unsupported;
+        TogglePattern toggle = (TogglePattern)pattern;
+        ToggleState before = toggle.Current.ToggleState;
+        toggle.Toggle();
+        bool changed = Until(() => toggle.Current.ToggleState != before);
+        return "{\"pattern\":\"Toggle\",\"changed\":" + Bool(changed) + "}";
+      }
+      case "SelectionItem": {
+        if (!element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out pattern)) return Unsupported;
+        SelectionItemPattern item = (SelectionItemPattern)pattern;
+        // Selecting what is selected shows nothing, where a press on it may
+        // still do something, such as take a tab back to its first screen.
+        if (item.Current.IsSelected) return "{\"pattern\":\"SelectionItem\",\"changed\":false}";
+        item.Select();
+        bool changed = Until(() => item.Current.IsSelected);
+        return "{\"pattern\":\"SelectionItem\",\"changed\":" + Bool(changed) + "}";
+      }
+      case "ScrollItem":
+        if (!element.TryGetCurrentPattern(ScrollItemPattern.Pattern, out pattern)) return Unsupported;
+        ((ScrollItemPattern)pattern).ScrollIntoView();
+        return "{\"pattern\":\"ScrollItem\"}";
+      case "Expand":
+      case "Collapse": {
+        if (!element.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out pattern)) return Unsupported;
+        ExpandCollapsePattern expander = (ExpandCollapsePattern)pattern;
+        ExpandCollapseState wanted = name == "Expand" ? ExpandCollapseState.Expanded : ExpandCollapseState.Collapsed;
+        if (name == "Expand") expander.Expand();
+        else expander.Collapse();
+        bool changed = Until(() => expander.Current.ExpandCollapseState == wanted);
+        return "{\"pattern\":\"ExpandCollapse\",\"changed\":" + Bool(changed) + "}";
+      }
+      default:
+        throw new InvalidOperationException("no pattern called " + name);
+    }
+  }
+
+  /** Text put in a field through its Value pattern, and what the field reads back afterwards. */
+  static string SetValue(string reference, string text) {
+    AutomationElement element = Element(reference);
+    object pattern;
+    if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) return Unsupported;
+    ValuePattern value = (ValuePattern)pattern;
+    if (value.Current.IsReadOnly) return "{\"pattern\":\"Value\",\"readOnly\":true}";
+    string before = value.Current.Value;
+    value.SetValue(text);
+    if (text != before) Until(() => value.Current.Value != before);
+    string after;
+    try { after = value.Current.Value; } catch (ElementNotAvailableException) { return "{\"pattern\":\"Value\",\"changed\":true}"; }
+    // Taken when the field reads the text, or reads something new the app
+    // made of it, as a field that keeps capitals or a length does.
+    bool changed = after == text || after != before;
+    return "{\"pattern\":\"Value\",\"changed\":" + Bool(changed) + ",\"value\":" + Json(after) + "}";
   }
 
   static string Hello(string host) {
@@ -522,7 +623,10 @@ public static class HarnessHost {
   static string Describe(Exception error) {
     Exception inner = error;
     while (inner.InnerException != null) inner = inner.InnerException;
-    // UI Automation throws this one, for a window that closed under a read, with no message of its own.
+    // UI Automation throws these two with no message of their own: the first
+    // for a pattern called on a disabled control, the second for an element
+    // or a window that went while it was read.
+    if (inner is ElementNotEnabledException) return "it is not enabled";
     if (inner is ElementNotAvailableException) return "it is no longer there";
     return string.IsNullOrEmpty(inner.Message) ? inner.GetType().Name : inner.Message;
   }

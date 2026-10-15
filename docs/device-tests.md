@@ -131,8 +131,8 @@ on, since a ref from an old tree is stale.
 
 | Call | What it does |
 | --- | --- |
-| `.press()` | Presses it. |
-| `.fill(text)` | Focuses a field and puts text in it. |
+| `.press({via})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer. |
+| `.fill(text, {via})` | Focuses a field and puts text in it. On Windows, a field with a Value pattern gets the text set and read back, replacing what it held; `{via: 'keys'}` clicks and types. |
 | `.node()` | The node now, or `undefined`. |
 | `.waitFor({timeout})` | Waits until it is in the tree. |
 
@@ -283,7 +283,7 @@ try {
 | `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
 | `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
 | `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. |
-| `NOT_ACTIONABLE` | The node is there but cannot be pressed: it has no bounds, or is off screen. |
+| `NOT_ACTIONABLE` | The node is there but cannot be acted on: it has no bounds, is off screen, or is a field that is read-only. |
 | `ACTION_FAILED` | The backend refused the step, or failed it. |
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |

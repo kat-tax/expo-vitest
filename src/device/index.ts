@@ -20,7 +20,7 @@ import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError, isHarnessError} from '../harness/lib/errors.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
-import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
+import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 
 export {by, HarnessError, isHarnessError};
 export type {HarnessCode, Selector, Snapshot, SnapshotNode};
@@ -145,12 +145,14 @@ export const device = new Device(configFromEnvironment());
 export function element(selector: Selector) {
   return {
     selector,
-    async press(): Promise<void> {
-      const result = await (await device.ready()).press(selector);
+    /** `{via: 'pointer'}` presses a Windows control with the pointer rather than through its pattern. */
+    async press(options: PressOptions = {}): Promise<void> {
+      const result = await (await device.ready()).press(selector, options);
       if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
     },
-    async fill(text: string): Promise<void> {
-      const result = await (await device.ready()).fill(selector, text);
+    /** `{via: 'keys'}` clicks a Windows field and types rather than setting its value. */
+    async fill(text: string, options: FillOptions = {}): Promise<void> {
+      const result = await (await device.ready()).fill(selector, text, options);
       if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');
     },
     async node(): Promise<SnapshotNode | undefined> {

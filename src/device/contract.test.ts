@@ -260,9 +260,19 @@ describe('element', () => {
     const fill = vi.fn(async (): Promise<StepResult> => failed('nothing matches testId="name" on the page (3 nodes)', 'LOCATOR_NOT_FOUND'));
     drive(stub({press, fill}));
     await element(by.testID('save')).press();
-    expect(press).toHaveBeenCalledWith({testId: 'save'});
+    expect(press).toHaveBeenCalledWith({testId: 'save'}, {});
     await expect(element(by.testID('name')).fill('Ada')).rejects.toThrow(failure('LOCATOR_NOT_FOUND', 'nothing matches testId="name" on the page (3 nodes)'));
-    expect(fill).toHaveBeenCalledWith({testId: 'name'}, 'Ada');
+    expect(fill).toHaveBeenCalledWith({testId: 'name'}, 'Ada', {});
+  });
+
+  it('passes on how a Windows control should be driven: the pointer for a press, typing for a fill', async () => {
+    const press = vi.fn(async (): Promise<StepResult> => ok('pressed'));
+    const fill = vi.fn(async (): Promise<StepResult> => ok('filled'));
+    drive(stub({press, fill}));
+    await element(by.label('Inbox')).press({via: 'pointer'});
+    expect(press).toHaveBeenCalledWith({label: 'Inbox'}, {via: 'pointer'});
+    await element(by.testID('search')).fill('how', {via: 'keys'});
+    expect(fill).toHaveBeenCalledWith({testId: 'search'}, 'how', {via: 'keys'});
   });
 
   it('is ACTION_FAILED when the driver did not say what kind of failure it was', async () => {
@@ -407,8 +417,9 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(element).parameters.toEqualTypeOf<[Selector]>();
     const one = element(by.label('Save'));
     expectTypeOf(one.selector).toEqualTypeOf<Selector>();
+    expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'}]>();
     expectTypeOf(one.press).returns.toEqualTypeOf<Promise<void>>();
-    expectTypeOf(one.fill).parameters.toEqualTypeOf<[string]>();
+    expectTypeOf(one.fill).parameters.toEqualTypeOf<[text: string, options?: {via?: 'keys'}]>();
     expectTypeOf(one.node).returns.toEqualTypeOf<Promise<SnapshotNode | undefined>>();
     expectTypeOf<NonNullable<Parameters<typeof one.waitFor>[0]>>().toMatchObjectType<{timeout?: number}>();
     expectTypeOf(one.waitFor).returns.toEqualTypeOf<Promise<SnapshotNode>>();
