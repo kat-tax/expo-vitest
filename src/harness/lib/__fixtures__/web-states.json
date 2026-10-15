@@ -1,6 +1,6 @@
 {
  "platform": "web",
- "source": "a page of one control in each state",
+ "source": "http://localhost:8098",
  "nodes": [
   {
    "ref": "@e1",
@@ -18,7 +18,8 @@
     "width": 13,
     "height": 13
    },
-   "checked": false
+   "checked": false,
+   "kind": "checkbox"
   },
   {
    "ref": "@e2",
@@ -36,7 +37,8 @@
     "width": 13,
     "height": 13
    },
-   "checked": "mixed"
+   "checked": "mixed",
+   "kind": "checkbox"
   },
   {
    "ref": "@e3",
@@ -54,7 +56,8 @@
     "width": 1264,
     "height": 18
    },
-   "checked": true
+   "checked": true,
+   "kind": "switch"
   },
   {
    "ref": "@e4",
@@ -70,7 +73,8 @@
     "y": 46,
     "width": 1264,
     "height": 36
-   }
+   },
+   "kind": "tablist"
   },
   {
    "ref": "@e5",
@@ -88,7 +92,8 @@
     "width": 1264,
     "height": 18
    },
-   "selected": true
+   "selected": true,
+   "kind": "tab"
   },
   {
    "ref": "@e6",
@@ -106,7 +111,8 @@
     "width": 1264,
     "height": 18
    },
-   "selected": false
+   "selected": false,
+   "kind": "tab"
   },
   {
    "ref": "@e7",
@@ -124,7 +130,8 @@
     "width": 46,
     "height": 21
    },
-   "expanded": false
+   "expanded": false,
+   "kind": "button"
   },
   {
    "ref": "@e8",
@@ -142,7 +149,8 @@
     "width": 43,
     "height": 21
    },
-   "pressed": true
+   "pressed": true,
+   "kind": "button"
   },
   {
    "ref": "@e9",
@@ -161,7 +169,8 @@
     "height": 21
    },
    "value": "Ada",
-   "placeholder": "Your name"
+   "placeholder": "Your name",
+   "kind": "textbox"
   },
   {
    "ref": "@e10",
@@ -180,7 +189,8 @@
     "height": 21
    },
    "value": "",
-   "placeholder": "Search"
+   "placeholder": "Search",
+   "kind": "textbox"
   },
   {
    "ref": "@e11",
@@ -198,7 +208,8 @@
     "width": 177,
     "height": 21
    },
-   "secure": true
+   "secure": true,
+   "kind": "textbox"
   },
   {
    "ref": "@e12",
@@ -215,7 +226,8 @@
     "width": 1264,
     "height": 0
    },
-   "value": "40"
+   "value": "40",
+   "kind": "slider"
   }
  ]
 }
