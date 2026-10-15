@@ -27,8 +27,9 @@ the test is its title, with the suites it sits in, made safe for a folder
 name and given six characters of a hash, so two titles that clean up alike
 never share a folder. A test's folder is replaced each time it runs.
 
-The screenshot and the trace are also attached to the test with Vitest's
-`annotate`, so a reporter sees them, and their paths are on the task's
+The trace and the screenshot are also recorded as a Vitest artifact of type
+`expo-vitest:evidence`, with the two files attached, which a reporter sees
+in `onTestCaseArtifactRecord`, and their paths are on the task's
 `meta.evidence`.
 
 ## The trace

@@ -9,9 +9,33 @@
  * that failed, `on` for every test, `off` for none.
  */
 import path from 'node:path';
-import {afterEach, beforeEach} from 'vitest';
+import type {TestArtifactBase, TestAttachment} from 'vitest';
+import {afterEach, beforeEach, recordArtifact} from 'vitest';
 import {writeEvidence} from './evidence.ts';
 import {device} from './index.ts';
+
+/**
+ * What a reporter is handed for a test's evidence, through
+ * `onTestCaseArtifactRecord`: where each file is, and the files attached.
+ * An artifact rather than an annotation, since Vitest takes no annotation
+ * from a test that has finished, which it has by `afterEach`.
+ */
+export interface EvidenceArtifact extends TestArtifactBase {
+  type: 'expo-vitest:evidence';
+  failed: boolean;
+  folder: string;
+  trace: string;
+  screenshot?: string;
+  attachments: TestAttachment[];
+}
+
+declare const EVIDENCE: unique symbol;
+
+declare module '@vitest/runner' {
+  interface TestArtifactRegistry {
+    [EVIDENCE]: EvidenceArtifact;
+  }
+}
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -52,7 +76,7 @@ afterEach(async context => {
     errors: (task.result?.errors ?? []).map(error => `${error.code ? `${error.code}: ` : ''}${error.message ?? String(error)}`),
   });
   console.log(`evidence: ${path.relative(ROOT, written.trace)}`);
-  task.meta.evidence = {trace: written.trace, ...(written.screenshot ? {screenshot: written.screenshot} : {})};
-  if (written.screenshot) await context.annotate('the screen at the end', 'evidence', {path: written.screenshot, contentType: 'image/png'});
-  await context.annotate('trace', 'evidence', {path: written.trace, contentType: 'text/markdown'});
+  task.meta.evidence = {folder: written.folder, trace: written.trace, ...(written.screenshot ? {screenshot: written.screenshot} : {})};
+  const attachments: TestAttachment[] = [{path: written.trace, contentType: 'text/markdown'}, ...(written.screenshot ? [{path: written.screenshot, contentType: 'image/png'}] : [])];
+  await recordArtifact(context.task, {type: 'expo-vitest:evidence', failed, folder: written.folder, trace: written.trace, ...(written.screenshot ? {screenshot: written.screenshot} : {}), attachments});
 });
