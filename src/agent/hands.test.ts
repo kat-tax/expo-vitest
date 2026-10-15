@@ -324,6 +324,9 @@ describe('a picture of the screen', () => {
     expect(await setUp({device: refused}).hands.screenshot()).toEqual({withheld: 'the window is gone'});
     const skipped = new FakeDevice({screenshot: () => Promise.resolve({ok: true, skipped: true, message: 'no screen'})});
     expect(await setUp({device: skipped}).hands.screenshot()).toEqual({withheld: 'no screen'});
+    const unbounded = new FakeDevice({screenshot: writer()});
+    unbounded.screen = {...signIn(), nodes: signIn().nodes.map(each => (each.secure ? {...each, bounds: undefined} : each))};
+    expect(await setUp({device: unbounded}).hands.screenshot()).toEqual({withheld: 'the secure field @e3 has no bounds to paint over, so a picture could show it'});
   });
 
   it('keeps the long side the step asks for', async () => {

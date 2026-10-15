@@ -149,7 +149,8 @@ export class Hands {
   async screenshot(): Promise<ImagePart | {withheld: string}> {
     const {host, taintStore, screenshotMaxSide = 768} = this.options;
     const seen = await this.read();
-    const verdict = pixelsAllowed({tainted: tainted(taintStore), canScreenshot: host.capabilities.has('screenshot'), nodes: seen.platform.nodes});
+    // The step's nodes, so a reason names the ref the model knows; their bounds are the platform's.
+    const verdict = pixelsAllowed({tainted: tainted(taintStore), canScreenshot: host.capabilities.has('screenshot'), nodes: seen.snapshot.nodes});
     if (!verdict.allowed) return {withheld: verdict.why};
     fs.mkdirSync(host.scratch, {recursive: true});
     this.shots += 1;
@@ -161,7 +162,7 @@ export class Hands {
     fs.rmSync(file, {force: true});
     const image = decodePng(taken);
     const factor = scaleFactor(image.width, seen.platform.viewport);
-    const masks = secureMasks(seen.platform.nodes).map(bounds => scaleRect(bounds, factor));
+    const masks = secureMasks(seen.snapshot.nodes).map(bounds => scaleRect(bounds, factor));
     const small = resizeImage(maskImage(image, masks), screenshotMaxSide);
     this.shot = {width: small.width, height: small.height, toTree: image.width / small.width / factor};
     return {type: 'image', mediaType: 'image/png', data: encodePng(small).toString('base64'), width: small.width, height: small.height};
