@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Snapshot, SnapshotNode} from './snapshot.ts';
-import {asSelector, by, centreOf, describeTarget, findNode, isPoint, narrow, parseTarget, renderSnapshot} from './snapshot.ts';
+import {asSelector, by, centreOf, describeTarget, findNode, isPoint, narrow, parseTarget, renderSnapshot, seenInstead} from './snapshot.ts';
 
 const tree: Snapshot = {
   platform: 'windows',
@@ -146,5 +146,38 @@ describe('narrow', () => {
     expect(narrow(circle, each => each.interactive)).toEqual([{ref: '@e3', role: 'View', name: '@e3', depth: 0, interactive: true}]);
     // A parent that names nothing in the list ends the chain.
     expect(narrow([node('@e2', '@e9', true)], () => true)).toEqual([{ref: '@e2', role: 'View', name: '@e2', depth: 0, interactive: true}]);
+  });
+});
+
+describe('seenInstead', () => {
+  const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: role === 'button' || role === 'tab', ...extra});
+  const tree: Snapshot = {
+    platform: 'web',
+    nodes: [
+      node('@e1', 'heading', 'Settings'),
+      node('@e2', 'tab', 'Inbox', {testId: 'tab-inbox'}),
+      node('@e3', 'tab', 'Documents', {testId: 'tab-documents'}),
+      node('@e4', 'button', 'Save', {testId: 'save'}),
+      node('@e5', 'button', ''),
+    ],
+  };
+
+  it('names the nodes in the role asked for, or says there are none', () => {
+    expect(seenInstead(tree, {role: 'tab', label: 'Settings'})).toBe('2 nodes have role tab: "Inbox", "Documents"');
+    expect(seenInstead(tree, {role: 'heading'})).toBe('1 node has role heading: "Settings"');
+    expect(seenInstead(tree, {role: 'slider'})).toBe('no node has role slider');
+  });
+
+  it('lists the testIDs there were for a testID, or says there were none', () => {
+    expect(seenInstead(tree, {testId: 'search'})).toBe('the testIDs there: "tab-inbox", "tab-documents", "save"');
+    expect(seenInstead({platform: 'web', nodes: [node('@e1', 'heading', 'Settings')]}, {testId: 'search'})).toBe('no node has a testID');
+  });
+
+  it('names what can be acted on for a label, a few of them, and nothing for a ref', () => {
+    expect(seenInstead(tree, {label: 'Sent'})).toBe('what can be acted on: "Inbox", "Documents", "Save"');
+    const many: Snapshot = {platform: 'web', nodes: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((name, at) => node(`@e${at}`, 'button', name))};
+    expect(seenInstead(many, {contains: 'Z'})).toBe('what can be acted on: "A", "B", "C", "D", "E" and 2 more');
+    expect(seenInstead({platform: 'web', nodes: [node('@e1', 'heading', 'Settings')]}, {label: 'Save'})).toBe('nothing there can be acted on');
+    expect(seenInstead(tree, {ref: '@e9'})).toBe('');
   });
 });

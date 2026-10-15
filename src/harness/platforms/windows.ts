@@ -9,7 +9,7 @@ import {desk, refusal} from '../lib/quiet.ts';
 import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
+import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, FillOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {HostChild} from './windows-host.ts';
@@ -238,7 +238,10 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     if (isPoint(selector)) return {point: selector, note: `${selector.x},${selector.y}`};
     const tree = await snapshot();
     const node = findNode(tree, selector);
-    if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} in the window (${tree.nodes.length} nodes)`, {platform: 'windows'});
+    if (!node) {
+      const instead = seenInstead(tree, selector);
+      throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} in the window (${tree.nodes.length} nodes)${instead ? `; ${instead}` : ''}`, {platform: 'windows'});
+    }
     const point = centreOf(node);
     if (!point) throw new HarnessError('NOT_ACTIONABLE', `${node.ref} ${node.role} ${JSON.stringify(node.name)} has no bounds to press`, {platform: 'windows'});
     return {point, note: `${node.ref} ${node.role} ${JSON.stringify(node.name)}`, node};

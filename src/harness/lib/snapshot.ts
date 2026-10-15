@@ -142,6 +142,34 @@ export function describeTarget(target: Target): string {
 }
 
 /**
+ * What a tree held instead, for the message of a selector that matched
+ * nothing: the names of the nodes with the role it asked for, the testIDs
+ * there were, or the names of what can be acted on, a few of each. A ref
+ * names a node of one snapshot, so there is nothing to suggest for it.
+ */
+export function seenInstead(snapshot: Snapshot, selector: Selector): string {
+  const few = 5;
+  const list = (values: string[]): string => {
+    const unique = [...new Set(values)];
+    const shown = unique.slice(0, few).map(value => JSON.stringify(value)).join(', ');
+    return unique.length > few ? `${shown} and ${unique.length - few} more` : shown;
+  };
+  if (selector.ref) return '';
+  if (selector.testId) {
+    const ids = snapshot.nodes.flatMap(node => (node.testId ? [node.testId] : []));
+    return ids.length > 0 ? `the testIDs there: ${list(ids)}` : 'no node has a testID';
+  }
+  if (selector.role) {
+    const role = selector.role.toLowerCase();
+    const named = snapshot.nodes.filter(node => node.role.toLowerCase() === role);
+    if (named.length === 0) return `no node has role ${selector.role}`;
+    return `${named.length} ${named.length === 1 ? 'node has' : 'nodes have'} role ${selector.role}: ${list(named.map(node => node.name))}`;
+  }
+  const names = snapshot.nodes.filter(node => node.interactive && node.name).map(node => node.name);
+  return names.length > 0 ? `what can be acted on: ${list(names)}` : 'nothing there can be acted on';
+}
+
+/**
  * The node a selector names. A ref and a `testID` are exact; a label matches
  * the whole name first and then loosely, so `by.label('New')` finds `New`
  * before `New drop` and still finds `New drop` when that is all there is.

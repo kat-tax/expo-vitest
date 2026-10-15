@@ -149,6 +149,34 @@ below, the build is what holds:
     pointer moved, naming the editor that was there, through the host and
     through the script. Two taps on an empty spot went through once nobody
     had been at the desk for 205 s.
+- **Item 20 is item 7 and three borrowings, in one commit.**
+  - The init script counts changes, and a snapshot is the last one read
+    while the count stands, for up to 2 s, or until the driver acts.
+  - Refs last as long as their element does, from a map kept in the page.
+    The collect no longer writes a `data-harness-ref` attribute, which
+    nothing read and which would have moved the count on every read.
+  - A react-native-web Pressable with no role, a div with `tabindex`, or
+    one marked `aria-disabled`, counts as interactive.
+    `aria-disabled="true"` reads as not enabled.
+  - A press asks the page where it would land, and a covered node fails
+    with `NOT_ACTIONABLE`, naming what is over it.
+  - A selector that matched nothing says what was there instead, on web
+    and on Windows, through `seenInstead` in `snapshot.ts`.
+  - Measured on scratch pages:
+    - A page of 3,012 nodes read in about 200 ms after a change and in
+      2 ms without one.
+    - A static page of 17 nodes snapshotted at 0.5 ms at p50, where the
+      committed driver took 1.6 ms.
+    - A press cost 2.4 ms against 1.9, for the landing check.
+  - Left out:
+    - The two animation frames before a read. They would add one or two
+      frames to every changed read and still not wait out a transition,
+      which is item 21's.
+    - The `fresh` option and `Driver.generation()`. Nothing calls them yet,
+      and the kept read gives a poll the same saving.
+    - A pointer-cursor scan. react-native-web 0.21 gives every enabled
+      Pressable and Touchable a `tabindex`, so the costly style read
+      finds nothing more.
 - **Item 19 found the COM client no better, so nothing changed.** It was
   declared by hand from the SDK's header and asked for the same cached
   subtree.

@@ -155,13 +155,13 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 
 | Field | What it is |
 | --- | --- |
-| `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. On web and Windows a node has the same ref in an interactive snapshot as in a full one of the same screen, so a ref read from an interactive snapshot presses that node while the screen stays as it was. |
+| `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. On web and Windows a node has the same ref in an interactive snapshot as in a full one of the same screen, so a ref read from an interactive snapshot presses that node while the screen stays as it was. On web a node keeps its ref for as long as it stays on the page, so a ref read earlier still presses it after the page has changed around it. |
 | `role` | The platform's own word for what this is. |
 | `name` | The accessible name: what a screen reader says. |
 | `testId` | The `testID` from the source. |
 | `depth` | Depth in the tree. |
 | `parent` | The ref of the nearest node in the same snapshot that this one sits inside. Absent at the top, and where the platform does not say: on iOS and Android, a node whose parent an interactive snapshot left out. |
-| `interactive` | Whether a person can act on it. |
+| `interactive` | Whether a person can act on it. On web that includes a react-native-web Pressable with no role, which is drawn as a div that takes the focus. |
 | `focused`, `focusable`, `enabled`, `offscreen` | State, where the platform reports it. |
 | `help` | The hint or description: `HelpText` on Windows, `aria-description` on web. |
 | `inSet` | A position in a set, as it is announced: `"2 of 5"`. |
@@ -282,8 +282,8 @@ try {
 | --- | --- |
 | `DRIVER_UNAVAILABLE` | No backend for the platform here: not installed, not running, or not a Windows machine. |
 | `APP_UNREACHABLE` | The app did not open: a URL that does not answer, or a deep link with no exe to launch. |
-| `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. |
-| `NOT_ACTIONABLE` | The node is there but cannot be acted on: it has no bounds, is off screen, or is a field that is read-only. |
+| `LOCATOR_NOT_FOUND` | Nothing in the tree matched, within the time allowed. The message says what was there instead: the names in the role asked for, the testIDs, or what can be acted on. |
+| `NOT_ACTIONABLE` | The node is there but cannot be acted on: it has no bounds, is off screen, is a field that is read-only, or, on web, is covered, so that a press would land on what is over it, which the message names. |
 | `ACTION_FAILED` | The backend refused the step, or failed it. |
 | `UNSUPPORTED_CAPABILITY` | Something the platform has no counterpart for, where skipping would hide a mistake: a key the Windows harness cannot send. |
 | `INVALID_ARGUMENT` | A call that cannot be acted on as it stands. |
