@@ -96,7 +96,8 @@ below, the build is what holds:
   a full one.** The host and the scripts number only the nodes they keep,
   so `@e3` of `snapshot -i` is not `@e3` of the full tree that a press
   resolves it against. Web numbers every node before it narrows, so its
-  refs agree. Not fixed, for the reason below.
+  refs agree. Item 13 fixed it: on Entz's Documents screen, 15 of the 21
+  interactive refs named another node before, and none after.
 - **Item 12: the refusal is the driver's.**
   - It is asked right before input, after the target is found, so a
     missing target still says it is missing.

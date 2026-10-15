@@ -254,12 +254,18 @@ public static class HarnessHost {
     // The kit sets this from React Native's testID. It is not the text a person
     // reads, so it survives relabelling and localisation.
     string testId = current.AutomationId;
-    bool keep = walk.OnlyInteractive ? interactive : interactive || !string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(testId);
-    if (keep) {
-      walk.Count++;
-      string reference = "@e" + walk.Count;
+    // A node earns a place if it is actionable, says something, or was
+    // deliberately marked with a testID. An interactive snapshot numbers the
+    // same nodes as a full one and writes only those that can be acted on, so
+    // a ref names one node in both, and a press, which looks a ref up in a
+    // full tree, presses what the interactive one showed.
+    bool listed = interactive || !string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(testId);
+    if (!listed) return true;
+    walk.Count++;
+    string reference = "@e" + walk.Count;
+    walk.Refs[reference] = element;
+    if (interactive || !walk.OnlyInteractive) {
       childParent = reference;
-      walk.Refs[reference] = element;
       StringBuilder node = new StringBuilder();
       node.Append("{\"ref\":").Append(Json(reference));
       if (parent != null) node.Append(",\"parent\":").Append(Json(parent));

@@ -155,7 +155,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 
 | Field | What it is |
 | --- | --- |
-| `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. |
+| `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. On web and Windows a node has the same ref in an interactive snapshot as in a full one of the same screen, so a ref read from an interactive snapshot presses that node while the screen stays as it was. |
 | `role` | The platform's own word for what this is. |
 | `name` | The accessible name: what a screen reader says. |
 | `testId` | The `testID` from the source. |

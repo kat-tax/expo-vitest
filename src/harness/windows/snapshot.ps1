@@ -70,7 +70,7 @@ function Prop($element, $property, $unsetBelowOne = $true) {
 # $parent is the ref of the nearest kept ancestor, which is what a node's
 # `parent` names; it passes through a node that is not kept.
 function Walk($element, $depth, $parent) {
-  if ($script:nodes.Count -ge $Max) { return }
+  if ($script:next -ge $Max) { return }
   $childParent = $parent
   try {
     $current = $element.Current
@@ -90,11 +90,13 @@ function Walk($element, $depth, $parent) {
     $isDialog = Prop $element ([System.Windows.Automation.AutomationElement]::IsDialogProperty) $false
     $live = Prop $element $liveSetting
     # A node earns a place if it is actionable, says something, or was
-    # deliberately marked with a testID.
-    $keep = if ($script:onlyInteractive) { $interactive } else { $interactive -or $name -or $testId }
-    if ($keep) {
+    # deliberately marked with a testID. An interactive snapshot numbers the
+    # same nodes as a full one and writes only those that can be acted on, so
+    # a ref names one node in both.
+    $listed = $interactive -or $name -or $testId
+    if ($listed) { $script:next++ }
+    if ($listed -and ($interactive -or -not $script:onlyInteractive)) {
       $box = $current.BoundingRectangle
-      $script:next++
       $childParent = "@e$($script:next)"
       [void]$script:nodes.Add([pscustomobject]@{
         ref         = $childParent
