@@ -1,6 +1,6 @@
 # Phase 1. Faster backends
 
-Status: not started · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
+Status: in progress (items 1 and 2 of 11 done, item 3 dropped) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
 
 The index is [`README.md`](README.md). Section 5 there is the one-table
 summary of this phase; section 11 holds the agent-device, Playwright and
@@ -8,6 +8,52 @@ Vitest facts cited below. Nothing in this phase changes a public name: the
 `Driver` interface gains optional members, `deviceConfig` gains options with
 defaults that reproduce today's timing, and every step a test writes today
 runs the same, faster.
+
+## As built
+
+On the `phase-1-faster-backends` branch, which starts from Phase 0's. Where
+the build differs from the design below, the build is what holds:
+
+- **Work items 1 and 2 are one commit.** The answers item 1 was to find are
+  recorded at the top of `src/harness/platforms/agent-device-mapping.ts`,
+  where the code that depends on them is, rather than in a file of their
+  own: the client and the command line answer the same flat snapshot (no
+  nesting to flatten), `press` takes a point, a ref or a selector, a testID
+  is `id=`, and a failure carries a code the command line prints as
+  `Error (<code>): <message>`.
+- **The pure half of the transport is under the gate, the I/O is not.**
+  `agent-device-mapping.ts` holds the node mapping, the target spellings,
+  the route to a deep link, the failure codes, the device line and the
+  package search, and is at 100%. `agent-device-transport.ts` loads the
+  client and runs the command line; it is proved on the device, by both
+  transports giving the same answers and codes, and by a fake package that
+  never answers making a 1 s device test fail in about a second through
+  either transport.
+- **The Android target was wrong, and is now what was measured.** The
+  design assumed most of a step was the command line's process start. On a
+  Pixel 7 Pro it is not. Measured back to back on the same screen, through
+  the client against through the command line: a snapshot 1308 ms against
+  1477 ms at p50, an interactive snapshot 1321 against 1530, a press 1908
+  against 2084, a screenshot 2686 against 2842. The client takes 5 to 14%
+  off each step and the device's own work is the rest, so the bar for
+  Android and iOS is now "lower than the command line on the same device",
+  which is also what e2e, on the same client, pays.
+- **Item 3 is not done, and named sessions wait for Phase 4.** Probed on
+  the phone: a named session whose process exits without closing it keeps
+  its claim on the device, owned by the workspace rather than the process,
+  and the next named session is refused with `DEVICE_IN_USE`. With a
+  session per process, one test file that forgot `device.close()` would fail
+  the next. The driver keeps agent-device's implicit session, which every
+  file in a workspace shares as it did before, and signal handlers buy
+  nothing with it. Phase 4's pools, which need a session per device, use
+  agent-device's leases, which expire on their own.
+- **`open` makes a deep link of a route.** The driver handed `/settings`
+  to agent-device as an app name and ignored `--scheme`; a route now
+  becomes `<scheme>://settings`, and a route with no scheme to use is
+  refused with `INVALID_ARGUMENT` before anything is sent.
+- **npm works on Windows again.** The client loads from npm's global
+  folder by path, so the `.cmd` launcher npm puts on the PATH is never
+  started, and the doctor's advice is `npm i -g agent-device` everywhere.
 
 ## Purpose and the claims it proves
 
@@ -29,7 +75,7 @@ before and after:
 
 | Claim | Bar |
 | --- | --- |
-| iOS and Android steps cost one round trip to agent-device's daemon, not a Node process plus a round trip | p50 of `snapshot` and `press` under half of the Phase 0 baseline on the same device |
+| iOS and Android steps cost one round trip to agent-device's daemon, not a Node process plus a round trip | p50 of `snapshot` and `press` lower than the command line's on the same device (measured back to back on a Pixel 7 Pro: 11% and 8% lower; the device's own work is the rest) |
 | A Windows snapshot costs one cached subtree fetch, not an assembly load, a compile and a cross-process call per element and property | p50 under 100 ms warm for a 400-node tree on the PowerShell host, under 50 ms on the compiled host; host start under 3 s once, under 300 ms compiled |
 | A Windows press on a control that exposes a UI Automation pattern needs no foreground window and no quiet desk | the device suite's presses on the example app go through `invoke`, `toggle` or `select` with `raise` never sent and the idle guard never consulted |
 | An unchanged web page costs one trivial evaluate per poll | fewer collects per test on the fixture's `device/` suite, no regression on `press` |
@@ -802,8 +848,8 @@ Bench targets, recorded before and after on the same app and machine:
 | Windows | host start, PowerShell | under 3 s, once per driver |
 | Windows | host start, compiled, source already compiled | under 300 ms |
 | Windows | `press` through `invoke` on a button | p50 under 50 ms, `raise` never sent |
-| Android | `snapshot`, `press` | p50 under half of the baseline |
-| iOS | `snapshot`, `press` | p50 under half of the baseline |
+| Android | `snapshot`, `press` | p50 lower than the command line's on the same device |
+| iOS | `snapshot`, `press` | p50 lower than the command line's on the same device |
 | Web | `snapshot` on an unchanged page | p50 under 5 ms |
 | Web | `press` | no regression beyond 5% |
 | All | a step under a 1 s `testTimeout` with the backend hung | the test fails in under 2 s |
