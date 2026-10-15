@@ -43,6 +43,12 @@ export async function firstReady(root: string): Promise<Platform> {
   throw new HarnessError('DRIVER_UNAVAILABLE', 'this machine can drive no platform now; expo-harness doctor says why');
 }
 
+/** The config's command for a platform, started where nothing answers at its url yet; undefined where it names none. */
+export async function startConfigured(project: Project, platform: Platform, root: string): Promise<Started | undefined> {
+  const run = resolveRun(platform, project.config, process.env, root);
+  return run.command && run.readyUrl ? startCommand(platform, {...run.command, reuseExisting: true}, run.readyUrl, system) : undefined;
+}
+
 export interface OpenOptions {
   /** The platform; the first this machine can drive where none is named. */
   platform?: string;
@@ -73,7 +79,7 @@ export async function openApp(project: Project, options: OpenOptions, root: stri
   const platform = (options.platform ?? (await firstReady(root))) as Platform;
   if (!PLATFORMS.includes(platform)) throw new HarnessError('INVALID_ARGUMENT', `${platform} is not a platform: ${PLATFORMS.join(', ')}`);
   const run = resolveRun(platform, project.config, process.env, root);
-  const started: Started | undefined = options.command !== false && run.command && run.readyUrl ? await startCommand(platform, {...run.command, reuseExisting: true}, run.readyUrl, system) : undefined;
+  const started = options.command === false ? undefined : await startConfigured(project, platform, root);
   // The web driver reads whether to show its window as it is made.
   const before = process.env.HARNESS_HEADED;
   if (options.headed) process.env.HARNESS_HEADED = '1';
