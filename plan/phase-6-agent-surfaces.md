@@ -1,6 +1,6 @@
 # Phase 6. Agent surfaces
 
-Status: done, but for what needs a live model, an app or a machine this one is not: the explore smoke and the cost it prints, a coding tool's own MCP client, the first exit criterion on Windows, which has no example app here, and explore and bug bash on Windows and iOS. A coding agent wrote a passing test for a new flow on web from an MCP session alone. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
+Status: done, but for what needs a live model, an app or a machine this one is not: the explore smoke and the cost it prints, the first exit criterion on Windows, which has no example app here, and explore and bug bash on Windows and iOS. On web, Claude Code's own MCP client, with the server and the skill alone, wrote a device test that passed. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
 
 The agent of Phase 5 reached from outside a test file: an MCP server a coding
 agent drives the app through, an `explore` command that runs the agent with a
@@ -101,13 +101,19 @@ which no scripted test covered, over the server alone, on the fixture's
 pages served on a port of their own. It observed, acted by ref, read each
 diff, and asked `locate` for each node. It then wrote
 `fixture/device/sign-in.test.ts` from those answers, which passes in the
-fixture. The client was a script speaking the protocol, not a coding
-tool's own MCP client.
+fixture. That client was a script speaking the protocol. Then a coding
+tool's own: Claude Code 2.1.299, headless (`claude -p`, Opus 5.5), given
+the server through `--mcp-config` alone (`--strict-mcp-config`), the
+skill in `.claude/skills/`, and no tool but the server's four, reading
+files and writing one. Asked for a test of the profile page's save and
+reset, it read `SKILL.md` and the `mcp` topic, drove the flow over 20
+calls of the server, located each node, closed the session and wrote
+`device/profile.test.ts` with the queries `locate` gave, in 28 turns and
+66 s ($0.44 by the session's count). The test passed on its first run.
 
-Not run: any live model, so the explore smoke and its cost line are not
-recorded, and no coding tool's own MCP client has been started with the
-server, which a Claude Code session with only the `.mcp.json` entry would
-be. The first criterion on Windows waits for an app: expo-windows has no
+Not run: the explore smoke, a billed live model with a key this machine
+has not got, so its cost line is not recorded. The first criterion on
+Windows waits for an app: expo-windows has no
 example app here (its `fixture/` is a manifest that does not run), and the
 Windows apps built on this machine are its owner's, whose debug build
 would load from the owner's dev server on 8081. Explore and bug bash have
