@@ -104,11 +104,13 @@ export function isTool(value: unknown): value is Tool {
   return typeof value === 'object' && value !== null && (value as {kind?: unknown}).kind === 'tool' && typeof (value as {execute?: unknown}).execute === 'function';
 }
 
-/** A schema as JSON Schema: a plain one as it is, a Standard Schema's by its own account. */
+/** A schema as JSON Schema: a plain one as it is, a Standard Schema's by its own account. ArkType's are functions, with the standard on them. */
 export function jsonSchemaOf(schema: unknown, whose: string): JsonSchema {
-  if (typeof schema !== 'object' || schema === null) throw new HarnessError('INVALID_ARGUMENT', `${whose}'s schema is not an object`);
-  const standard = (schema as Partial<StandardSchemaV1>)['~standard'];
-  if (!standard) return schema as JsonSchema;
+  const standard = schema ? (schema as Partial<StandardSchemaV1>)['~standard'] : undefined;
+  if (!standard) {
+    if (typeof schema !== 'object' || schema === null) throw new HarnessError('INVALID_ARGUMENT', `${whose}'s schema is neither a Standard Schema nor a JSON Schema object`);
+    return schema as JsonSchema;
+  }
   if (standard.jsonSchema) return standard.jsonSchema.output({target: 'draft-07'});
   throw new HarnessError('INVALID_ARGUMENT', `${whose}'s schema is a Standard Schema that gives no JSON Schema; give it one, or a JSON Schema object`);
 }

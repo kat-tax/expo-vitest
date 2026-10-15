@@ -71,11 +71,19 @@ describe("a project's tool", () => {
     expect(tool.strict).toBe(false);
   });
 
+  it('takes a function that carries a Standard Schema, as ArkType\'s types are', () => {
+    const arkLike = Object.assign((value: unknown) => value, {
+      '~standard': {version: 1 as const, vendor: 'arktype', validate: (value: unknown) => ({value}), jsonSchema: {output: () => ({type: 'string'})}},
+    });
+    expect(jsonSchemaOf(arkLike, 'extract')).toEqual({type: 'string'});
+  });
+
   it('is refused a name of the agent\'s own, a bad name, no description, or a schema the model cannot be given', () => {
     expect(failure(() => defineTool({...seed, name: 'tap'}))).toEqual(['INVALID_ARGUMENT', "tap is the name of one of the agent's own tools; give the tool another"]);
     expect(failure(() => defineTool({...seed, name: 'Seed-Cart'}))?.[0]).toBe('INVALID_ARGUMENT');
     expect(failure(() => defineTool({...seed, description: ' '}))).toEqual(['INVALID_ARGUMENT', 'the tool seed_cart has no description, which is how the model knows when to call it']);
-    expect(failure(() => defineTool({...seed, schema: 'string' as unknown as JsonSchema}))).toEqual(['INVALID_ARGUMENT', "the tool seed_cart's schema is not an object"]);
+    expect(failure(() => defineTool({...seed, schema: 'string' as unknown as JsonSchema}))).toEqual(['INVALID_ARGUMENT', "the tool seed_cart's schema is neither a Standard Schema nor a JSON Schema object"]);
+    for (const schema of [() => 'a function, not a schema', null, undefined]) expect(failure(() => jsonSchemaOf(schema, 'the tool x'))?.[1]).toBe("the tool x's schema is neither a Standard Schema nor a JSON Schema object");
     expect(failure(() => jsonSchemaOf({'~standard': {version: 1, vendor: 'v', validate: () => ({value: 1})}}, 'the tool x'))).toEqual([
       'INVALID_ARGUMENT',
       "the tool x's schema is a Standard Schema that gives no JSON Schema; give it one, or a JSON Schema object",
