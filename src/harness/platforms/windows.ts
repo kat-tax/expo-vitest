@@ -91,6 +91,10 @@ interface Backend {
   setValue(ref: string, text: string): Promise<PatternAnswer | null>;
   /** The name of the process whose window is in front; null where the means cannot tell. */
   foreground(): Promise<string | null>;
+  /** The text on the clipboard; null where the means cannot reach it. */
+  clipboard(): Promise<string | null>;
+  /** Puts text on the clipboard, and answers whether the means could. */
+  setClipboard(text: string): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -135,6 +139,11 @@ function hostBackend(processName: string): Backend {
     // A control that cannot take the focus throws, and says so.
     focus: ref => host.request<PatternAnswer>('focus', {ref}),
     foreground: () => host.request<string>('foreground'),
+    clipboard: () => host.request<string>('clipboard'),
+    async setClipboard(text) {
+      await host.request<string>('setClipboard', {text});
+      return true;
+    },
     close: () => host.close(),
   };
 }
@@ -181,10 +190,12 @@ function scriptBackend(processName: string): Backend {
     act: async () => null,
     setValue: async () => null,
     focus: async () => null,
-    // Nor does input.ps1 hold a press or move the pointer alone, or any script read which window is in front.
+    // Nor does input.ps1 hold a press or move the pointer alone, or any script read which window is in front or the clipboard.
     hold: async () => null,
     move: async () => null,
     foreground: async () => null,
+    clipboard: async () => null,
+    setClipboard: async () => false,
     async close() {},
   };
 }
@@ -400,9 +411,17 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
             return await openRoute(request.url);
           case 'foregroundApp': {
             const name = await backend.foreground();
-            if (!name) return cannot(request, 'windows', 'a PowerShell script per step cannot tell which window is in front; the host can');
+            if (!name) return cannot(request, 'windows', CANNOT.windowsForeground);
             return {...ok(`${name} is in front`), value: name};
           }
+          case 'clipboard': {
+            const read = await backend.clipboard();
+            if (read === null) return cannot(request, 'windows', CANNOT.windowsClipboard);
+            return {...ok(`read ${read.length} characters from the clipboard`), value: read};
+          }
+          case 'setClipboard':
+            if (!(await backend.setClipboard(request.text))) return cannot(request, 'windows', CANNOT.windowsClipboard);
+            return ok(`put ${request.text.length} characters on the clipboard`);
           default:
             return failed(`${request.name} is not a control the windows harness knows`, 'INVALID_ARGUMENT');
         }

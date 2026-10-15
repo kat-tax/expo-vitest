@@ -336,18 +336,73 @@ export function installArgs(app: string | undefined, appPath: string, reinstall:
 }
 
 /** An operating-system setting the harness changes through agent-device. */
-export type SettingUpdate = {setting: 'permission'; state: 'grant' | 'deny' | 'reset'; permission: string; app: string} | {setting: 'clear-app-state'; app: string};
+export type SettingUpdate =
+  | {setting: 'permission'; state: 'grant' | 'deny' | 'reset'; permission: string; app: string}
+  | {setting: 'clear-app-state'; app: string}
+  | {setting: 'appearance'; state: 'light' | 'dark'}
+  | {setting: 'wifi' | 'airplane'; state: 'on' | 'off'}
+  | {setting: 'location'; state: 'set'; latitude: number; longitude: number; app?: string}
+  | {setting: 'location'; state: 'off'; app?: string}
+  | {setting: 'faceid' | 'touchid'; state: 'match' | 'nonmatch' | 'enroll' | 'unenroll'}
+  | {setting: 'fingerprint'; state: 'match' | 'nonmatch'};
 
 /** A setting as the command line spells it. */
 export function settingArgs(update: SettingUpdate): string[] {
-  if (update.setting === 'clear-app-state') return ['settings', 'clear-app-state', update.app];
-  return ['settings', 'permission', update.state, update.permission, '--app', update.app];
+  switch (update.setting) {
+    case 'clear-app-state':
+      return ['settings', 'clear-app-state', update.app];
+    case 'permission':
+      return ['settings', 'permission', update.state, update.permission, '--app', update.app];
+    case 'location': {
+      const app = update.app ? ['--app', update.app] : [];
+      return update.state === 'set' ? ['settings', 'location', 'set', String(update.latitude), String(update.longitude), ...app] : ['settings', 'location', 'off', ...app];
+    }
+    default:
+      return ['settings', update.setting, update.state];
+  }
 }
 
-/** A setting as the Node client takes it. */
+/** A setting as the Node client takes it, which is its own spelling but for an app's state cleared. */
 export function settingRequest(update: SettingUpdate): Record<string, unknown> {
   if (update.setting === 'clear-app-state') return {setting: 'clear-app-state', state: 'clear', app: update.app};
-  return {setting: 'permission', state: update.state, permission: update.permission, app: update.app};
+  return {...update};
+}
+
+/** One of agent-device's device commands the controls use. */
+export type DeviceCommand =
+  | {command: 'orientation'; orientation: 'portrait' | 'portrait-upside-down' | 'landscape-left' | 'landscape-right'}
+  | {command: 'fold'; pose: 'closed' | 'half-open' | 'open'}
+  | {command: 'clipboard'; action: 'read'}
+  | {command: 'clipboard'; action: 'write'; text: string}
+  | {command: 'keyboard'; action: 'dismiss'}
+  | {command: 'alert'; action: 'accept' | 'dismiss'};
+
+/** A device command as the command line spells it. */
+export function commandArgs(command: DeviceCommand): string[] {
+  switch (command.command) {
+    case 'orientation':
+      return ['orientation', command.orientation];
+    case 'fold':
+      return ['fold', command.pose];
+    case 'clipboard':
+      return command.action === 'write' ? ['clipboard', 'write', command.text] : ['clipboard', 'read', '--json'];
+    default:
+      return [command.command, command.action];
+  }
+}
+
+/** A device command as the Node client's `command` namespace takes it: the method, and its options. */
+export function commandRequest(command: DeviceCommand): {method: DeviceCommand['command']; options: Record<string, unknown>} {
+  const {command: method, ...options} = command;
+  return {method, options};
+}
+
+/** The text a clipboard read answered with, from the client or the command line. */
+export function clipboardText(payload: unknown): string | null {
+  const answer = payload && typeof payload === 'object' && 'data' in payload ? (payload as {data: unknown}).data : payload;
+  if (!answer || typeof answer !== 'object') return null;
+  const {text} = answer as {text?: unknown};
+  return typeof text === 'string' ? text : null;
 }
 
 /** The app in front, from agent-device's `appstate`: the package on Android, the bundle id or else the name on iOS, and in a phrase. */

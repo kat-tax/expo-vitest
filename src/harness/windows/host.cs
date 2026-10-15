@@ -119,6 +119,8 @@ public static class HarnessHost {
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
       case "idle": return Idle();
       case "foreground": return Json(ProcessName(ForegroundProcess()));
+      case "clipboard": return Json(OnSta(delegate { return System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""; }));
+      case "setClipboard": return SetClipboard(Text(request, "text") ?? "");
       case "raise": return Raise(Text(request, "process"));
       case "invoke": return Act(Text(request, "ref"), "Invoke");
       case "toggle": return Act(Text(request, "ref"), "Toggle");
@@ -543,6 +545,29 @@ public static class HarnessHost {
   /** A process by its name, which says whose window was in the way without reading anything it shows. */
   static string ProcessName(uint pid) {
     try { return Process.GetProcessById((int)pid).ProcessName; } catch { return "another process"; }
+  }
+
+  // The clipboard answers only a thread of a single-threaded apartment, which
+  // the host's own loop need not be, so the work gets one of its own.
+  static string OnSta(Func<string> work) {
+    string answer = null;
+    Exception failure = null;
+    Thread thread = new Thread(delegate () {
+      try { answer = work(); } catch (Exception error) { failure = error; }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join();
+    if (failure != null) throw failure;
+    return answer;
+  }
+
+  static string SetClipboard(string text) {
+    OnSta(delegate {
+      if (text.Length == 0) System.Windows.Forms.Clipboard.Clear(); else System.Windows.Forms.Clipboard.SetText(text);
+      return null;
+    });
+    return Json("put " + text.Length + " characters on the clipboard");
   }
 
   // The process whose window is in front, which keys and a raise go by.

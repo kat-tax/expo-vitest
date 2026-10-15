@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 6 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 7 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -161,6 +161,52 @@ below, the build is what holds.
         background cannot take the foreground.
   - **Not seen:** iOS; `installApp` on a device and on Windows; `openLink`
     on a device and on Windows.
+- **Item 7: the device's settings.**
+  - The fourteen controls of 3.5 go through the same `control` member,
+    with one table: what changes the screen, what each platform lacks and
+    why, and the sensors each platform's simulator or emulator has.
+  - `setClipboard` is journalled by its length, so a trace holds no
+    clipboard.
+  - **agent-device:** a location on Android takes no app, and agent-device
+    refuses one; on an iOS simulator it is the app's.
+  - **On a device without the control,** the call throws with
+    agent-device's reason:
+    - `fold` on a phone that does not fold is `UNSUPPORTED_CAPABILITY`;
+    - `alert` with no alert on the screen is `ACTION_FAILED`.
+    - Item 8's `requires` is how a test steps around them.
+  - **Web:**
+    - `alert` sets how the next dialog is answered;
+    - `dismissKeyboard` blurs what has the focus;
+    - a permission's `reset` clears every grant, since Chromium has no
+      single one to clear.
+  - **Windows:** the host gains `clipboard` and `setClipboard`, on a
+    thread of a single-threaded apartment of their own.
+  - **Seen live:**
+    - Web, nine tests:
+      - appearance and orientation, offline and back;
+      - a grant and its reset, and a skipped deny;
+      - a location and none;
+      - the clipboard, the focus taken off a field;
+      - the next dialog accepted, then one dismissed;
+      - the four web lacks.
+      - The headless shell keeps `Notification.permission` at `denied`,
+        so the page read the Permissions API.
+    - The Android emulator, through the client and the command line:
+      - appearance, orientation, Wi-Fi and airplane mode, each set and put
+        back;
+      - a permission, a location with a negative longitude, and no
+        location;
+      - the fingerprint, and the face ID and enrol skips;
+      - the keyboard dismissed;
+      - the alert and the fold throwing as above.
+      - The emulator's settings were put back after.
+    - Windows: the host read the clipboard, the text unprinted, and the
+      twelve desktop lacks were skipped with their reasons.
+  - **Not seen:**
+    - iOS;
+    - the clipboard written on Windows or Android, since both are, or may
+      be, the machine's own;
+    - a fold on a foldable.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,

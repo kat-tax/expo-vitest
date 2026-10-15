@@ -18,12 +18,14 @@ import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
 import type {Point, Target} from '../lib/snapshot.ts';
 import type {Platform} from '../lib/types.ts';
-import type {AgentFailure, Capabilities, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
+import type {AgentFailure, Capabilities, DeviceCommand, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
 import {
   clientEntry,
   clientTarget,
   cliScript,
   codeFor,
+  commandArgs,
+  commandRequest,
   describeDevice,
   describeFailure,
   installArgs,
@@ -74,6 +76,8 @@ export interface AgentDeviceTransport {
   home(): Promise<void>;
   /** What agent-device says of the app in front; `foregroundOf` reads it. */
   appState(): Promise<unknown>;
+  /** One of the device commands, with what it answered. */
+  command(command: DeviceCommand): Promise<unknown>;
   close(): Promise<void>;
 }
 
@@ -98,7 +102,7 @@ type Call = (options: Record<string, unknown>) => Promise<unknown>;
 interface Client {
   devices: {capabilities: Call};
   apps: {open: Call; install: Call; reinstall: Call};
-  command: {back: Call; home: Call; appState: Call};
+  command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call};
   settings: {update: Call};
   capture: {snapshot: Call; screenshot: Call};
   interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call};
@@ -238,6 +242,10 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     appState() {
       return call(signal => client.command.appState({...select, signal}), 'ACTION_FAILED');
     },
+    command(command) {
+      const {method, options: given} = commandRequest(command);
+      return call(signal => client.command[method]({...select, ...given, signal}), 'ACTION_FAILED');
+    },
     async close() {
       await call(signal => client.sessions.close({signal}), 'ACTION_FAILED', 10_000).catch(() => {});
     },
@@ -311,6 +319,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async appState() {
       return parsePayload(await agent(['appstate', '--json'], 'ACTION_FAILED'));
+    },
+    async command(command) {
+      return parsePayload(await agent(commandArgs(command), 'ACTION_FAILED'));
     },
     async close() {
       await agent(['close'], 'ACTION_FAILED', 60_000).catch(() => {});

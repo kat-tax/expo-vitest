@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -298,6 +298,45 @@ describe('real snapshots', () => {
     const nodes = fixture('android-display.json');
     expect(nodes.find(node => node.role === 'android.widget.Switch')).toMatchObject({name: 'Dark theme', checked: false});
     expect(nodes.filter(node => 'selected' in node)).toEqual([]);
+  });
+});
+
+describe("the device's settings through agent-device", () => {
+  it('spells each setting for the command line, and hands the client its own spelling', () => {
+    const updates = [
+      [{setting: 'appearance', state: 'dark'}, ['settings', 'appearance', 'dark']],
+      [{setting: 'wifi', state: 'off'}, ['settings', 'wifi', 'off']],
+      [{setting: 'airplane', state: 'on'}, ['settings', 'airplane', 'on']],
+      [{setting: 'location', state: 'set', latitude: 51.5, longitude: -0.12}, ['settings', 'location', 'set', '51.5', '-0.12']],
+      [{setting: 'location', state: 'set', latitude: 1, longitude: 2, app: 'com.example.app'}, ['settings', 'location', 'set', '1', '2', '--app', 'com.example.app']],
+      [{setting: 'location', state: 'off'}, ['settings', 'location', 'off']],
+      [{setting: 'location', state: 'off', app: 'com.example.app'}, ['settings', 'location', 'off', '--app', 'com.example.app']],
+      [{setting: 'faceid', state: 'enroll'}, ['settings', 'faceid', 'enroll']],
+      [{setting: 'fingerprint', state: 'nonmatch'}, ['settings', 'fingerprint', 'nonmatch']],
+    ] as const;
+    for (const [update, args] of updates) {
+      expect(settingArgs(update)).toEqual(args);
+      expect(settingRequest(update)).toEqual(update);
+    }
+  });
+
+  it('spells each device command for the command line, and as the client method and its options', () => {
+    expect(commandArgs({command: 'orientation', orientation: 'landscape-left'})).toEqual(['orientation', 'landscape-left']);
+    expect(commandArgs({command: 'fold', pose: 'half-open'})).toEqual(['fold', 'half-open']);
+    expect(commandArgs({command: 'clipboard', action: 'read'})).toEqual(['clipboard', 'read', '--json']);
+    expect(commandArgs({command: 'clipboard', action: 'write', text: 'a b'})).toEqual(['clipboard', 'write', 'a b']);
+    expect(commandArgs({command: 'keyboard', action: 'dismiss'})).toEqual(['keyboard', 'dismiss']);
+    expect(commandArgs({command: 'alert', action: 'accept'})).toEqual(['alert', 'accept']);
+    expect(commandRequest({command: 'fold', pose: 'open'})).toEqual({method: 'fold', options: {pose: 'open'}});
+    expect(commandRequest({command: 'clipboard', action: 'write', text: 'x'})).toEqual({method: 'clipboard', options: {action: 'write', text: 'x'}});
+  });
+
+  it('reads the clipboard from what the command line and the client answer', () => {
+    expect(clipboardText({success: true, data: {action: 'read', text: 'copied'}})).toBe('copied');
+    expect(clipboardText({action: 'read', text: ''})).toBe('');
+    expect(clipboardText({action: 'write', textLength: 3})).toBeNull();
+    expect(clipboardText({data: 'text'})).toBeNull();
+    expect(clipboardText(null)).toBeNull();
   });
 });
 

@@ -3,12 +3,12 @@ import {HarnessError, codeOf} from '../lib/errors.ts';
 import {prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
-import {describeControl, needsApp} from '../lib/controls.ts';
+import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -62,6 +62,9 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)`, {platform});
     return node;
   }
+
+  /** The app a location is for: on an iOS simulator the app's own, and on Android the device's, which takes none. */
+  const locationApp = (bundleId?: string): {app?: string} => (platform === 'ios' && bundleId ? {app: bundleId} : {});
 
   return {
     platform,
@@ -155,6 +158,8 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     },
 
     async control(request: ControlRequest): Promise<ControlResult> {
+      const lacks = lacking(request, platform);
+      if (lacks) return lacks;
       const app = options.app ?? {};
       try {
         const current = await transport();
@@ -191,6 +196,57 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
             const front = foregroundOf(await current.appState());
             return front ? {...ok(`${front.said} is in front`), value: front.app} : failed('agent-device did not say which app is in front');
           }
+          case 'setAppearance':
+            await current.setting({setting: 'appearance', state: request.mode});
+            return ok(`set the appearance to ${request.mode}`);
+          case 'setOrientation':
+            await current.command({command: 'orientation', orientation: request.orientation});
+            return ok(`turned the device to ${request.orientation}`);
+          case 'setNetwork':
+            // agent-device turns Wi-Fi on and off, so an emulator on mobile data alone stays online.
+            await current.setting({setting: 'wifi', state: request.online ? 'on' : 'off'});
+            return ok(`turned Wi-Fi ${request.online ? 'on' : 'off'}`);
+          case 'setAirplaneMode':
+            await current.setting({setting: 'airplane', state: request.on ? 'on' : 'off'});
+            return ok(`turned airplane mode ${request.on ? 'on' : 'off'}`);
+          case 'setPermission':
+            if (!app.bundleId) return failed(needsApp('setPermission', platform, 'bundleId'), 'INVALID_ARGUMENT');
+            await current.setting({setting: 'permission', state: request.state, permission: request.permission, app: app.bundleId});
+            return ok(`set ${request.permission} to ${request.state} for ${app.bundleId}`);
+          case 'setLocation':
+            await current.setting({setting: 'location', state: 'set', latitude: request.latitude, longitude: request.longitude, ...locationApp(app.bundleId)});
+            return ok(`put the device at ${request.latitude},${request.longitude}`);
+          case 'clearLocation':
+            await current.setting({setting: 'location', state: 'off', ...locationApp(app.bundleId)});
+            return ok('turned the location off');
+          case 'setBiometrics': {
+            const other = otherSensor(platform, request.sensor);
+            if (other) return cannot(request, platform, other);
+            await current.setting(request.sensor === 'fingerprint' ? {setting: 'fingerprint', state: request.result} : {setting: request.sensor, state: request.result});
+            return ok(`answered ${request.sensor} with a ${request.result}`);
+          }
+          case 'enrollBiometrics': {
+            const other = otherSensor(platform, request.sensor);
+            if (other) return cannot(request, platform, other);
+            await current.setting({setting: request.sensor, state: request.enrolled ? 'enroll' : 'unenroll'});
+            return ok(`${request.enrolled ? 'enrolled' : 'unenrolled'} ${request.sensor}`);
+          }
+          case 'fold':
+            await current.command({command: 'fold', pose: request.pose});
+            return ok(`put the device in the ${request.pose} pose`);
+          case 'clipboard': {
+            const text = clipboardText(await current.command({command: 'clipboard', action: 'read'}));
+            return text === null ? failed('agent-device did not answer with the clipboard') : {...ok(`read ${text.length} characters from the clipboard`), value: text};
+          }
+          case 'setClipboard':
+            await current.command({command: 'clipboard', action: 'write', text: request.text});
+            return ok(`put ${request.text.length} characters on the clipboard`);
+          case 'dismissKeyboard':
+            await current.command({command: 'keyboard', action: 'dismiss'});
+            return ok('dismissed the keyboard');
+          case 'alert':
+            await current.command({command: 'alert', action: request.action});
+            return ok(`${request.action === 'accept' ? 'accepted' : 'dismissed'} the alert`);
         }
       } catch (error) {
         return failed(`${describeControl(request)} failed: ${(error as Error).message}`, codeOf(error));

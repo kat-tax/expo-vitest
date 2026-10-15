@@ -290,7 +290,17 @@ export function webDriver(options: DriverOptions): Driver {
   interface Context {
     newPage(): Promise<Page>;
     close(): Promise<void>;
+    setOffline(offline: boolean): Promise<void>;
+    grantPermissions(permissions: string[]): Promise<void>;
+    clearPermissions(): Promise<void>;
+    setGeolocation(where: {latitude: number; longitude: number} | null): Promise<void>;
   }
+  interface Dialog {
+    accept(): Promise<void>;
+    dismiss(): Promise<void>;
+  }
+  /** What the next dialog the page opens is answered with; Playwright decides one as it opens. */
+  let nextDialog: 'accept' | 'dismiss' = 'dismiss';
 
   interface Locator {
     click(o?: unknown): Promise<void>;
@@ -307,10 +317,14 @@ export function webDriver(options: DriverOptions): Driver {
     evaluate<T>(fn: string): Promise<T>;
     on(event: 'console', listener: (message: {type(): string; text(): string}) => void): void;
     on(event: 'pageerror', listener: (error: Error) => void): void;
+    on(event: 'dialog', listener: (dialog: Dialog) => void): void;
     goBack(o?: unknown): Promise<unknown>;
     url(): string;
     title(): Promise<string>;
     context(): Context;
+    emulateMedia(o: {colorScheme: 'light' | 'dark'}): Promise<void>;
+    viewportSize(): {width: number; height: number} | null;
+    setViewportSize(size: {width: number; height: number}): Promise<void>;
   }
 
   function playwright() {
@@ -349,6 +363,11 @@ export function webDriver(options: DriverOptions): Driver {
     });
     fresh.on('pageerror', error => {
       for (const listener of listeners) listener('uncaught', error.message);
+    });
+    fresh.on('dialog', dialog => {
+      const answer = nextDialog;
+      nextDialog = 'dismiss';
+      void (answer === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
     });
     return fresh;
   }
@@ -527,6 +546,72 @@ export function webDriver(options: DriverOptions): Driver {
             const url = current.url();
             return {...ok(`${JSON.stringify(await current.title())} at ${url}`), value: url};
           }
+          case 'setAppearance': {
+            const current = await open();
+            lastRead = null;
+            await current.emulateMedia({colorScheme: request.mode});
+            return ok(`set the page's colour scheme to ${request.mode}`);
+          }
+          case 'setOrientation': {
+            // A browser has no orientation, but its viewport turns: the long side across or down.
+            const current = await open();
+            const size = current.viewportSize() ?? {width: 1280, height: 900};
+            const long = Math.max(size.width, size.height);
+            const short = Math.min(size.width, size.height);
+            const portrait = request.orientation.startsWith('portrait');
+            lastRead = null;
+            await current.setViewportSize(portrait ? {width: short, height: long} : {width: long, height: short});
+            return ok(`turned the viewport to ${portrait ? `${short} by ${long}` : `${long} by ${short}`}`);
+          }
+          case 'setNetwork': {
+            const current = await open();
+            await current.context().setOffline(!request.online);
+            return ok(`took the page ${request.online ? 'online' : 'offline'}`);
+          }
+          case 'setPermission': {
+            if (request.state === 'deny') return cannot(request, 'web', CANNOT.webDeny);
+            const current = await open();
+            if (request.state === 'reset') {
+              await current.context().clearPermissions();
+              return ok('cleared every permission the browser context was granted');
+            }
+            const [granted] = webGrants({[request.permission]: 'grant'});
+            if (!granted) return cannot(request, 'web', CANNOT.webPermission);
+            await current.context().grantPermissions([granted]);
+            return ok(`granted ${granted}`);
+          }
+          case 'setLocation': {
+            const current = await open();
+            await current.context().grantPermissions(['geolocation']);
+            await current.context().setGeolocation({latitude: request.latitude, longitude: request.longitude});
+            return ok(`put the page at ${request.latitude},${request.longitude}`);
+          }
+          case 'clearLocation': {
+            const current = await open();
+            await current.context().setGeolocation(null);
+            return ok('the page has no location to read now');
+          }
+          case 'clipboard': {
+            const current = await open();
+            await current.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+            const read = await current.evaluate<string>('navigator.clipboard.readText()');
+            return {...ok(`read ${read.length} characters from the clipboard`), value: read};
+          }
+          case 'setClipboard': {
+            const current = await open();
+            await current.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+            await current.evaluate(`navigator.clipboard.writeText(${JSON.stringify(request.text)})`);
+            return ok(`put ${request.text.length} characters on the clipboard`);
+          }
+          case 'dismissKeyboard': {
+            const current = await open();
+            lastRead = null;
+            await current.evaluate('document.activeElement instanceof HTMLElement && document.activeElement.blur()');
+            return ok('took the focus off what had it');
+          }
+          case 'alert':
+            nextDialog = request.action;
+            return ok(`the next dialog will be ${request.action === 'accept' ? 'accepted' : 'dismissed'}`);
           default:
             return failed(`${request.name} is not a control the web harness knows`, 'INVALID_ARGUMENT');
         }

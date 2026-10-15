@@ -591,6 +591,20 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(device.openLink).toEqualTypeOf<(url: string) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.foregroundApp).toEqualTypeOf<() => Promise<string | null>>();
     expectTypeOf(device.lastSkip).toEqualTypeOf<string | null>();
+    expectTypeOf(device.setAppearance).toEqualTypeOf<(mode: 'light' | 'dark') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setOrientation).toEqualTypeOf<(orientation: 'portrait' | 'portrait-upside-down' | 'landscape-left' | 'landscape-right') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setNetwork).toEqualTypeOf<(state: 'online' | 'offline') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setAirplaneMode).toEqualTypeOf<(on: boolean) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setPermission).toEqualTypeOf<(permission: string, state: 'grant' | 'deny' | 'reset') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setLocation).toEqualTypeOf<(where: {latitude: number; longitude: number}) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.clearLocation).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.setBiometrics).toEqualTypeOf<(sensor: 'faceid' | 'touchid' | 'fingerprint', result: 'match' | 'nonmatch') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.enrollBiometrics).toEqualTypeOf<(sensor: 'faceid' | 'touchid', enrolled: boolean) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.fold).toEqualTypeOf<(pose: 'closed' | 'half-open' | 'open') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.clipboard).toEqualTypeOf<() => Promise<string | null>>();
+    expectTypeOf(device.setClipboard).toEqualTypeOf<(text: string) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.dismissKeyboard).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.alert).toEqualTypeOf<(action: 'accept' | 'dismiss') => Promise<'done' | 'skipped'>>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();

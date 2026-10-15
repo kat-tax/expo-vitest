@@ -43,7 +43,13 @@ export function elsewhere(what: string, platform: Platform, note = ''): StepResu
   return {ok: true, skipped: true, message: `${what} is not something the ${platform} harness can do${note ? `: ${note}` : ''}`};
 }
 
-/** A step in the app's life, by name, with what it takes. */
+/** Which way up a device is. */
+export type Orientation = 'portrait' | 'portrait-upside-down' | 'landscape-left' | 'landscape-right';
+
+/** What a permission is set to. */
+export type PermissionState = 'grant' | 'deny' | 'reset';
+
+/** A step in the app's life, or a setting of the device it runs on, by name, with what it takes. */
 export type ControlRequest =
   | {name: 'restart'}
   | {name: 'clearState'}
@@ -51,7 +57,21 @@ export type ControlRequest =
   | {name: 'home'}
   | {name: 'installApp'; path?: string; reinstall?: boolean}
   | {name: 'openLink'; url: string}
-  | {name: 'foregroundApp'};
+  | {name: 'foregroundApp'}
+  | {name: 'setAppearance'; mode: 'light' | 'dark'}
+  | {name: 'setOrientation'; orientation: Orientation}
+  | {name: 'setNetwork'; online: boolean}
+  | {name: 'setAirplaneMode'; on: boolean}
+  | {name: 'setPermission'; permission: string; state: PermissionState}
+  | {name: 'setLocation'; latitude: number; longitude: number}
+  | {name: 'clearLocation'}
+  | {name: 'setBiometrics'; sensor: 'faceid' | 'touchid' | 'fingerprint'; result: 'match' | 'nonmatch'}
+  | {name: 'enrollBiometrics'; sensor: 'faceid' | 'touchid'; enrolled: boolean}
+  | {name: 'fold'; pose: 'closed' | 'half-open' | 'open'}
+  | {name: 'clipboard'}
+  | {name: 'setClipboard'; text: string}
+  | {name: 'dismissKeyboard'}
+  | {name: 'alert'; action: 'accept' | 'dismiss'};
 
 export type ControlName = ControlRequest['name'];
 
@@ -69,7 +89,7 @@ export interface AppOptions {
   /** What every fresh launch is given: process arguments on iOS, extras on Android, the exe's arguments on Windows. */
   launchArguments?: string[];
   /** Set before each fresh launch on iOS and Android, and granted on web. */
-  permissions?: Record<string, 'grant' | 'deny' | 'reset'>;
+  permissions?: Record<string, PermissionState>;
   /** Windows: the folder `clearState` deletes. */
   stateDir?: string;
 }

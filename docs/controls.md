@@ -3,8 +3,10 @@
 [Docs home](README.md)
 
 A device test can start the app again, clear what it kept, go back or home,
-install a build, open a link, and ask which app is in front. Each is a method
-of `device`, and each runs on every platform. A platform with no counterpart
+install a build, open a link, and ask which app is in front. It can also set
+the device: its appearance, orientation and network, a permission, its
+location, biometrics, a fold, the clipboard, the keyboard and an alert. Each
+is a method of `device`, and each runs on every platform. A platform with no counterpart
 for one answers `'skipped'` rather than failing, and `device.lastSkip` says
 why, so one test runs on all four platforms and says what it could not do.
 
@@ -35,6 +37,48 @@ throws a `HarnessError` as any step does. A restart needs
 `app.<platform>.bundleId` on a device and the exe as the target on Windows,
 and an install needs a build, and each says so when the harness config has
 none.
+
+## The device's settings
+
+None of these puts itself back. A test that changes one changes it back in
+`afterEach`, or the next test starts where it left off:
+
+```ts
+afterEach(async () => {
+  await device.setAppearance('light');
+  await device.setNetwork('online');
+});
+```
+
+| `device.` | iOS and Android | Web | Windows |
+| --- | --- | --- | --- |
+| `setAppearance('light' \| 'dark')` | The system's appearance | The page's colour scheme | Skipped: the app follows the Windows theme, which is the whole machine's |
+| `setOrientation(orientation)` | The device turned to `portrait`, `portrait-upside-down`, `landscape-left` or `landscape-right` | The viewport turned, its long side down for a portrait | Skipped |
+| `setNetwork('online' \| 'offline')` | Android: Wi-Fi on or off, which leaves mobile data alone. iOS: skipped, since the simulator shares the Mac's network | The browser context online or offline | Skipped |
+| `setAirplaneMode(on)` | Android: airplane mode. iOS: skipped | Skipped | Skipped |
+| `setPermission(name, state)` | The app's permission set to `grant`, `deny` or `reset` | `grant` granted to the context, and `reset` clears every grant. `deny` is skipped | Skipped |
+| `setLocation({latitude, longitude})` | Where the device says it is | Where the page's geolocation says it is, with the permission granted | Skipped |
+| `clearLocation()` | Location off: on Android for the whole device, on an iOS simulator for the app | No position for the page to read | Skipped |
+| `setBiometrics(sensor, result)` | The next prompt answered with a `match` or a `nonmatch`: `faceid` or `touchid` on an iOS simulator, `fingerprint` on an Android emulator. Another sensor is skipped | Skipped | Skipped |
+| `enrollBiometrics(sensor, enrolled)` | iOS simulator: Face ID or Touch ID enrolled or not. Android: skipped | Skipped | Skipped |
+| `fold(pose)` | A foldable simulator or emulator put `closed`, `half-open` or `open` | Skipped | Skipped |
+| `clipboard()`, `setClipboard(text)` | The device's clipboard | The browser's own clipboard | The machine's clipboard, through the host |
+| `dismissKeyboard()` | The keyboard on the screen put away | The focus taken off what had it | Skipped |
+| `alert('accept' \| 'dismiss')` | The system alert on the screen answered | The next dialog the page opens answered, since a browser decides one as it opens | Skipped: a WinUI dialog is in the tree, so press its button by its label |
+
+Where the platform has a control but the device does not, the call throws
+with agent-device's reason: `fold` on a phone that does not fold is
+`UNSUPPORTED_CAPABILITY`, and `alert` with no alert on the screen is
+`ACTION_FAILED`.
+
+What goes on the clipboard is not written to the [trace](evidence.md): the
+step says how many characters. On Windows the clipboard is the machine's, and
+an Android emulator may share its clipboard with the machine it runs on, so a
+test that sets it replaces what someone copied.
+
+The headless Chromium has no notifications, so `Notification.permission`
+stays `denied` whatever is granted. A page that asks
+`navigator.permissions.query` sees the grant.
 
 ## A fresh launch
 

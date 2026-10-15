@@ -24,7 +24,7 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import {describeControl} from '../harness/lib/controls.ts';
-import type {AppOptions, ControlRequest, ControlResult, Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {AppOptions, ControlRequest, ControlResult, Driver, FillOptions, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 import {elsewhere} from '../harness/lib/types.ts';
 import type {AppConfig, CommandConfig, HarnessConfig, Permission} from './config.ts';
 import {configFromRun, currentRun, defineHarness} from './config.ts';
@@ -42,7 +42,7 @@ import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './s
 import {queriesOn, scopeOf} from './screen.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
-export type {AppConfig, CommandConfig, HarnessConfig, Permission};
+export type {AppConfig, CommandConfig, HarnessConfig, Orientation, Permission};
 export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
@@ -319,6 +319,81 @@ class Device {
   async foregroundApp(): Promise<string | null> {
     const result = await this.control({name: 'foregroundApp'});
     return result.skipped ? null : (result.value ?? null);
+  }
+
+  /*
+   * The device's settings. None of them puts itself back: a test that
+   * changes one changes it back in `afterEach`, or the next test starts
+   * where it left off.
+   */
+
+  /** Light or dark, as the system's appearance on a device and the page's colour scheme on web. */
+  async setAppearance(mode: 'light' | 'dark'): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setAppearance', mode}));
+  }
+
+  /** Which way up the device is; on web, the viewport turned to match. */
+  async setOrientation(orientation: Orientation): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setOrientation', orientation}));
+  }
+
+  /** The app on or off the network: Wi-Fi on Android, the browser context on web. */
+  async setNetwork(state: 'online' | 'offline'): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setNetwork', online: state === 'online'}));
+  }
+
+  async setAirplaneMode(on: boolean): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setAirplaneMode', on}));
+  }
+
+  /** One of the app's permissions, by agent-device's name for it: `camera`, `location`, `notifications`. */
+  async setPermission(permission: string, state: PermissionState): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setPermission', permission, state}));
+  }
+
+  /** Where the device says it is. */
+  async setLocation(where: {latitude: number; longitude: number}): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setLocation', latitude: where.latitude, longitude: where.longitude}));
+  }
+
+  /** No location to read: off on a device, unavailable to the page on web. */
+  async clearLocation(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'clearLocation'}));
+  }
+
+  /** The answer the next biometric prompt gets: Face ID or Touch ID on an iOS simulator, a fingerprint on an Android emulator. */
+  async setBiometrics(sensor: 'faceid' | 'touchid' | 'fingerprint', result: 'match' | 'nonmatch'): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setBiometrics', sensor, result}));
+  }
+
+  /** Whether an iOS simulator has Face ID or Touch ID enrolled. */
+  async enrollBiometrics(sensor: 'faceid' | 'touchid', enrolled: boolean): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'enrollBiometrics', sensor, enrolled}));
+  }
+
+  /** A foldable simulator or emulator put in a pose. */
+  async fold(pose: 'closed' | 'half-open' | 'open'): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'fold', pose}));
+  }
+
+  /** The text on the clipboard, or null where it cannot be read. What it held is not written to the trace. */
+  async clipboard(): Promise<string | null> {
+    const result = await this.control({name: 'clipboard'});
+    return result.skipped ? null : (result.value ?? null);
+  }
+
+  async setClipboard(text: string): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'setClipboard', text}));
+  }
+
+  /** The keyboard on the screen put away; on web, the focus taken off the field. */
+  async dismissKeyboard(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'dismissKeyboard'}));
+  }
+
+  /** The system alert accepted or dismissed. On web, the next dialog the page opens, since a browser decides one as it opens. */
+  async alert(action: 'accept' | 'dismiss'): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'alert', action}));
   }
 
   async close(): Promise<void> {

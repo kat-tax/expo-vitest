@@ -16,6 +16,20 @@ export const CHANGES_SCREEN: Record<ControlName, boolean> = {
   installApp: false,
   openLink: true,
   foregroundApp: false,
+  setAppearance: true,
+  setOrientation: true,
+  setNetwork: false,
+  setAirplaneMode: false,
+  setPermission: false,
+  setLocation: false,
+  clearLocation: false,
+  setBiometrics: false,
+  enrollBiometrics: false,
+  fold: true,
+  clipboard: false,
+  setClipboard: false,
+  dismissKeyboard: true,
+  alert: true,
 };
 
 /** Why a platform has no counterpart for a control at all. */
@@ -23,13 +37,34 @@ export const LACKS: Record<Platform, Partial<Record<ControlName, string>>> = {
   web: {
     home: 'a browser has no home screen',
     installApp: 'nothing is installed in a browser',
+    setAirplaneMode: 'a browser has no airplane mode; setNetwork takes the page offline',
+    setBiometrics: 'a browser has no biometric sensor to answer',
+    enrollBiometrics: 'a browser has no biometric sensor to enroll',
+    fold: 'a browser window does not fold',
   },
   windows: {
     back: "react-native-windows has no system back; press the app's own back control",
     home: 'Windows has no home screen to send an app to',
+    setAppearance: "the app follows the Windows theme, which is the whole machine's",
+    setOrientation: 'a desktop window has no orientation',
+    setNetwork: "the network is the whole machine's",
+    setAirplaneMode: "airplane mode is the whole machine's",
+    setPermission: 'a desktop app asks Windows for what it needs, which a test does not answer',
+    setLocation: "the location is the whole machine's",
+    clearLocation: "the location is the whole machine's",
+    setBiometrics: 'Windows Hello is not something a test answers',
+    enrollBiometrics: 'Windows Hello is not something a test answers',
+    fold: 'a desktop window does not fold',
+    dismissKeyboard: 'a desktop has no keyboard on the screen to dismiss',
+    alert: 'a WinUI dialog is in the tree: press its button by its label',
   },
-  android: {},
-  ios: {},
+  android: {
+    enrollBiometrics: "an emulator's fingerprint is enrolled in its own settings",
+  },
+  ios: {
+    setNetwork: "the simulator shares the Mac's network",
+    setAirplaneMode: 'the simulator has no airplane mode',
+  },
 };
 
 /** Why a platform cannot do a control it has, for this request or this app. */
@@ -37,13 +72,53 @@ export const CANNOT = {
   webLink: 'a browser here opens only http and https links',
   windowsState: 'it deletes the folder app.windows.stateDir names, and the harness config names none',
   windowsInstall: 'only an .msix is installed on Windows',
+  webDeny: 'Chromium has no deny through Playwright; reset clears what was granted',
+  webPermission: 'Chromium has no permission of that name',
+  windowsClipboard: 'a PowerShell script per step cannot reach the clipboard; the host can',
+  windowsForeground: 'a PowerShell script per step cannot tell which window is in front; the host can',
 } as const;
 
-/** A control as the journal names it. */
+/** The biometric sensors a platform's simulator or emulator has. */
+export const SENSORS: Partial<Record<Platform, string[]>> = {ios: ['faceid', 'touchid'], android: ['fingerprint']};
+
+/** Why a platform cannot answer for a sensor, where it has another. */
+export function otherSensor(platform: Platform, sensor: string): string | null {
+  const sensors = SENSORS[platform];
+  return sensors && !sensors.includes(sensor) ? `the ${platform} sensor is ${sensors.join(' or ')}, not ${sensor}` : null;
+}
+
+/** A control as the journal names it. What goes on the clipboard is left out, since a trace is kept and shared. */
 export function describeControl(request: ControlRequest): string {
-  if (request.name === 'installApp') return `installApp${request.reinstall ? ', again,' : ''}${request.path ? ` from ${request.path}` : ''}`;
-  if (request.name === 'openLink') return `openLink ${request.url}`;
-  return request.name;
+  switch (request.name) {
+    case 'installApp':
+      return `installApp${request.reinstall ? ', again,' : ''}${request.path ? ` from ${request.path}` : ''}`;
+    case 'openLink':
+      return `openLink ${request.url}`;
+    case 'setAppearance':
+      return `setAppearance ${request.mode}`;
+    case 'setOrientation':
+      return `setOrientation ${request.orientation}`;
+    case 'setNetwork':
+      return `setNetwork ${request.online ? 'online' : 'offline'}`;
+    case 'setAirplaneMode':
+      return `setAirplaneMode ${request.on ? 'on' : 'off'}`;
+    case 'setPermission':
+      return `setPermission ${request.permission} ${request.state}`;
+    case 'setLocation':
+      return `setLocation ${request.latitude},${request.longitude}`;
+    case 'setBiometrics':
+      return `setBiometrics ${request.sensor} ${request.result}`;
+    case 'enrollBiometrics':
+      return `enrollBiometrics ${request.sensor} ${request.enrolled ? 'enrolled' : 'not enrolled'}`;
+    case 'fold':
+      return `fold ${request.pose}`;
+    case 'setClipboard':
+      return `setClipboard, ${request.text.length} characters`;
+    case 'alert':
+      return `alert ${request.action}`;
+    default:
+      return request.name;
+  }
 }
 
 /** The answer of a platform with no counterpart for a control, or null where it has one. */
