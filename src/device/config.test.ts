@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {HarnessConfig} from './config.ts';
-import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, loadHarnessSync, poolSize, portOf, requiresDriver, resolveRun, runId, sameConfig, serialisable, setRun, validate} from './config.ts';
+import {configFromRun, currentHarness, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, loadHarnessSync, poolSize, portOf, requiresDriver, resolveRun, runId, sameConfig, serialisable, setHarness, setRun, validate} from './config.ts';
 
 const root = path.resolve('/project');
 const at = (...parts: string[]) => path.join(root, ...parts);
@@ -114,16 +114,16 @@ describe('checking it', () => {
   });
 
   it('names a key it does not take, and what it takes', () => {
-    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video, poolTimeout');
+    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video, poolTimeout, agents, secrets, cache');
     expect(failure({app: {macos: {}}})).toBe('harness.config.ts: app.macos is not something a harness config takes here; it takes web, windows, android, ios');
     expect(failure({app: {web: {port: 1}}})).toMatch(/^harness\.config\.ts: app\.web\.port is not something .* it takes url, target, device,/);
     expect(failure({app: {web: {command: {executable: 'npx', shell: true}}}})).toMatch(/^harness\.config\.ts: app\.web\.command\.shell is not something/);
   });
 
-  it("refuses the agent's keys by name rather than ignoring them", () => {
-    for (const key of ['agents', 'tools', 'secrets', 'cache']) {
-      expect(failure({[key]: {}})).toBe(`harness.config.ts: ${key} is kept for the agent, which this version does not have`);
-    }
+  it("takes the agent's keys at the root, checked by the agent, and tools only within an agent", () => {
+    expect(validate({agents: {default: {maxSteps: 10}}, secrets: {ADA_PASSWORD: 'correct horse'}, cache: 'off'})).toBeTruthy();
+    expect(failure({agents: {default: {maxSteps: 0}}})).toBe('harness.config.ts: agents.default.maxSteps is 0; it takes a whole number from 1 to 100');
+    expect(failure({tools: []})).toMatch(/^harness\.config\.ts: tools is not something a harness config takes here; it takes app, /);
     expect(failure({app: {web: {cache: 'off'}}})).toMatch(/^harness\.config\.ts: app\.web\.cache is not something/);
   });
 
@@ -360,6 +360,18 @@ describe('what crosses to the workers', () => {
     expect(serialisable({app: {web: {launchArguments: ['b', 'a']}}}).hash).not.toBe(serialisable({app: {web: {launchArguments: ['a', 'b']}}}).hash);
   });
 
+  it("names an instance of a class rather than walking it, as a model's client or a tool's schema can be, which may hold a key or itself", () => {
+    class Client {
+      apiKey = 'sk-ant-secret';
+      self: Client = this;
+    }
+    const model = {id: 'claude-opus-5-5', client: new Client(), complete: () => Promise.resolve()};
+    const plain = Object.assign(Object.create(null) as object, {mode: 'off'});
+    const {value} = serialisable({agents: {default: {model: model as never}}, cache: plain as never});
+    expect(value).toEqual({agents: {default: {model: {client: '[Client]', id: 'claude-opus-5-5'}}}, cache: {mode: 'off'}});
+    expect(serialisable({agents: {default: {model: {...model, client: Object.create(Object.create(null) as object) as never} as never}}}).value).toEqual({agents: {default: {model: {client: '[object]', id: 'claude-opus-5-5'}}}});
+  });
+
   it('is null with no file, which hashes too', () => {
     expect(serialisable(null)).toEqual({value: null, hash: expect.stringMatching(/^[0-9a-f]{40}$/)});
   });
@@ -448,5 +460,17 @@ describe("the run's id", () => {
     expect(id).toBe('2026-10-15T07-31-02-345Z-a1b2c3');
     expect(runId(store, new Date('2027-01-01T00:00:00.000Z'), () => 'ffffff')).toBe(id);
     expect(runId({})).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{6}$/);
+  });
+});
+
+describe("the config the agent reads", () => {
+  it('is what the setup file loaded, kept on the store it is given, null for no file, and undefined before any', () => {
+    const store = {};
+    expect(currentHarness(store)).toBeUndefined();
+    const config = {agents: {default: {}}};
+    setHarness(config, store);
+    expect(currentHarness(store)).toBe(config);
+    setHarness(null, store);
+    expect(currentHarness(store)).toBeNull();
   });
 });

@@ -12,7 +12,7 @@ import {pathToFileURL} from 'node:url';
 import {afterAll, beforeEach, expect, inject} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {rememberFacts} from './capabilities.ts';
-import {loadHarness, requiresDriver, resolveRun, sameConfig, setRun} from './config.ts';
+import {loadHarness, requiresDriver, resolveRun, sameConfig, setHarness, setRun} from './config.ts';
 import {device} from './index.ts';
 import './provided.ts';
 
@@ -20,6 +20,8 @@ const platform = inject('harness.platform');
 const file = inject('harness.file');
 const config = await loadHarness(file, each => import(/* @vite-ignore */ pathToFileURL(each).href));
 sameConfig(config, inject('harness.config'), file);
+// The agent's models and tools are functions, which only this load of the file has.
+setHarness(config);
 // The run's id and the file name a pool's claim by, so files spread over its devices.
 setRun({...resolveRun(platform, config, process.env, inject('harness.root')), runId: inject('harness.runId'), ...testFileOf(expect.getState().testPath)});
 

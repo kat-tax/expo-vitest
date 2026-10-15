@@ -21,6 +21,8 @@ import {createHash, randomBytes} from 'node:crypto';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
 import path from 'node:path';
+import type {HarnessAgents} from '../agent/config.ts';
+import {checkAgentKeys} from '../agent/config.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {DEFAULT_TIMING} from '../harness/lib/settle.ts';
 import type {HostedDevice, Platform} from '../harness/lib/types.ts';
@@ -84,7 +86,7 @@ export interface AppConfig {
   workers?: number;
 }
 
-export interface HarnessConfig {
+export interface HarnessConfig extends HarnessAgents {
   app?: Partial<Record<Platform, AppConfig>>;
   /** How long an action looks for its node and a matcher waits, in ms. 5 s. */
   assertionTimeout?: number;
@@ -166,10 +168,7 @@ export function poolSize(platform: Platform, config: HarnessConfig | null, envir
   return app?.devices?.length ?? 1;
 }
 
-/** The keys a later version gives meaning, refused by name until then, so a config written for them is not quietly ignored. */
-const RESERVED = ['agents', 'tools', 'secrets', 'cache'];
-
-const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video', 'poolTimeout'];
+const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video', 'poolTimeout', 'agents', 'secrets', 'cache'];
 const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'command', 'readyUrl', 'devices', 'workers'];
 const COMMAND_KEYS = ['executable', 'args', 'cwd', 'env', 'startupTimeout', 'shutdownTimeout', 'log', 'reuseExisting'];
 
@@ -237,7 +236,6 @@ function checkObject(value: unknown, where: string, keys: string[], checks: Reco
   if (!isObject(value)) throw new HarnessError('INVALID_CONFIG', `${file}: ${where || 'the default export'} is ${shown(value)}; it takes an object`);
   for (const [key, field] of Object.entries(value)) {
     const at = where ? `${where}.${key}` : key;
-    if (!where && RESERVED.includes(key)) throw new HarnessError('INVALID_CONFIG', `${file}: ${key} is kept for the agent, which this version does not have`);
     if (!keys.includes(key)) throw new HarnessError('INVALID_CONFIG', `${file}: ${at} is not something a harness config takes here; it takes ${keys.join(', ')}`);
     if (field === undefined) continue;
     const wrong = checks[key]?.(field);
@@ -248,6 +246,8 @@ function checkObject(value: unknown, where: string, keys: string[], checks: Reco
 /** A loaded config, checked: every key known and every value of its kind, or the error naming the first that is not. */
 export function validate(value: unknown, file = 'harness.config.ts'): HarnessConfig {
   checkObject(value, '', ROOT_KEYS, ROOT_CHECKS, file);
+  // The agent's keys are the agent's to check, where what each takes is known.
+  checkAgentKeys(value as HarnessAgents, file);
   const app = (value as HarnessConfig).app;
   if (app === undefined) return value as HarnessConfig;
   checkObject(app, 'app', PLATFORMS, {}, file);
@@ -427,6 +427,22 @@ export function setRun(run: ResolvedRun, store: object = globalThis): void {
   (store as {[RUN]?: ResolvedRun})[RUN] = run;
 }
 
+const HARNESS = Symbol.for('expo-vitest.harness');
+
+/**
+ * Keeps the harness config a project's setup file loaded in this worker,
+ * for the agent, whose models and tools are functions that cannot cross
+ * from the main process, and so are loaded here.
+ */
+export function setHarness(config: HarnessConfig | null, store: object = globalThis): void {
+  (store as {[HARNESS]?: HarnessConfig | null})[HARNESS] = config;
+}
+
+/** The harness config loaded in this worker: null where there is no file, undefined where no setup file has run. */
+export function currentHarness(store: object = globalThis): HarnessConfig | null | undefined {
+  return (store as {[HARNESS]?: HarnessConfig | null})[HARNESS];
+}
+
 /** The run a project's setup file resolved in this worker, if one did. */
 export function currentRun(store: object = globalThis): ResolvedRun | undefined {
   return (store as {[RUN]?: ResolvedRun})[RUN];
@@ -480,6 +496,9 @@ export function runId(store: object = globalThis, now: Date = new Date(), random
 function ordered(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(ordered);
   if (!isObject(value)) return value;
+  // An instance of a class, as a model's client or a tool's schema can be, is named, not walked: it may hold a key, or itself.
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  if (prototype !== null && prototype !== Object.prototype) return `[${(prototype.constructor as {name?: string} | undefined)?.name || 'object'}]`;
   const keys = Object.keys(value)
     .filter(key => value[key] !== undefined && typeof value[key] !== 'function')
     .sort();
