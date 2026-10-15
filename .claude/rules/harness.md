@@ -44,7 +44,9 @@ the app under test.
 
 The backend is the host: `src/harness/windows/host.cs`, compiled once per
 driver by `host.ps1` and kept running for the driver's life, answering JSON
-lines. It reads the tree in one cached request over the window's subtree.
+lines. It reads the tree in one cached request over the window's subtree,
+or an element at a time where the managed client's reader of that cache
+throws, as it does on some react-native-windows screens.
 The per-step scripts beside it are what `HARNESS_WINDOWS_HOST=0` runs, and
 must read the same tree; a change to the walk goes in both. Title bars are
 left out with everything in them, since a cached read hands back ones a walk

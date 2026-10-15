@@ -174,19 +174,36 @@ public static class HarnessHost {
     public bool OnlyInteractive;
     public int Max;
     public RECT Window;
+    /** Each property read from the app as it is reached, rather than from the cache. */
+    public bool Live;
+  }
+
+  static Walk Start(bool interactive, int max, RECT window, bool live) {
+    Walk walk = new Walk();
+    walk.OnlyInteractive = interactive;
+    walk.Max = max;
+    walk.Window = window;
+    walk.Live = live;
+    return walk;
   }
 
   static string Snapshot(string name, bool interactive, int max) {
     Process process = Window(name);
     RECT window = WindowRect(process);
-    AutomationElement root = AutomationElement.FromHandle(process.MainWindowHandle).GetUpdatedCache(TreeRequest());
-    Walk walk = new Walk();
-    walk.OnlyInteractive = interactive;
-    walk.Max = max;
-    walk.Window = window;
-    Visit(walk, root, 0, null);
+    AutomationElement found = AutomationElement.FromHandle(process.MainWindowHandle);
+    Walk walk = Start(interactive, max, window, false);
+    try {
+      Visit(walk, found.GetUpdatedCache(TreeRequest()), 0, null);
+    } catch (IndexOutOfRangeException) {
+      // The managed client's reader of a cached tree throws on some of
+      // react-native-windows' screens, inside GetUpdatedCache. The same tree
+      // read an element at a time is slower and does not fail.
+      walk = Start(interactive, max, window, true);
+      Visit(walk, found, 0, null);
+    }
     refs = walk.Refs;
     return "{\"process\":" + Json(process.ProcessName)
+      + ",\"read\":" + Json(walk.Live ? "walked" : "cached")
       + ",\"window\":{\"x\":" + window.Left + ",\"y\":" + window.Top + ",\"width\":" + (window.Right - window.Left) + ",\"height\":" + (window.Bottom - window.Top) + "}"
       + ",\"nodes\":[" + walk.Nodes.ToString() + "]}";
   }
@@ -194,15 +211,44 @@ public static class HarnessHost {
   /** One element and what is inside it. `parent` is the ref of the nearest ancestor kept, which passes through one that is not. */
   static void Visit(Walk walk, AutomationElement element, int depth, string parent) {
     if (walk.Count >= walk.Max) return;
-    string childParent = parent;
-    AutomationElement.AutomationElementInformation current = element.Cached;
+    string childParent;
+    try {
+      if (!Node(walk, element, depth, parent, out childParent)) return;
+    } catch (ElementNotAvailableException) {
+      // Read live, an element can go while the walk is on it; the rest of the
+      // tree is still worth having.
+      return;
+    }
+    if (walk.Live) {
+      TreeWalker walker = TreeWalker.ControlViewWalker;
+      AutomationElement child;
+      try { child = walker.GetFirstChild(element); } catch (ElementNotAvailableException) { return; }
+      while (child != null) {
+        Visit(walk, child, depth + 1, childParent);
+        try { child = walker.GetNextSibling(child); } catch (ElementNotAvailableException) { return; }
+      }
+    } else {
+      foreach (AutomationElement child in element.CachedChildren) {
+        Visit(walk, child, depth + 1, childParent);
+      }
+    }
+  }
+
+  /**
+   * Writes one element when it is kept, and says whether to go on into it.
+   * `childParent` is the parent its children name: its own ref when it is
+   * kept, the one it was given when it is not.
+   */
+  static bool Node(Walk walk, AutomationElement element, int depth, string parent, out string childParent) {
+    childParent = parent;
+    AutomationElement.AutomationElementInformation current = walk.Live ? element.Current : element.Cached;
     string role = current.ControlType.ProgrammaticName.Replace("ControlType.", "");
     // A title bar is the window's chrome, which a walk of the control view
     // never reached. A cache built over the subtree hands back the window's
     // own and, in a react-native-windows app, more of them through its lists,
     // offscreen and nameless, that a search of the same tree does not find.
     // Each is left out with everything inside it.
-    if (role == "TitleBar") return;
+    if (role == "TitleBar") return false;
     string name = current.Name;
     bool interactive = Actionable.Contains(role);
     // The kit sets this from React Native's testID. It is not the text a person
@@ -228,19 +274,19 @@ public static class HarnessHost {
       node.Append(",\"offscreen\":").Append(Bool(current.IsOffscreen));
       // Everything a screen reader says past the name and the role, present
       // only when set, so a property that is missing is visibly missing.
-      object help = Prop(element, AutomationElement.HelpTextProperty, true);
+      object help = Prop(walk, element, AutomationElement.HelpTextProperty, true);
       if (help != null) node.Append(",\"help\":").Append(Json(help.ToString()));
-      object position = Prop(element, AutomationElement.PositionInSetProperty, true);
-      object size = Prop(element, AutomationElement.SizeOfSetProperty, true);
+      object position = Prop(walk, element, AutomationElement.PositionInSetProperty, true);
+      object size = Prop(walk, element, AutomationElement.SizeOfSetProperty, true);
       // "2 of 5", the way it is announced, rather than two numbers to pair up.
       if (position != null && size != null) node.Append(",\"inSet\":").Append(Json(position + " of " + size));
-      object heading = Prop(element, AutomationElement.HeadingLevelProperty, true);
+      object heading = Prop(walk, element, AutomationElement.HeadingLevelProperty, true);
       if (heading is int) node.Append(",\"heading\":").Append((int)heading);
-      object live = Prop(element, LiveSetting, true);
+      object live = Prop(walk, element, LiveSetting, true);
       if (live is int && (int)live > 0 && (int)live < LiveNames.Length) node.Append(",\"live\":").Append(Json(LiveNames[(int)live]));
-      object status = Prop(element, AutomationElement.ItemStatusProperty, true);
+      object status = Prop(walk, element, AutomationElement.ItemStatusProperty, true);
       if (status != null) node.Append(",\"status\":").Append(Json(status.ToString()));
-      object dialog = Prop(element, AutomationElement.IsDialogProperty, false);
+      object dialog = Prop(walk, element, AutomationElement.IsDialogProperty, false);
       if (dialog is bool && (bool)dialog) node.Append(",\"dialog\":true");
       System.Windows.Rect box = current.BoundingRectangle;
       if (double.IsInfinity(box.X) || box.Width <= 0) {
@@ -254,7 +300,7 @@ public static class HarnessHost {
       }
       List<string> patterns = new List<string>();
       for (int at = 0; at < PatternProperties.Length; at++) {
-        object available = Prop(element, PatternProperties[at], false);
+        object available = Prop(walk, element, PatternProperties[at], false);
         if (available is bool && (bool)available) patterns.Add(Json(PatternNames[at]));
       }
       if (patterns.Count > 0) node.Append(",\"patterns\":[").Append(string.Join(",", patterns.ToArray())).Append("]");
@@ -262,19 +308,18 @@ public static class HarnessHost {
       if (walk.Nodes.Length > 0) walk.Nodes.Append(",");
       walk.Nodes.Append(node.ToString());
     }
-    foreach (AutomationElement child in element.CachedChildren) {
-      Visit(walk, child, depth + 1, childParent);
-    }
+    return true;
   }
 
-  // One cached property, as null for "not set" in all the ways UIA says it:
-  // absent, NotSupported, an empty string, or a number below 1. That last one
-  // matters more than it looks: react-native-windows returns -1 for an unset
-  // position or set size, not 0.
-  static object Prop(AutomationElement element, AutomationProperty property, bool unsetBelowOne) {
+  // One property, from the cache or from the app as the walk reads them, as
+  // null for "not set" in all the ways UIA says it: absent, NotSupported, an
+  // empty string, or a number below 1. That last one matters more than it
+  // looks: react-native-windows returns -1 for an unset position or set size,
+  // not 0.
+  static object Prop(Walk walk, AutomationElement element, AutomationProperty property, bool unsetBelowOne) {
     if (property == null) return null;
     object value;
-    try { value = element.GetCachedPropertyValue(property); } catch { return null; }
+    try { value = walk.Live ? element.GetCurrentPropertyValue(property) : element.GetCachedPropertyValue(property); } catch { return null; }
     if (value == null || value == AutomationElement.NotSupported) return null;
     string text = value as string;
     if (text != null && text.Length == 0) return null;
@@ -407,7 +452,9 @@ public static class HarnessHost {
   static string Describe(Exception error) {
     Exception inner = error;
     while (inner.InnerException != null) inner = inner.InnerException;
-    return inner.Message;
+    // UI Automation throws this one, for a window that closed under a read, with no message of its own.
+    if (inner is ElementNotAvailableException) return "it is no longer there";
+    return string.IsNullOrEmpty(inner.Message) ? inner.GetType().Name : inner.Message;
   }
 
   static string Text(Dictionary<string, object> request, string key) {

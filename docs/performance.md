@@ -78,7 +78,10 @@ press on the tab already selected took 2227 ms at p50 through the scripts.
 A script per step starts a PowerShell process, which loads UI Automation and
 compiles the C# it needs, and walks the tree with a call across to the app
 for each element and each property. The host starts and compiles once, in
-about half a second, and fetches the whole tree in one request. What is left
+about half a second, and fetches the whole tree in one request. Where the
+managed UI Automation client cannot read that cached tree back, as on some
+react-native-windows screens, the host walks the same tree an element at a
+time instead, which took 359 ms for the 94 nodes in one reading. What is left
 of a snapshot is that request: the app's own provider answering for every
 element, which is most of the time here.
 

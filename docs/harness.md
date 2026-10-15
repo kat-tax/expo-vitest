@@ -211,7 +211,7 @@ Screenshots land in `.harness/`. Add it to `.gitignore`.
 
 | Platform | Driven by | Why |
 | --- | --- | --- |
-| windows | This package: the window manager, UI Automation and synthetic input, through one PowerShell process kept for the run, which reads the tree in one request | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
+| windows | This package: the window manager, UI Automation and synthetic input, through one PowerShell process kept for the run, which reads the tree in one request, or an element at a time where UI Automation cannot read the cached tree back | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
 | web | A headless Chromium through `playwright-core` | A browser is already how the web build is tested. |
 | ios, android | `agent-device`, through its Node client | It drives both, and installs its own runners without touching the app. A step is one request to its daemon; where the client cannot be loaded, the harness runs its command line instead. |
 
