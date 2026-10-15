@@ -38,9 +38,10 @@ tools, `tools` lists a session's own.
 - Open one session for each subagent. With several open, each call names its
   `session`; without one it is `SESSION_REQUIRED`.
 - All open sessions share one harness config: another is `CONFIG_IN_USE`.
-- Windows is one window, so it takes one session. Its synthetic input waits
-  until the machine has been quiet for three minutes, unless the session was
-  opened with `force: true` or the server with `--force`.
+- Web gives each session a browser of its own. Windows, Android and iOS take
+  one session each at a time: one desktop, one device. Synthetic input on
+  Windows waits until the machine has been quiet for three minutes, unless
+  the session was opened with `force: true` or the server with `--force`.
 - A session ends at `close_session`, after 30 idle minutes, after 4 hours, and
   when the client goes.
 

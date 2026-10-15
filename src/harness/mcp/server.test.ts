@@ -151,15 +151,17 @@ describe('a session', () => {
     expect(parsed(await reversed.server.handle(call(2, 'open_session', {}))).result?.content[0]?.text).toBe('CONFIG_IN_USE: the open sessions use a.ts; close them to open one on no harness config');
   });
 
-  it('opens one session on Windows at a time, closing the one it refused', async () => {
+  it('opens one session at a time on Windows or a device, closing the one it refused, and several on web', async () => {
     const {server, closed} = await started();
     expect(parsed(await server.handle(call(1, 'open_session', {target: 'windows'}))).result?.content[0]?.text).toMatch(/^session s1 on windows/);
     expect(parsed(await server.handle(call(2, 'open_session', {target: 'web'}))).result?.content[0]?.text).toMatch(/^session s2 on web/);
-    expect(parsed(await server.handle(call(3, 'open_session', {target: 'windows'}))).result).toEqual({
-      content: [{type: 'text', text: 'SESSION_OPEN: s1 is open on Windows, which is one desktop that one session drives at a time: close it first'}],
+    expect(parsed(await server.handle(call(3, 'open_session', {target: 'web'}))).result?.content[0]?.text).toMatch(/^session s3 on web/);
+    expect(parsed(await server.handle(call(4, 'open_session', {target: 'windows'}))).result).toEqual({
+      content: [{type: 'text', text: 'SESSION_OPEN: s1 is open on windows, which one session drives at a time: close it first'}],
       isError: true,
     });
-    expect(closed).toEqual(['windows-3']);
+    expect(closed).toEqual(['windows-4']);
+    expect(parsed(await server.handle(call(5, 'open_session', {target: 'android'}))).result?.content[0]?.text).toMatch(/^session s5 on android/);
   });
 
   it('answers an open that failed with its code, every secret hidden, and one that threw no code as INTERNAL', async () => {
