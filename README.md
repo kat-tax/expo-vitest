@@ -156,7 +156,7 @@ platform's project.
 | [Projects](docs/projects.md) | How each platform's project works, the file-name rule, the limits. |
 | [Configuration](docs/configuration.md) | Every option of `expoProjects`, `nodeProject` and `deviceConfig`. |
 | [Helpers](docs/helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
-| [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables. |
+| [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables, errors. |
 | [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
