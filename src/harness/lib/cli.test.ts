@@ -31,7 +31,7 @@ describe('parse', () => {
   });
 
   it('starts from the defaults', () => {
-    expect(parse([])).toEqual({out: '.harness', force: false, interactive: false, json: false, steps: [], command: 'run'});
+    expect(parse([])).toEqual({out: '.harness', force: false, interactive: false, json: false, steps: [], command: 'run', args: []});
   });
 
   it('reads every option in either spelling, before or between the steps', () => {
@@ -50,6 +50,7 @@ describe('parse', () => {
       json: true,
       steps: [['bench']],
       command: 'run',
+      args: [],
     });
     expect(parse(['tree', '--platform', 'windows', '--interactive', 'idle'])).toMatchObject({platform: 'windows', interactive: true, steps: [['tree'], ['idle']]});
   });
@@ -62,6 +63,13 @@ describe('parse', () => {
     expect(parse(['doctor']).command).toBe('doctor');
     expect(parse(['--help']).command).toBe('help');
     expect(parse(['-p', 'web', '-h', 'open', '/']).command).toBe('help');
+  });
+
+  it('hands init and guide the rest of the line, in the first place only', () => {
+    expect(parse(['init', '--yes'])).toMatchObject({command: 'init', args: ['--yes'], steps: []});
+    expect(parse(['guide', 'device'])).toMatchObject({command: 'guide', args: ['device']});
+    expect(parse(['guide'])).toMatchObject({command: 'guide', args: []});
+    expect(() => parse(['-p', 'web', 'init'])).toThrow('init is not a step; try --help');
   });
 
   it('refuses a word that is not a step, and a step short of its arguments', () => {

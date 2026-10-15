@@ -60,7 +60,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "expo-harness": "./dist/harness/index.js"
+    "expo-harness": "./dist/harness/index.js",
+    "expo-vitest": "./dist/harness/index.js"
   },
   "files": [
     "dist",
