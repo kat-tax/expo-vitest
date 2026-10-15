@@ -136,7 +136,7 @@ platform's project.
 
 | Feature | What it does | Guide |
 | --- | --- | --- |
-| Setting up | `npx expo-vitest init` reads what the project has, asks four things, and writes the configs, an example test and the skill for coding agents, showing each file before it writes it. | [The harness](docs/harness.md#setting-a-project-up) |
+| Setting up | `npx expo-vitest init` reads what the project has, asks five things, and writes the configs, an example test, the skill for coding agents and the MCP server's entry, showing each file before it writes it. | [The harness](docs/harness.md#setting-a-project-up) |
 | iOS and Android projects | React Native's own JavaScript with the native boundary mocked, `Platform.OS` set, and platform files resolved in Metro's order. | [Projects](docs/projects.md#ios-and-android) |
 | Web project | react-native-web in jsdom, with Expo's packages pre-bundled with the Metro behaviours they rely on. | [Projects](docs/projects.md#web) |
 | Windows project | The code under test is told it is Windows, and `.windows.*` files resolve first. A native component renders as a host view whose props are what C++ receives. | [Projects](docs/projects.md#windows) |
@@ -162,6 +162,8 @@ platform's project.
 | The agent | `expo-vitest/agent`: `act`, `assert`, `waitFor` and `extract` in words, on the device a test drives, with secrets the model never sees, and a cache that replays a step once it was seen to work, with no model call. | [The agent](docs/agent.md) |
 | The run's summary | `expo-vitest/reporter`: the failures with their evidence, as a file, a job summary, and a pull request comment a rerun updates. | [CI](docs/ci.md#the-summary-and-the-pull-request-comment) |
 | Coding agents | A skill that tells an agent how to write, run and read the tests, printed by `guide` and copied in by `init`. | [Coding agents](docs/coding-agents.md) |
+| The MCP server | `expo-harness mcp`: a coding agent drives the running app on any of the four platforms with the agent's tools, by ref, and `locate` answers the `screen.*` call its test finds a node with. | [Coding agents](docs/coding-agents.md#the-mcp-server) |
+| Explore and bug bash | `expo-harness explore` runs the agent with a goal and reports what is off, each finding citing a step's tree and screenshot; `bug-bash` runs a feature map's charters at once and counts an issue as a bug only when the test it writes for it fails. | [Coding agents](docs/coding-agents.md#explore) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
 | The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |
 
@@ -183,7 +185,7 @@ platform's project.
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [CI](docs/ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, and the summary that comments on a pull request. |
 | [Migrating](docs/migrating.md) | From Detox, Maestro, Playwright and e2e, call by call. |
-| [Coding agents](docs/coding-agents.md) | The skill for coding agents, `guide`, and `init`. |
+| [Coding agents](docs/coding-agents.md) | The skill for coding agents, `guide`, `init`, the MCP server, explore and bug bash. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
 | [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
 

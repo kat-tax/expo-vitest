@@ -46,6 +46,9 @@ expo-harness doctor
 expo-harness init [--yes]
 expo-harness guide [topic | --list]
 expo-harness cache [ls | stats | clear]
+expo-harness mcp [options]
+expo-harness explore [goal] [options]
+expo-harness bug-bash [options]
 expo-harness -p <platform> [options] <step>...
 ```
 
@@ -63,9 +66,10 @@ npx expo-vitest init
 It reads what the project has: the package manager, the Expo SDK, React
 Native Testing Library's version, the platforms the app builds for, the
 app's identity and scheme, TypeScript, and the tests already there. Then it
-asks four things: which platforms, whether to set up device tests, whether
-to add the [skill for coding agents](coding-agents.md), and whether to
-install the packages now.
+asks five things: which platforms, whether to set up device tests, whether
+to add the [skill for coding agents](coding-agents.md), whether to register
+the [MCP server](coding-agents.md#the-mcp-server), and whether to install
+the packages now.
 
 | File | What init does with it |
 | --- | --- |
@@ -77,6 +81,7 @@ install the packages now.
 | `tsconfig.json` | The types for the globals and the matchers. A file with comments is not plain JSON, so init prints what to add instead. |
 | `.gitignore` | `.harness/`. |
 | `.claude/skills/expo-vitest/` | With the skill: its files. |
+| `.mcp.json`, `.cursor/mcp.json` | With the MCP server: its entry, for Claude Code and for Cursor. A file that is there keeps every other server. |
 
 It shows each file before it writes it, a diff for a file it edits, and asks
 for each one: `y`, `n`, or `a` for the rest. A config or a test the project
@@ -85,7 +90,8 @@ has already is kept, and init says so; `package.json`, `tsconfig.json` and
 refreshed, each with its diff shown. Without installing
 it prints the commands that would, and it ends with the commands that run
 the tests. `--yes` takes every default, the platforms it found, device
-tests and the skill, writes without asking, and installs nothing.
+tests and the skill, writes without asking, and installs nothing. It leaves
+the MCP server out unless `--mcp` is passed too.
 
 ## The agent's cache
 
@@ -97,6 +103,23 @@ the harness config's `cache.dir` names, else `.harness/cache`:
 | `cache ls` | Each entry, newest first: the start of its key, how old it is, the platform, the test and the instruction. |
 | `cache stats` | How many entries there are, and their size. |
 | `cache clear` | Empties the folder, and says how many entries it held. |
+
+## For coding agents
+
+Three commands drive the app for an agent rather than a person. Each is on
+[Coding agents](coding-agents.md) in full, with its options.
+
+- `mcp` is an [MCP server](coding-agents.md#the-mcp-server) over stdio. A
+  coding agent opens a session on the app the harness config names, acts on
+  it with the agent's tools by ref, and asks `locate` for the `screen.*` call
+  a test finds a node with.
+- `explore` runs the [agent with a goal](coding-agents.md#explore) instead of
+  a test, and writes a report of what it found off, each finding citing the
+  tree and the screenshot of the step it came after. It exits 1 on an issue.
+- `bug-bash` runs a [feature map's charters](coding-agents.md#bug-bash) at
+  once, merges what they found, writes a skeleton test for each issue in
+  `device/bug-bash/`, and runs them: an issue is a bug only where its
+  skeleton's check fails.
 
 ## The guide
 
@@ -242,6 +265,9 @@ than `execFileSync`. A Chromium takes `--remote-debugging-port=9222` with a
 | `raise` | | yes | | |
 | `bench` | yes | yes | yes | yes |
 | Named keys, in [device tests](device-tests.md) | yes | yes | skipped | skipped |
+| `mcp` sessions at once | `--max-sessions` | 1 | 1 | 1 |
+| `explore` | yes | yes | yes | yes |
+| `bug-bash` charters at once | `--parallel` | 1 | 1 | 1 |
 
 A step a platform cannot do says so and is skipped rather than failed. The
 same script then runs on all four and tells you what it could not do.

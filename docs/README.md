@@ -28,11 +28,11 @@ with one project per platform. New here? Start with
 | [Controls](controls.md) | The app's life from a test, and the device's settings: appearance, orientation, network, permissions, location, biometrics, the clipboard and alerts, on each platform. |
 | [Evidence](evidence.md) | The screenshot, tree, trace and recording a failing device test leaves, `HARNESS_TRACE` and `video`. |
 | [The agent](agent.md) | Steps in words, run by a model on the device: setting it up, the four calls, what the model sees, secrets, the cache, several agents, tools, executors, models, errors, debugging and cost. |
-| [The harness](harness.md) | The `expo-harness` command: setting a project up, the guide, steps, targets, options, the browser, what each platform can do, timing a platform. |
+| [The harness](harness.md) | The `expo-harness` command: setting a project up, the guide, the commands for coding agents, steps, targets, options, the browser, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
 | [CI](ci.md) | A job for each platform on GitHub Actions, EAS Workflows, Bitrise and Codemagic, the summary and the pull request comment, and caching. |
 | [Migrating](migrating.md) | From Detox, Maestro, Playwright and e2e: each call, what it is here, and whether it is the same, renamed, different by design or not yet. |
-| [Coding agents](coding-agents.md) | The skill the package ships, `guide`, and what `init` gives an agent. |
+| [Coding agents](coding-agents.md) | The skill the package ships, `guide`, what `init` gives an agent, the MCP server, explore and bug bash. |
 
 ## Build on it
 

@@ -206,4 +206,13 @@ since a test here runs on a phone as well as a page.
 | `e2e cache ls`, `stats`, `clear` | [`expo-harness cache ls`, `stats`, `clear`](harness.md#the-agents-cache) | renamed |
 | `--debug` | `HARNESS_DEBUG=1` | renamed |
 | `--ai-trace`, `.e2e/ai-trace.json` | `HARNESS_AI_TRACE=1`, `.harness/ai-trace.jsonl`, a JSON line a call | renamed |
+| `e2e mcp`, and `open_session`, `tools`, `call`, `close_session` | [`expo-harness mcp`](coding-agents.md#the-mcp-server), with the same four tools | renamed |
+| a node's `#id`, good against the newest observation | its ref, `@e7`, which names the node for the whole session | different by design |
+| `locate` | [`locate`](coding-agents.md#the-loop), answering the `screen.*` call | same |
+| `hover_at`, `type_at`, `press_at`, `select_at`, `start_recording`, `stop_recording`, and the mobile pack's `open_app` and `alert` | | not yet |
+| progress notifications on a long call | | not yet |
+| `e2e explore [goal]` | [`expo-harness explore [goal]`](coding-agents.md#explore) | renamed |
+| the bug bash, a procedure in the skill | [`expo-harness bug-bash`](coding-agents.md#bug-bash), a command over a feature map | different by design |
+| the `bugbash` tag and `--exclude-tag bugbash` | `describe.skipIf(!process.env.HARNESS_BUGBASH)` around each skeleton | different by design |
+| `init` writing `.mcp.json` and `.cursor/mcp.json` | [`init`](harness.md#setting-a-project-up), with `--mcp` under `--yes` | same |
 | `maxInputTokens`, `providerOptions` | | not yet |

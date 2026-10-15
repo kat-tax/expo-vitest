@@ -38,7 +38,8 @@ once; Windows, Android and iOS run one at a time.
 
 A skeleton whose check failed with `ASSERTION_FAILED` is a bug. One that
 passed is rejected: the app did what was expected. One that failed before
-its check is a risk to look at by hand. It exits 1 on a bug.
+its check is a risk to look at by hand. It exits 1 on a bug, or on an issue
+whose skeleton did not run.
 
 ## Promoting a skeleton
 
