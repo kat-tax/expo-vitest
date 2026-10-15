@@ -72,6 +72,8 @@ export async function callModel(model: Model, request: CompletionRequest, at: St
   } catch (error) {
     const ended = endedBy(request.signal, at);
     if (ended) throw ended;
+    // The step's own model throws the step's own errors, as when its budget is spent.
+    if (isAgentError(error)) throw error;
     const code: AgentErrorCode = isHarnessError(error) && isAgentCode(error.code) ? error.code : 'MODEL_PROVIDER_FAILED';
     throw new AgentError(code, error instanceof Error ? error.message : String(error), {...at, cause: error});
   }

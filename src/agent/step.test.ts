@@ -100,6 +100,11 @@ describe('a model call', () => {
     expect((await rejection(callModel(odd, request(), at)))[1]).toBe('agent.assert("the cart is empty"): a string');
   });
 
+  it("passes on the step's own error as it is, as the step's model throws when its budget is spent", async () => {
+    const spent = new AgentError('STEP_BUDGET_EXHAUSTED', 'it made 25 model calls, its budget', at);
+    expect(await callModel(scriptedModel([spent]), request(), at).catch((error: unknown) => error)).toBe(spent);
+  });
+
   it("is the step's own end where its signal aborted the call", async () => {
     const controller = new AbortController();
     const timeout = new AgentError('STEP_TIMEOUT', 'it ran past its timeout of 10 ms', at);

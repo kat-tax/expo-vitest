@@ -1,90 +1,20 @@
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {Journal} from '../device/evidence.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {MASK} from '../harness/lib/image.ts';
 import {decodePng, encodePng} from '../harness/lib/png.ts';
-import type {Point, Snapshot, SnapshotNode, Target} from '../harness/lib/snapshot.ts';
-import type {ControlRequest, Driver, StepResult} from '../harness/lib/types.ts';
+import {done, FakeDevice, hostOf, node, scratch, signIn} from './__fixtures__/device.ts';
 import {ACTION_TIMEOUT, Hands} from './hands.ts';
 import type {ActingHost, HandsOptions} from './hands.ts';
 import {clearTaint, taint, tainted} from './policy.ts';
 import {SecretStore, secret} from './secrets.ts';
 import {stepSignal} from './step.ts';
 
-const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: false, ...extra});
-const done = (message = 'done'): StepResult => ({ok: true, message});
-
-/** A sign-in form on web, as the platform numbers it. */
-function signIn(state: {email?: string; remember?: boolean; signedIn?: boolean} = {}): Snapshot {
-  if (state.signedIn) return {platform: 'web', viewport: {width: 400, height: 800}, nodes: [node('@e30', 'heading', 'Welcome back', {heading: 1})]};
-  return {
-    platform: 'web',
-    viewport: {width: 400, height: 800},
-    nodes: [
-      node('@e10', 'form', 'Sign in'),
-      node('@e11', 'textbox', 'Email', {interactive: true, parent: '@e10', value: state.email ?? '', bounds: {x: 20, y: 60, width: 200, height: 30}}),
-      node('@e12', 'textbox', 'Password', {interactive: true, secure: true, parent: '@e10', bounds: {x: 20, y: 120, width: 200, height: 30}}),
-      node('@e13', 'checkbox', 'Remember me', {interactive: true, checked: state.remember ?? false, parent: '@e10', bounds: {x: 20, y: 180, width: 20, height: 20}}),
-      node('@e14', 'button', 'Sign in', {interactive: true, parent: '@e10', bounds: {x: 20, y: 240, width: 100, height: 40}}),
-    ],
-  };
-}
-
-/** A web driver over a screen a test can change, every call kept. */
-class FakeDevice {
-  screen: Snapshot = signIn();
-  readonly calls: string[] = [];
-  /** What a press does to the screen, by the platform's ref. */
-  onPress: (target: Target) => Snapshot | undefined = () => undefined;
-  readonly driver: Driver;
-
-  constructor(overrides: Partial<Driver> = {}) {
-    const record = (call: string, result: StepResult = done()) => {
-      this.calls.push(call);
-      return Promise.resolve(result);
-    };
-    this.driver = {
-      platform: 'web',
-      available: () => Promise.resolve({ready: true}),
-      open: target => record(`open ${target}`),
-      snapshot: () => Promise.resolve(this.screen),
-      press: target => {
-        this.screen = this.onPress(target) ?? this.screen;
-        return record(`press ${JSON.stringify(target)}`);
-      },
-      fill: (target, text) => record(`fill ${JSON.stringify(target)} ${JSON.stringify(text)}`),
-      type: text => record(`type ${JSON.stringify(text)}`),
-      key: name => record(`key ${name}`),
-      longPress: (target, options) => record(`longPress ${JSON.stringify(target)} ${options?.duration}`),
-      swipe: (from: Point, to: Point) => record(`swipe ${from.x},${from.y} ${to.x},${to.y}`),
-      scrollIntoView: (target, options) => record(`scrollIntoView ${JSON.stringify(target)} ${options?.direction}`),
-      control: (request: ControlRequest) => record(`control ${request.name}`),
-      screenshot: file => record(`screenshot ${path.basename(file)}`),
-      idleSeconds: () => Promise.resolve(null),
-      close: () => Promise.resolve(),
-      ...overrides,
-    };
-  }
-}
-
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-vitest-hands-'));
 const at = {step: 'act' as const, instruction: 'sign in as Ada'};
 
 function setUp({device = new FakeDevice(), host: overrides, ...options}: Partial<Omit<HandsOptions, 'host'>> & {device?: FakeDevice; host?: Partial<ActingHost>} = {}) {
-  const journal = new Journal();
-  journal.begin();
-  const host: ActingHost = {
-    platform: 'web',
-    ready: () => Promise.resolve(device.driver),
-    snapshot: () => device.driver.snapshot(),
-    journal,
-    capabilities: new Set(['press', 'fill', 'key', 'screenshot', 'swipe', 'open', 'back', 'dismissKeyboard', 'longPress']),
-    scratch,
-    ...overrides,
-  };
+  const host = hostOf(device, overrides);
+  const journal = host.journal as NonNullable<ActingHost['journal']>;
   const spent: number[] = [];
   const hands = new Hands({host, at, signal: new AbortController().signal, secrets: new SecretStore({ADA_PASSWORD: 'correct horse battery'}, {} as NodeJS.ProcessEnv), spend: () => spent.push(1), taintStore: {}, ...options});
   return {hands, device, journal, spent, host};
