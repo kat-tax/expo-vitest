@@ -41,7 +41,7 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   }
   if (can('key')) add('press', 'Send a named key where the focus is: Enter, Tab, Escape, ArrowDown and the rest.', {key: string('The key, as Enter or ArrowDown.')});
   if (can('swipe')) {
-    add('scroll', 'Scroll the screen, or the node a ref names, in a direction.', {direction: {type: 'string', enum: ['up', 'down', 'left', 'right']}, ref: orNull(ref)});
+    add('scroll', 'Scroll the screen, or the node a ref names, to show more of what lies in a direction: down shows what is below.', {direction: {type: 'string', enum: ['up', 'down', 'left', 'right']}, ref: orNull(ref)});
     add('scroll_to', 'Scroll until a node is in view: the node a ref names, or one with this text.', {ref: orNull(ref), text: orNull(string('Text on the node to bring into view.'))});
   }
   if (can('open')) add('navigate', "Open a URL, or a route of the app's, as /settings.", {url: string('An http or https URL, about:blank, a route, or a link in the app\'s own scheme.')});
