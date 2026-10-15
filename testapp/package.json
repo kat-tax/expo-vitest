@@ -1,0 +1,45 @@
+{
+  "name": "expo-vitest-testapp",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@expo/material-symbols": "^0.1.1",
+    "@expo/ui": "~57.0.25",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.30",
+    "expo-asset": "~57.0.20",
+    "expo-constants": "~57.0.16",
+    "expo-font": "~57.0.2",
+    "expo-image": "~57.0.3",
+    "expo-interface": "^0.32.0",
+    "expo-linking": "~57.0.8",
+    "expo-network": "~57.0.2",
+    "expo-router": "~57.0.28",
+    "expo-splash-screen": "~57.0.8",
+    "expo-status-bar": "~57.0.1",
+    "expo-symbols": "~57.0.2",
+    "expo-system-ui": "~57.0.3",
+    "expo-web-browser": "~57.0.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "playwright-core": "1.62.1",
+    "typescript": "~6.0.3",
+    "vitest": "4.1.11",
+    "vitest-expo": "57.1.0",
+    "vitest-native": "0.13.0"
+  }
+}
