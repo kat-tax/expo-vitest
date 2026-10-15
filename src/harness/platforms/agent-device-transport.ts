@@ -18,8 +18,8 @@ import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
 import type {Target} from '../lib/snapshot.ts';
 import type {Platform} from '../lib/types.ts';
-import type {AgentFailure, Capabilities, Manifest} from './agent-device-mapping.ts';
-import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, toAgentTarget} from './agent-device-mapping.ts';
+import type {AgentFailure, Capabilities, Manifest, Wait} from './agent-device-mapping.ts';
+import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, settleArgs, settleRequest, toAgentTarget} from './agent-device-mapping.ts';
 
 /** How long one step may take before it is given up on. */
 const STEP_TIMEOUT = 30_000;
@@ -35,8 +35,9 @@ export interface AgentDeviceTransport {
   open(to: {app: string} | {url: string}): Promise<void>;
   /** The answer as agent-device gave it; `nodesFrom` reads the nodes out of it. */
   snapshot(interactive: boolean): Promise<unknown>;
-  press(target: Target): Promise<void>;
-  fill(target: Target, text: string): Promise<void>;
+  /** With a wait, agent-device's own: after the press, until the screen has been quiet a while. */
+  press(target: Target, wait?: Wait): Promise<void>;
+  fill(target: Target, text: string, wait?: Wait): Promise<void>;
   type(text: string): Promise<void>;
   screenshot(file: string): Promise<void>;
   close(): Promise<void>;
@@ -159,11 +160,11 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     snapshot(interactive) {
       return call(signal => client.capture.snapshot({...select, interactiveOnly: interactive, signal}), 'ACTION_FAILED');
     },
-    async press(target) {
-      await call(signal => client.interactions.press({...select, ...clientTarget(target), signal}), 'ACTION_FAILED');
+    async press(target, wait) {
+      await call(signal => client.interactions.press({...select, ...clientTarget(target), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
-    async fill(target, text) {
-      await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, signal}), 'ACTION_FAILED');
+    async fill(target, text, wait) {
+      await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
     async type(text) {
       await call(signal => client.interactions.type({...select, text, signal}), 'ACTION_FAILED');
@@ -203,11 +204,11 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     async snapshot(interactive) {
       return parsePayload(await agent(['snapshot', ...(interactive ? ['-i'] : []), '--json'], 'ACTION_FAILED'));
     },
-    async press(target) {
-      await agent(['press', toAgentTarget(target)], 'ACTION_FAILED');
+    async press(target, wait) {
+      await agent(['press', toAgentTarget(target), ...settleArgs(wait)], 'ACTION_FAILED');
     },
-    async fill(target, text) {
-      await agent(['fill', toAgentTarget(target), text], 'ACTION_FAILED');
+    async fill(target, text, wait) {
+      await agent(['fill', toAgentTarget(target), text, ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async type(text) {
       await agent(['type', text], 'ACTION_FAILED');

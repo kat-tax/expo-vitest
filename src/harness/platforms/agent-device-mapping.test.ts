@@ -13,9 +13,12 @@ import {
   packageFolders,
   parseFailure,
   parsePayload,
+  settleArgs,
+  settleRequest,
   toAgentTarget,
   toSnapshotNode,
   toSnapshotNodes,
+  waitFrom,
 } from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
@@ -251,5 +254,22 @@ describe('toSnapshotNodes', () => {
 
   it('names no parent from a list that does not carry the indexes', () => {
     expect(toSnapshotNodes([{ref: 'e1'}, {ref: 'e2', depth: 1}]).map(node => node.parent)).toEqual([undefined, undefined]);
+  });
+});
+
+describe('the wait after an action', () => {
+  it('is asked for by a settle above 0, with its timeout or the harness\'s', () => {
+    expect(waitFrom({settle: 150, settleTimeout: 2000})).toEqual({quietMs: 150, timeoutMs: 2000});
+    expect(waitFrom({settle: 300})).toEqual({quietMs: 300, timeoutMs: 2000});
+    expect(waitFrom({settle: 0})).toBeUndefined();
+    expect(waitFrom({settle: false})).toBeUndefined();
+    expect(waitFrom()).toBeUndefined();
+  });
+
+  it('is agent-device\'s --settle, in the client\'s words and on its command line', () => {
+    expect(settleRequest({quietMs: 150, timeoutMs: 2000})).toEqual({settle: true, settleQuietMs: 150, timeoutMs: 2000});
+    expect(settleRequest()).toEqual({});
+    expect(settleArgs({quietMs: 150, timeoutMs: 2000})).toEqual(['--settle', '--settle-quiet', '150', '--timeout', '2000']);
+    expect(settleArgs()).toEqual([]);
   });
 });

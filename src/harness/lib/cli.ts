@@ -40,6 +40,8 @@ options     --url <url>           where the app is served (web; default http://l
             --out <dir>           where screenshots go (default ${OUT})
             --interactive         snapshot only what can be acted on
             --force               press even when someone is using the machine
+            --settle <ms>         how long the screen must hold still after a step (default 150; 0 for no wait)
+            --transition <ms>     how long a control that just came in is given before a press (default 500)
             --iterations <n>      how many times bench runs each operation
             --press <target>      something a press does nothing to, for bench to time press on
             --field <target>      a field for bench to time fill on
@@ -54,6 +56,10 @@ export interface Options {
   out: string;
   force: boolean;
   interactive: boolean;
+  /** How long the screen must hold still after a step, in ms, where the command line said. */
+  settle?: number;
+  /** How long a control the last step brought in is given before it is pressed, in ms, where the command line said. */
+  transition?: number;
   /** How many times `bench` runs each operation, as it was typed. */
   iterations?: string;
   /** What `bench` times `press` on: something a press does nothing to. */
@@ -84,6 +90,13 @@ export const STEP_ARGUMENTS: Record<string, number> = {
 /** Steps whose argument is optional, so a bare `snapshot` is also a step. */
 export const OPTIONAL_ARGUMENT = new Set(['snapshot', 'bench']);
 
+/** A whole number of milliseconds a flag was given, or a refusal that says what it takes. */
+function milliseconds(flag: string, value: string): number {
+  const number = Number(value);
+  if (value === '' || !Number.isInteger(number) || number < 0) throw new HarnessError('INVALID_ARGUMENT', `${flag} takes a whole number of milliseconds, such as 150, or 0 for no wait`);
+  return number;
+}
+
 export function parse(argv: string[]): Options {
   const options: Options = {out: OUT, force: false, interactive: false, json: false, steps: [], command: 'run'};
   const rest: string[] = [];
@@ -96,6 +109,8 @@ export function parse(argv: string[]): Options {
     else if (argument === '--target') options.target = value();
     else if (argument === '--out') options.out = value();
     else if (argument === '--force') options.force = true;
+    else if (argument === '--settle') options.settle = milliseconds('--settle', value());
+    else if (argument === '--transition') options.transition = milliseconds('--transition', value());
     else if (argument === '--interactive' || argument === '-i') options.interactive = true;
     else if (argument === '--iterations') options.iterations = value();
     else if (argument === '--press') options.press = value();

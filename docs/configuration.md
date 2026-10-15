@@ -146,6 +146,8 @@ export default defineConfig(deviceConfig());
 | --- | --- | --- |
 | `include` | The test files. | `['device/**/*.test.ts']` |
 | `timeout` | How long one test or hook may take. A real app is slower than a component test by a lot. | 120 seconds |
+| `settle` | How long the screen must hold still after a step before the next one, in ms; `0` or `false` for no wait. See [waiting for the screen](device-tests.md#waiting-for-the-screen). | 150 |
+| `transition` | How long a control the last step brought in or moved is given before it is pressed, in ms; `0` or `false` for none. | 500 |
 
 The config runs one file at a time in one worker. There is one app and one
 driver, and two files must not press the same window at once.

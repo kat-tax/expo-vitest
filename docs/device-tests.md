@@ -91,6 +91,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 | `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
+| `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
 | `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
@@ -131,10 +132,38 @@ on, since a ref from an old tree is stale.
 
 | Call | What it does |
 | --- | --- |
-| `.press({via})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer. |
-| `.fill(text, {via})` | Focuses a field and puts text in it. On Windows, a field with a Value pattern gets the text set and read back, replacing what it held; `{via: 'keys'}` clicks and types. |
+| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](#waiting-for-the-screen) for this step. |
+| `.fill(text, {via, settle, transition})` | Focuses a field and puts text in it. On Windows, a field with a Value pattern gets the text set and read back, replacing what it held; `{via: 'keys'}` clicks and types. `settle` and `transition` as for a press. |
 | `.node()` | The node now, or `undefined`. |
 | `.waitFor({timeout})` | Waits until it is in the tree. |
+
+## Waiting for the screen
+
+After a press, a fill, typing, a key or an open, the next step waits until
+the screen holds still: two reads of the tree in a row agree, 150 ms apart.
+A screen that never holds still, such as one with a spinner, is given 2
+seconds, and the step goes on with a note saying so. Before a press or a
+fill, a control that the last step brought in or moved, such as the button
+on a sheet that slid up, is given what is left of 500 ms first. That comes
+from the reads the wait already made, so it costs no read of its own.
+
+```ts
+// vitest.config.device.mts: for the whole run
+export default defineConfig(deviceConfig({settle: 300, transition: 0}));
+
+// one step
+await element(by.testID('save')).press({settle: 0});
+```
+
+`0` or `false` turns either wait off. On iOS and Android the wait after a
+press or a fill is agent-device's own (`--settle`), so a device that takes a
+second to read is not read twice more. On web a read costs next to nothing
+while the page is unchanged and nothing on it animates. On Windows each read
+is a walk of the tree, so a step costs two of them more.
+
+A change that comes once the screen has held still, such as the answer to a
+network request, is not waited for. Use `device.waitFor`, or a matcher, for
+that.
 
 ## Selectors
 

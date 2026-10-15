@@ -116,3 +116,17 @@ describe('screenshotPath', () => {
     expect(screenshotPath('shots\\home.png', '.harness')).toBe('shots\\home.png');
   });
 });
+
+describe('the waits after a step', () => {
+  it('takes how long the screen must hold still, and how long a control that just came in is given', () => {
+    expect(parse(['--settle', '0', '--transition', '250'])).toMatchObject({settle: 0, transition: 250});
+    expect(parse([])).not.toHaveProperty('settle');
+  });
+
+  it('refuses what is not a whole number of milliseconds', () => {
+    for (const value of ['soon', '-1', '1.5', '']) {
+      expect(() => parse(['--settle', value])).toThrow('--settle takes a whole number of milliseconds, such as 150, or 0 for no wait');
+    }
+    expect(() => parse(['--transition'])).toThrow('--transition takes a whole number of milliseconds');
+  });
+});

@@ -106,6 +106,15 @@ describe('the environment', () => {
     });
   });
 
+  it('reads the waits after a step from HARNESS_SETTLE and HARNESS_TRANSITION, with false as 0, and nothing it cannot read', () => {
+    const web = {HARNESS_PLATFORM: 'web'};
+    expect(configFromEnvironment({...web, HARNESS_SETTLE: '250', HARNESS_TRANSITION: 'false'} as unknown as NodeJS.ProcessEnv)).toMatchObject({settle: 250, transition: 0});
+    expect(configFromEnvironment({...web, HARNESS_SETTLE: '0'} as unknown as NodeJS.ProcessEnv)).toMatchObject({settle: 0});
+    const unread = configFromEnvironment({...web, HARNESS_SETTLE: 'soon', HARNESS_TRANSITION: '-5'} as unknown as NodeJS.ProcessEnv);
+    expect(unread).not.toHaveProperty('settle');
+    expect(unread).not.toHaveProperty('transition');
+  });
+
   it('forces synthetic input with HARNESS_FORCE, and only when it is set to something other than 0', () => {
     const windows = {HARNESS_PLATFORM: 'windows', HARNESS_TARGET: 'MyApp'};
     expect(configFromEnvironment({...windows, HARNESS_FORCE: '1'} as unknown as NodeJS.ProcessEnv)).toStrictEqual({platform: 'windows', url: undefined, scheme: undefined, target: 'MyApp', force: true});
@@ -234,12 +243,15 @@ describe('device', () => {
     await expect(device.key('PageDown')).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'PageDown is not a key the Windows harness knows how to send'));
   });
 
-  it('makes one driver and keeps it until closed', async () => {
+  it('makes one driver and keeps it until closed, its steps waiting for the screen', async () => {
     const driver = drive(stub());
-    await device.ready();
+    const kept = await device.ready();
     await device.ready();
     expect(driverFor).toHaveBeenCalledTimes(1);
-    expect(await device.ready()).toBe(driver);
+    expect(await device.ready()).toBe(kept);
+    // What it is kept as reads through to the driver, and waits after each step.
+    expect(kept.snapshot).toBe(driver.snapshot);
+    expect(kept.press).not.toBe(driver.press);
   });
 });
 
@@ -417,9 +429,9 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(element).parameters.toEqualTypeOf<[Selector]>();
     const one = element(by.label('Save'));
     expectTypeOf(one.selector).toEqualTypeOf<Selector>();
-    expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'}]>();
+    expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.press).returns.toEqualTypeOf<Promise<void>>();
-    expectTypeOf(one.fill).parameters.toEqualTypeOf<[text: string, options?: {via?: 'keys'}]>();
+    expectTypeOf(one.fill).parameters.toEqualTypeOf<[text: string, options?: {via?: 'keys'; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.node).returns.toEqualTypeOf<Promise<SnapshotNode | undefined>>();
     expectTypeOf<NonNullable<Parameters<typeof one.waitFor>[0]>>().toMatchObjectType<{timeout?: number}>();
     expectTypeOf(one.waitFor).returns.toEqualTypeOf<Promise<SnapshotNode>>();
@@ -447,7 +459,7 @@ describe('the types a consumer compiled against', () => {
       patterns?: string[];
     }>();
     expectTypeOf<Plain<Snapshot>>().toMatchObjectType<{platform: string; source?: string; nodes: SnapshotNode[]}>();
-    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string; force?: boolean}>();
+    expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string; force?: boolean; settle?: number; transition?: number}>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();
@@ -456,7 +468,7 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<NonNullable<Parameters<Assertion['toMatchScreenshot']>[1]>>().toMatchObjectType<{maxRatio?: number}>();
 
     expectTypeOf(deviceConfig).returns.toEqualTypeOf<ViteUserConfig>();
-    expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{include?: string[]; timeout?: number}>();
+    expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{include?: string[]; timeout?: number; settle?: number | false; transition?: number | false}>();
     expectTypeOf<Parameters<typeof nodeProject>[0]>().toMatchObjectType<{name: string; include: string[]; root?: string; timeout?: number}>();
     expectTypeOf<Plain<ExpoProjectsOptions>>().toMatchObjectType<{root?: string; platforms?: Platform[]; include?: string[]; transformPackages?: string[]; timeout?: number}>();
   });

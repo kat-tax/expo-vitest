@@ -149,6 +149,32 @@ below, the build is what holds:
     pointer moved, naming the editor that was there, through the host and
     through the script. Two taps on an empty spot went through once nobody
     had been at the desk for 205 s.
+- **Item 21 waits after each step, and hands agent-device its own wait.**
+  - After a press, a fill, typing, a key or an open, the next step waits
+    until `samples` reads in a row agree, `settle` ms apart (two reads,
+    150 ms apart, by default). It waits at most `settleTimeout` (2 s), then
+    goes on with a note.
+  - `withTiming` in `src/harness/lib/settle.ts` wraps the driver for a
+    device test and for the command's steps. `bench` keeps the driver
+    unwrapped.
+  - A control the last step brought in or moved is given what is left of
+    `transition` (500 ms) before a press or a fill. That is judged from the
+    reads the wait made, so it costs no read of its own.
+  - agent-device's `press` and `fill` take `--settle`, so its driver says
+    `settles` and is handed the times. Its `type` is handed nothing:
+    whether it takes `--settle` could not be read from its schema.
+  - Not done: `Driver.generation()` for the wait. On web a read is free
+    while the page is unchanged and nothing animates, which gives the
+    same.
+  - Seen live:
+    - On a page whose change landed 300 ms after a press, the tree read
+      next held it, and with `--settle 0` it did not.
+    - A press on a sheet's button as the sheet slid in waited 499 ms and
+      landed.
+    - On the Pixel 7 Pro, agent-device took the settle request from its
+      client and its command line, each press taking about 0.4 s longer.
+  - The sheet showed item 20's kept read serving stale boxes through a
+    CSS transition, fixed first in a commit of its own.
 - **Item 20 is item 7 and three borrowings, in one commit.**
   - The init script counts changes, and a snapshot is the last one read
     while the count stands, for up to 2 s, or until the driver acts.

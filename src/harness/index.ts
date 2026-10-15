@@ -24,6 +24,7 @@ import type {Options} from './lib/cli.ts';
 import {USAGE, parse, screenshotPath, unmangleRoute} from './lib/cli.ts';
 import {driverFor} from './lib/drivers.ts';
 import {codeOf} from './lib/errors.ts';
+import {DEFAULT_TIMING, timingFor, withTiming} from './lib/settle.ts';
 import {isWindowsDriver} from './platforms/windows.ts';
 import {renderSnapshot} from './lib/snapshot.ts';
 import type {Driver, StepResult} from './lib/types.ts';
@@ -34,7 +35,9 @@ const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
 // A press, a fill and typing are synthetic input on Windows, and the driver
 // refuses them while someone is using the machine, unless it was made with
 // --force: the same refusal a device test gets.
-async function step(driver: Driver, options: Options, [name, ...args]: string[]): Promise<StepResult> {
+// Each step waits for the screen to hold still (src/harness/lib/settle.ts);
+// bench times the driver's own work, so it is handed the driver unwrapped.
+async function step(driver: Driver, options: Options, [name, ...args]: string[], raw: Driver): Promise<StepResult> {
   switch (name) {
     case 'open':
       return driver.open(unmangleRoute(args[0] ?? ''));
@@ -76,7 +79,7 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
       if (iterations === null) return failed(`bench takes a whole number of iterations, at least ${FEWEST}: of fewer, the p95 is only the slowest`, 'INVALID_ARGUMENT');
       const folder = path.resolve(ROOT, options.out, 'bench');
       fs.mkdirSync(folder, {recursive: true});
-      const result = await bench(driver, {iterations, press: options.press, field: options.field, directory: folder});
+      const result = await bench(raw, {iterations, press: options.press, field: options.field, directory: folder});
       const file = path.join(folder, `${result.platform}-${result.at.replace(/:/g, '-')}.json`);
       fs.writeFileSync(file, `${JSON.stringify(result, null, 1)}\n`);
       const filled = result.samples.some(sample => sample.operation === 'fill' && sample.cold !== null);
@@ -132,13 +135,14 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
   console.log(`${options.platform}: ${state.found ?? 'ready'}`);
+  const stepped = withTiming(driver, timingFor(DEFAULT_TIMING, {settle: options.settle, transition: options.transition}));
 
   let failures = 0;
   try {
     for (const current of options.steps) {
       let result: StepResult;
       try {
-        result = await step(driver, options, current);
+        result = await step(stepped, options, current, driver);
       } catch (error) {
         result = failed(`${current[0]} threw: ${(error as Error).message}`, codeOf(error));
       }

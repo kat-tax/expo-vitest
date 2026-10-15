@@ -44,7 +44,9 @@ expo-harness -p <platform> [options] <step>...
 ```
 
 Steps run in order in one session, so a sequence is a flow rather than four
-disconnected commands.
+disconnected commands. Each waits for the screen to hold still before the
+next, as a [device test](device-tests.md#waiting-for-the-screen) does, so
+`press` followed by `tree` shows what the press led to.
 
 ```sh
 # a web app, from its dev server
@@ -105,6 +107,8 @@ quotes in it, as your shell requires.
 | `--out <dir>` | Where screenshots go. `.harness` by default. |
 | `-i`, `--interactive` | Snapshot only what can be acted on. |
 | `--force` | On Windows, press, fill and type even when someone is using the machine. |
+| `--settle <ms>` | How long the screen must hold still after a step, as in [device tests](device-tests.md#waiting-for-the-screen). 150 by default; 0 for no wait. |
+| `--transition <ms>` | How long a control the last step brought in or moved is given before a press. 500 by default. |
 | `--iterations <n>` | How many times `bench` runs each operation. The same as `bench <n>`. |
 | `--press <target>` | Something a press does nothing to, for `bench` to time `press` on. |
 | `--field <target>` | A field for `bench` to time `fill` on. |
@@ -213,9 +217,12 @@ every time: a heading, or the tab that is already selected. Nothing in the
 tree says what is safe to press. A container that responds to a press can
 carry no role at all, so `bench` leaves the choice to you.
 
-On Windows, `press` and `fill` wait for a quiet desk as the steps do, and ask
-again before every call. While someone is using the machine they stop, with
-that as the reason, and the rest is still timed.
+`bench` times the driver's own work, without the wait for the screen that the
+steps make. On Windows, the driver refuses a synthetic `press` or `fill` while
+someone is using the machine, as it does for the steps, and asks before every
+call. Once refused, the operation stops there with the refusal as the reason,
+and the rest is still timed. A press through a control's pattern needs no
+quiet desk.
 
 Every run writes its result, every sample included, to
 `.harness/bench/<platform>-<time>.json`, so a before and an after can be

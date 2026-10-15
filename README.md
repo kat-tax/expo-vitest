@@ -144,7 +144,7 @@ platform's project.
 | Native helpers | `host`, `nodes`, `modifier`, `byComposeTestID`, `stackHeaders`: assert on the payload handed to SwiftUI or Compose. | [Helpers](docs/helpers.md#expo-vitestnative) |
 | Windows helpers | `island`, `islands`, `fireIsland`: find a native component and fire its events as C++ would. | [Helpers](docs/helpers.md#expo-vitestwindows) |
 | Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
-| Device tests | `device`, `element`, `by` and four matchers, over a real app on web, Windows, Android or iOS. | [Device tests](docs/device-tests.md) |
+| Device tests | `device`, `element`, `by` and four matchers, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
 | The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |
 

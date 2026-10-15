@@ -163,4 +163,11 @@ describe('nodeProject and deviceConfig', () => {
     expect(device.setupFiles).toEqual([path.join(PACKAGE, 'src', 'device', 'matchers.ts')]);
     expect(testOf(deviceConfig({include: ['e2e/**/*.test.ts'], timeout: 10}))).toMatchObject({include: ['e2e/**/*.test.ts'], testTimeout: 10});
   });
+
+  it('hands the waits after a step to the tests through their environment, and nothing when none was given', () => {
+    expect(testOf(deviceConfig({settle: 0, transition: 300})).env).toEqual({HARNESS_SETTLE: '0', HARNESS_TRANSITION: '300'});
+    expect(testOf(deviceConfig({settle: false})).env).toEqual({HARNESS_SETTLE: '0'});
+    expect(testOf(deviceConfig({transition: false})).env).toEqual({HARNESS_TRANSITION: '0'});
+    expect(testOf(deviceConfig())).not.toHaveProperty('env');
+  });
 });

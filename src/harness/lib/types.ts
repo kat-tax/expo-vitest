@@ -47,7 +47,17 @@ export interface SnapshotOptions {
   interactive?: boolean;
 }
 
-export interface PressOptions {
+/** How a step waits for the screen afterwards; see `src/harness/lib/settle.ts`. */
+export interface StepTiming {
+  /** How long the screen must hold still after the step, in ms; 0 or `false` for no wait. */
+  settle?: number | false;
+  /** How long a control the last step brought in or moved is given before it is pressed, in ms; 0 or `false` for none. */
+  transition?: number | false;
+  /** How long the step waits for the screen to hold still before it goes on regardless, in ms. */
+  settleTimeout?: number;
+}
+
+export interface PressOptions extends StepTiming {
   /**
    * `pointer` presses with the pointer even where the control has a pattern
    * to press it by, for a control whose pattern does not do what a press
@@ -56,7 +66,7 @@ export interface PressOptions {
   via?: 'pointer';
 }
 
-export interface FillOptions {
+export interface FillOptions extends StepTiming {
   /** `keys` clicks and types even where the field could be filled through its Value pattern. Windows only. */
   via?: 'keys';
 }
@@ -71,6 +81,12 @@ export interface FillOptions {
  */
 export interface Driver {
   readonly platform: Platform;
+  /**
+   * Whether press, fill and type wait for the screen to hold still by
+   * themselves, given `settle` and `settleTimeout` in their options, as
+   * agent-device's do. Otherwise the harness reads the tree until it agrees.
+   */
+  readonly settles?: boolean;
   /** Whether this driver can work here, without changing anything. */
   available(): Promise<Availability>;
   /** Opens a route: a deep link, a URL, or a path resolved against the app's base. */
@@ -82,7 +98,7 @@ export interface Driver {
   /** Puts text into the field a target names: focus it, then type. */
   fill(target: Target, text: string, options?: FillOptions): Promise<StepResult>;
   /** Types into whatever has focus. */
-  type(text: string): Promise<StepResult>;
+  type(text: string, options?: StepTiming): Promise<StepResult>;
   /**
    * A named key pressed where the focus is — `ArrowDown`, `Home`, `Enter` —
    * so a test can check the keyboard contract behind a composite role rather

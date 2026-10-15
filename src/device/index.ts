@@ -20,6 +20,7 @@ import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError, isHarnessError} from '../harness/lib/errors.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
+import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 
 export {by, HarnessError, isHarnessError};
@@ -36,11 +37,24 @@ export interface DeviceConfig {
   target?: string;
   /** Synthetic input on Windows even while someone is using the machine, which the driver otherwise refuses. */
   force?: boolean;
+  /** How long the screen must hold still after a step, in ms, where the run did not keep the default. */
+  settle?: number;
+  /** How long a control the last step brought in is given before it is pressed, in ms, where the run did not keep the default. */
+  transition?: number;
+}
+
+/** A count of milliseconds from the environment, with `false` as 0, as e2e spells it; undefined when it is not one. */
+function milliseconds(value: string | undefined): number | undefined {
+  if (value === 'false') return 0;
+  const number = Number(value);
+  return value && Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
 export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.env): DeviceConfig {
   const platform = (environment.HARNESS_PLATFORM ?? 'web') as Platform;
   const force = environment.HARNESS_FORCE;
+  const settle = milliseconds(environment.HARNESS_SETTLE);
+  const transition = milliseconds(environment.HARNESS_TRANSITION);
   return {
     platform,
     url: environment.HARNESS_URL,
@@ -48,6 +62,9 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
     target: environment.HARNESS_TARGET,
     // A device test cannot pass the command's --force, so this is its form.
     ...(force && force !== '0' ? {force: true} : {}),
+    // deviceConfig's settle and transition arrive this way.
+    ...(settle === undefined ? {} : {settle}),
+    ...(transition === undefined ? {} : {transition}),
   };
 }
 
@@ -68,14 +85,14 @@ class Device {
     return this.config.platform;
   }
 
-  /** The driver, made on first use and kept for the file's tests. */
+  /** The driver, made on first use and kept for the file's tests; its steps wait for the screen to hold still. */
   async ready(): Promise<Driver> {
     if (this.driver) return this.driver;
     const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target, force: this.config.force});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
-    this.driver = driver;
-    return driver;
+    this.driver = withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition}));
+    return this.driver;
   }
 
   async open(route: string): Promise<void> {

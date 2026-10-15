@@ -18,11 +18,16 @@
  * - A failure has a `code` and a `message`; the command line prints them as
  *   `Error (<code>): <message>`. A selector that matches nothing is
  *   `COMMAND_FAILED` with `Selector did not match: <selector>`.
+ * - `press` and `fill` take `--settle` (read in its command schema): after the
+ *   action, wait until the screen has been quiet for `--settle-quiet` ms, at
+ *   most `--timeout` ms, and never fail the action for it.
  */
 import path from 'node:path';
 import type {HarnessCode} from '../lib/errors.ts';
 import type {SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
+import {DEFAULT_TIMING} from '../lib/settle.ts';
+import type {StepTiming} from '../lib/types.ts';
 
 /** A node as agent-device reports it. */
 export interface AgentNode {
@@ -152,6 +157,28 @@ export function openTarget(to: string, scheme?: string): {app: string} | {url: s
   if (/^[a-z][a-z\d+.-]*:/i.test(to)) return {url: to};
   if (to.startsWith('/')) return scheme ? {url: `${scheme}://${to.slice(1)}`} : null;
   return {app: to};
+}
+
+/** agent-device's own wait for the screen after an action: how long it must stay quiet, and the most to wait. */
+export interface Wait {
+  quietMs: number;
+  timeoutMs: number;
+}
+
+/** The wait a step's options ask for: a settle above 0, with its timeout or the harness's. */
+export function waitFrom(options: StepTiming = {}): Wait | undefined {
+  if (typeof options.settle !== 'number' || options.settle <= 0) return undefined;
+  return {quietMs: options.settle, timeoutMs: options.settleTimeout ?? DEFAULT_TIMING.settleTimeout};
+}
+
+/** The wait as the Node client takes it, which is its command line's `--settle`. */
+export function settleRequest(wait?: Wait): Record<string, unknown> {
+  return wait ? {settle: true, settleQuietMs: wait.quietMs, timeoutMs: wait.timeoutMs} : {};
+}
+
+/** The wait as the command line takes it. */
+export function settleArgs(wait?: Wait): string[] {
+  return wait ? ['--settle', '--settle-quiet', String(wait.quietMs), '--timeout', String(wait.timeoutMs)] : [];
 }
 
 /** An agent-device failure, as its code and its message. */

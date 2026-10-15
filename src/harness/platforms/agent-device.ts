@@ -3,9 +3,9 @@ import {codeOf} from '../lib/errors.ts';
 import {prepare} from '../lib/run.ts';
 import type {Snapshot, Target} from '../lib/snapshot.ts';
 import {describeTarget} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, Platform, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, Driver, DriverOptions, FillOptions, Platform, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {nodesFrom, openTarget, toSnapshotNodes} from './agent-device-mapping.ts';
+import {nodesFrom, openTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -44,6 +44,10 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
   return {
     platform,
+    // agent-device waits for the screen itself after a press or a fill
+    // (`--settle`), so the harness hands it the times rather than reading a
+    // device that takes a second a read.
+    settles: true,
 
     async available(): Promise<Availability> {
       try {
@@ -70,12 +74,12 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload))};
     },
 
-    press(what: Target): Promise<StepResult> {
-      return step(`pressed ${describeTarget(what)}`, 'press failed', current => current.press(what));
+    press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
+      return step(`pressed ${describeTarget(what)}`, 'press failed', current => current.press(what, waitFrom(pressOptions)));
     },
 
-    fill(what: Target, text: string): Promise<StepResult> {
-      return step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(what, text));
+    fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
+      return step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(what, text, waitFrom(fillOptions)));
     },
 
     type(text: string): Promise<StepResult> {
