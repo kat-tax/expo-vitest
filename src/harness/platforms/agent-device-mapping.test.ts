@@ -16,6 +16,7 @@ import {
   parsePayload,
   settleArgs,
   settleRequest,
+  targetArgs,
   toAgentTarget,
   toSnapshotNode,
   toSnapshotNodes,
@@ -119,6 +120,12 @@ describe('targets', () => {
     expect(toAgentTarget({role: 'button'})).toBe('role="button"');
     expect(toAgentTarget({contains: 'Sav'})).toBe('label="Sav"');
     expect(toAgentTarget({})).toBe('=""');
+  });
+
+  it('give the command line a point as two arguments, and anything else as one', () => {
+    expect(targetArgs({x: 10, y: 20})).toEqual(['10', '20']);
+    expect(targetArgs('@e3')).toEqual(['@e3']);
+    expect(targetArgs({label: 'Save'})).toEqual(['label="Save"']);
   });
 
   it('hand the Node client a point, a ref or a selector', () => {

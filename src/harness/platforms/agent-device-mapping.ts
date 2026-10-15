@@ -160,6 +160,12 @@ export function toAgentTarget(what: Target): string {
   return describeTarget(what);
 }
 
+/** A target as the command line's arguments: a point is two of them, since agent-device reads `"10 20"` as one word that names nothing. */
+export function targetArgs(what: Target): string[] {
+  const selector = asSelector(what);
+  return isPoint(selector) ? [String(selector.x), String(selector.y)] : [toAgentTarget(selector)];
+}
+
 /** A target as the Node client takes it. */
 export type ClientTarget = {x: number; y: number} | {ref: string} | {selector: string};
 

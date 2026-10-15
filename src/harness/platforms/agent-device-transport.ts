@@ -19,7 +19,7 @@ import {firstLine, runAsync} from '../lib/run.ts';
 import type {Target} from '../lib/snapshot.ts';
 import type {Platform} from '../lib/types.ts';
 import type {AgentFailure, Capabilities, Manifest, Wait} from './agent-device-mapping.ts';
-import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, settleArgs, settleRequest, toAgentTarget} from './agent-device-mapping.ts';
+import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, settleArgs, settleRequest, targetArgs} from './agent-device-mapping.ts';
 
 /** How long one step may take before it is given up on. */
 const STEP_TIMEOUT = 30_000;
@@ -205,10 +205,10 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
       return parsePayload(await agent(['snapshot', ...(interactive ? ['-i'] : []), '--json'], 'ACTION_FAILED'));
     },
     async press(target, wait) {
-      await agent(['press', toAgentTarget(target), ...settleArgs(wait)], 'ACTION_FAILED');
+      await agent(['press', ...targetArgs(target), ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
-      await agent(['fill', toAgentTarget(target), text, ...settleArgs(wait)], 'ACTION_FAILED');
+      await agent(['fill', ...targetArgs(target), text, ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async type(text) {
       await agent(['type', text], 'ACTION_FAILED');
