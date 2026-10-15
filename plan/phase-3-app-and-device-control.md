@@ -1,10 +1,34 @@
 # Phase 3. App and device control
 
-Status: not started · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (item 1 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
 are not repeated here.
+
+## As built
+
+On the `e2e` branch, after Phase 2. Where the build differs from the design
+below, the build is what holds.
+
+- **Item 1: the spike,** in a scratch consumer on Vitest 4.1.11 with three
+  projects of two files each, every file taking 1.5 s.
+  - **The loader:** a project's `globalSetup` imported a `.ts` file, with
+    an interface and a type annotation, by a path worked out at run time,
+    through Vitest's module runner, and `provide` carried what it read to
+    the tests. Node's own `import()` is not needed.
+  - **Parallel platforms:** not to be had this way.
+    - With `fileParallelism: false` in each project, all six files ran one
+      after another, so the setting holds for the whole run.
+    - With `maxWorkers: 1` in each, the same.
+    - With `maxWorkers: 1` in one project only, the other two ran together
+      first, and that project's files ran one at a time after them.
+    - With a `sequence.groupOrder` per project, each group ran its files
+      one at a time and no two files overlapped, though not in the order
+      the groups were given.
+  - So the projects run one platform after another, each one file at a
+    time, which is the plan's fallback. Platforms in parallel wait for
+    Phase 4's pools, as separate runs.
 
 ## Purpose and the claims it proves
 
