@@ -18,8 +18,9 @@ bun run test:fixture    # the packed package, installed, on all four projects
 ## The unit tests
 
 One Node project (`nodeProject({name: 'expo-vitest', include: ['src/**/*.test.ts']})`).
-The gate is 100% on all four metrics over the files that are logic:
-`projects.ts`, `forbid-modules.ts`, `windows-resolution.ts` and `timeout.ts`.
+The gate is 100% on all four metrics over the files that are logic, which
+`coverage.include` in `vitest.config.mts` names: the projects and their
+plugins, and the harness's own logic, such as its command line.
 Everything else is covered by the fixture, deliberately: a setup file, a require
 hook or a driver proves nothing when called from Node.
 

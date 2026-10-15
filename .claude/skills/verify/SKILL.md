@@ -24,8 +24,8 @@ working.
 
 ## What each one can catch
 
-The unit tests cover what is logic, and the gate is 100% on `projects.ts`,
-`forbid-modules.ts`, `windows-resolution.ts` and `timeout.ts`.
+The unit tests cover what is logic, and the gate is 100% on the files
+`coverage.include` in `vitest.config.mts` names.
 
 **A setup file, a Node require hook, a Vite plugin or a driver is not covered
 by them at all.** Those are proved by the fixture, which is the only run where
