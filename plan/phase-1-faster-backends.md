@@ -98,10 +98,10 @@ below, the build is what holds:
   resolves it against. Web numbers every node before it narrows, so its
   refs agree. Not fixed, for the reason below.
 - **The Windows backend waits on a decision.** The owner would rather
-  adopt a maintained driver than keep this one. agent-desktop and Cua's
-  driver are being read for the desktop, agent-browser for web and argent
-  for mobile, to adopt or to take features from. Items 5, 6 and 10, and
-  item 7 on web, wait on what that finds.
+  adopt a maintained driver than keep this one. What maintained drivers
+  were read, what they do with a react-native-windows app, and what to
+  take from them is in [`external-drivers.md`](external-drivers.md).
+  Items 5, 6 and 10, and item 7 on web, wait on the owner's decision.
 
 ## Purpose and the claims it proves
 
