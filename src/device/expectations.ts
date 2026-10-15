@@ -39,11 +39,11 @@ interface Expectation {
   passes(reading: Reading): boolean;
   /** A reading as a message says it: `"a@b"`, `disabled`, `gone`. */
   show(reading: Reading): string;
-  /** A wait for something to be gone, which must hold for \`stable\`, as a negated wait must. */
+  /** A wait for something to be gone, which must hold for `stable`, as a negated wait must. */
   absent?: boolean;
 }
 
-/** The tree fields \`toHaveAttribute\` reads. */
+/** The tree fields `toHaveAttribute` reads. */
 export const ATTRIBUTES = ['help', 'inSet', 'heading', 'live', 'status', 'dialog', 'testId', 'placeholder', 'role', 'kind'] as const;
 
 export type Attribute = (typeof ATTRIBUTES)[number];
@@ -123,7 +123,7 @@ type Matcher = (this: MatcherThis, received: unknown, options?: ExpectOptions) =
 const visible = (reading: Reading) => reading.nodes.filter(node => node.offscreen !== true);
 const presence = (reading: Reading) => (visible(reading).length > 0 ? 'visible' : reading.nodes.length > 0 ? 'off screen' : 'gone');
 
-/** A matcher of one node's state field, which passes where the field is \`true\`. */
+/** A matcher of one node's state field, which passes where the field is `true`. */
 function flag(field: 'selected' | 'expanded' | 'pressed' | 'focused', says: string, yes: string, no: string): Matcher {
   return async function (this: MatcherThis, received: unknown, options?: ExpectOptions) {
     return check(this, received, `to${says}`, {says: `to be ${yes}`, one: true, passes: reading => only(reading)?.[field] === true, show: reading => shown(reading, node => (node[field] === true ? yes : no))}, options);

@@ -74,7 +74,7 @@ export function isShell(file: string): boolean {
   return /headless[_-]shell/.test(file);
 }
 
-/** What \`chromium.launch\` is given. */
+/** What `chromium.launch` is given. */
 export function launchOptions(mode: BrowserMode, executablePath?: string): {headless: boolean; slowMo?: number; executablePath?: string} {
   return {headless: !mode.headed, ...(mode.slowMo ? {slowMo: mode.slowMo} : {}), ...(executablePath ? {executablePath} : {})};
 }
