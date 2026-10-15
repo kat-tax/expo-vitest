@@ -21,7 +21,7 @@ export default async function warmUp(project: TestProject): Promise<void> {
   const config = await loadHarness(provided['harness.file'], each => import(/* @vite-ignore */ pathToFileURL(each).href));
   const run = resolveRun(platform, config, process.env, root);
   const force = process.env.HARNESS_FORCE;
-  const driver = driverFor(platform, {root, url: run.url, scheme: run.scheme, target: run.target, force: Boolean(force && force !== '0')});
+  const driver = driverFor(platform, {root, url: run.url, scheme: run.scheme, target: run.target, force: Boolean(force && force !== '0'), actionTimeout: run.actionTimeout});
   try {
     const availability = await driver.available();
     const found = {...(availability.found ? {found: availability.found} : {}), ...(availability.device ? {device: availability.device} : {})};

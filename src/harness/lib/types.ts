@@ -237,4 +237,6 @@ export interface DriverOptions {
   app?: AppOptions;
   /** On a device, whether the status bar is made the same in every screenshot, `fixed`, or left as it is, `real`. */
   statusBar?: 'fixed' | 'real';
+  /** How long one call to the driver may take before it is given up on, in ms. */
+  actionTimeout?: number;
 }

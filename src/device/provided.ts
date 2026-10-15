@@ -28,6 +28,8 @@ declare module 'vitest' {
     'harness.command': ProvidedCommand | null;
     /** Whether the platform's driver can work here, as the warm-up found it. */
     'harness.available': ProvidedAvailability;
+    /** The run's id, the same for every platform in it, which sorts by when it began. */
+    'harness.runId': string;
   }
 }
 

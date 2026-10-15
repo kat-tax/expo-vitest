@@ -181,7 +181,9 @@ since a CI job that skips its device tests in silence is worse than one that
 fails. `HARNESS_REQUIRE=0` skips them in CI too.
 
 Vitest holds the one file at a time for the whole run, so the platforms take
-turns rather than running side by side.
+turns rather than running side by side. A test can read the run's id with
+`inject('harness.runId')`: the same for every platform in a run, it sorts by
+when the run began.
 
 [Device tests](device-tests.md) has the rest.
 
@@ -230,6 +232,7 @@ parameter properties.
 | `settle` | How long the screen must hold still after a step, in ms, or `false`. | 150 |
 | `transition` | How long a control the last step brought in is given before it is pressed, in ms, or `false`. | 500 |
 | `statusBar` | On a device, `fixed` makes the status bar the same in every screenshot, and `real` leaves it as it is. | `fixed` |
+| `actionTimeout` | How long one call to a driver may take before it is given up on, in ms: a step through agent-device, and a page's navigation on web. | 30000 |
 
 A key the file does not take, or a value of the wrong kind, fails the run
 with `INVALID_CONFIG`, naming it and what the file takes there. So does a

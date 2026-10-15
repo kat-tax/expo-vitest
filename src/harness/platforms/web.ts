@@ -280,6 +280,8 @@ export function webDriver(options: DriverOptions): Driver {
   const listeners = new Set<(level: string, text: string) => void>();
   const require = createRequire(path.join(options.root, 'package.json'));
   const base = options.url ?? DEFAULT_URL;
+  /** How long a navigation may take before the page is taken not to be there. */
+  const navigation = options.actionTimeout ?? 30_000;
   let browser: Browser | null = null;
   let page: Page | null = null;
 
@@ -387,7 +389,7 @@ export function webDriver(options: DriverOptions): Driver {
     await old?.context().close();
     const current = await open();
     try {
-      await current.goto(base, {waitUntil: 'load', timeout: 30_000});
+      await current.goto(base, {waitUntil: 'load', timeout: navigation});
     } catch (error) {
       return failed(`could not open ${base}: ${firstLine((error as Error).message)}`, 'APP_UNREACHABLE');
     }
@@ -508,7 +510,7 @@ export function webDriver(options: DriverOptions): Driver {
       // Whatever an action does to the page, the next read starts again.
       lastRead = null;
       try {
-        await current.goto(url, {waitUntil: 'load', timeout: 30_000});
+        await current.goto(url, {waitUntil: 'load', timeout: navigation});
       } catch (error) {
         // A server that is not up, or a page that never finishes loading: the
         // app is not there to drive, which is a different fix from a step failing.
@@ -533,14 +535,14 @@ export function webDriver(options: DriverOptions): Driver {
           case 'back': {
             const current = await open();
             lastRead = null;
-            const went = await current.goBack({waitUntil: 'load', timeout: 30_000});
+            const went = await current.goBack({waitUntil: 'load', timeout: navigation});
             return ok(went ? `went back to ${current.url()}` : 'there was no page to go back to');
           }
           case 'openLink': {
             if (!/^https?:/i.test(request.url)) return cannot(request, 'web', CANNOT.webLink);
             const current = await open();
             lastRead = null;
-            await current.goto(request.url, {waitUntil: 'load', timeout: 30_000});
+            await current.goto(request.url, {waitUntil: 'load', timeout: navigation});
             return ok(`opened ${request.url}`);
           }
           case 'foregroundApp': {

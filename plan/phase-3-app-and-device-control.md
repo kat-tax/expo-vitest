@@ -328,6 +328,21 @@ below, the build is what holds.
   - **The absent platform** is iOS beside web, rather than Windows as the
     design has it, since this Windows machine can drive Windows. On a Mac
     it is Windows.
+- **The hooks later phases take from this one,** as the README's table
+  lists them:
+  - `actionTimeout` is the step budget of agent-device's client and its
+    command line, and the deadline of a navigation on web. An open, which
+    may boot a device, keeps its own longer budget, and the Windows host
+    keeps the budgets it has.
+  - The global setup provides `harness.runId`, made by the first platform's
+    setup and shared through the global object, so every platform in a run
+    has the same one. It sorts by when the run began and is safe in a file
+    name.
+  - The reserved keys are refused by name, and `device.can` reads the one
+    table, with the step verbs in it.
+  - `app.<platform>.device` takes a name only. A list and a hosted device
+    are Phase 4's, where they mean something; taken now, they would be
+    keys that do nothing.
 - **Item 14: `engines.node` is `>=22.18`,** the package's first floor, and
   `docs/getting-started.md` says why beside the install.
 - **Item 13, its start.** `docs/configuration.md` has the three options, a

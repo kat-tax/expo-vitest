@@ -16,7 +16,7 @@ import {prepare} from '../harness/lib/run.ts';
 import {realClock} from '../harness/lib/settle.ts';
 import type {System} from './app-process.ts';
 import {acquire, commandKey, registry, release, startCommand} from './app-process.ts';
-import {loadHarness, resolveRun, serialisable} from './config.ts';
+import {loadHarness, resolveRun, runId, serialisable} from './config.ts';
 import './provided.ts';
 
 const system: System = {
@@ -50,6 +50,7 @@ export default async function setup(project: TestProject): Promise<(() => Promis
   // A file URL, which the module runner takes and Node's own import needs on Windows.
   const config = await loadHarness(file, each => import(/* @vite-ignore */ pathToFileURL(each).href));
   project.provide('harness.config', serialisable(config).hash);
+  project.provide('harness.runId', runId());
   const run = resolveRun(platform, config, process.env, provided['harness.root']);
   if (!run.command || !run.readyUrl) {
     project.provide('harness.command', null);

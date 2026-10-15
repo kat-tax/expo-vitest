@@ -94,6 +94,8 @@ export interface TransportOptions {
   root: string;
   /** The device to drive, by name or id. */
   device?: string;
+  /** How long one step may take; 30 s unless given. An open, which may boot a device, has its own. */
+  stepTimeout?: number;
 }
 
 /** The parts of the client module the transport uses. */
@@ -185,7 +187,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
   const client = module.createAgentDeviceClient({cwd: options.root});
   const select = {platform: options.platform, ...(options.device ? {device: options.device} : null)};
 
-  async function call(work: (signal: AbortSignal) => Promise<unknown>, otherwise: HarnessCode, timeout = STEP_TIMEOUT): Promise<unknown> {
+  async function call(work: (signal: AbortSignal) => Promise<unknown>, otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<unknown> {
     try {
       return await work(AbortSignal.timeout(timeout));
     } catch (error) {
@@ -261,7 +263,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
 function cliTransport(options: TransportOptions, command: string, prefix: string[]): AgentDeviceTransport {
   const select = ['--platform', options.platform, ...(options.device ? ['--device', options.device] : [])];
 
-  async function agent(args: string[], otherwise: HarnessCode, timeout = STEP_TIMEOUT): Promise<string> {
+  async function agent(args: string[], otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<string> {
     const ran = await runAsync(command, [...prefix, ...args, ...select], {cwd: options.root, timeout});
     if (ran.ok) return ran.stdout;
     if (ran.missing) {

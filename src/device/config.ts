@@ -17,7 +17,7 @@
  * so every run that works without a file keeps working, and a CI job can
  * change one value without editing it.
  */
-import {createHash} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {HarnessError} from '../harness/lib/errors.ts';
@@ -358,6 +358,7 @@ export function configFromRun(run: ResolvedRun, environment: NodeJS.ProcessEnv):
     assertionTimeout: run.assertionTimeout,
     stable: run.stable,
     statusBar: run.statusBar,
+    actionTimeout: run.actionTimeout,
     ...appOf(run),
   };
 }
@@ -372,6 +373,18 @@ function appOf(run: ResolvedRun): {app?: NonNullable<DeviceConfig['app']>} {
     ...(run.stateDir ? {stateDir: run.stateDir} : {}),
   };
   return Object.keys(app).length ? {app} : {};
+}
+
+const RUN_ID = Symbol.for('expo-vitest.run-id');
+
+/**
+ * The run's id: made by the first platform's global setup, and the same for
+ * every platform after, since they share the main process. It sorts by when
+ * the run began and is safe in a file name.
+ */
+export function runId(store: object = globalThis, now: Date = new Date(), random: () => string = () => randomBytes(3).toString('hex')): string {
+  const holder = store as {[RUN_ID]?: string};
+  return (holder[RUN_ID] ??= `${now.toISOString().replace(/[:.]/g, '-')}-${random()}`);
 }
 
 /** A value with its keys in order and its functions left out, so the same config always hashes the same. */

@@ -31,7 +31,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
   /** The transport, chosen on first use and kept until `close()`. */
   function transport(): Promise<AgentDeviceTransport> {
-    connecting ??= transportFor({platform: name, harnessPlatform: platform, root: options.root, device: options.target});
+    connecting ??= transportFor({platform: name, harnessPlatform: platform, root: options.root, device: options.target, ...(options.actionTimeout ? {stepTimeout: options.actionTimeout} : {})});
     return connecting;
   }
 

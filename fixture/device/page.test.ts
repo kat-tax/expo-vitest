@@ -13,6 +13,7 @@ afterAll(() => device.close());
 it('runs on the app harness.config.ts names, served by the command it starts', () => {
   expect(device.config).toMatchObject({platform: 'web', url: 'http://127.0.0.1:41731', assertionTimeout: 4000});
   expect(inject('harness.command')).toMatchObject({key: expect.stringContaining('serve.mjs')});
+  expect(inject('harness.runId')).toMatch(/^\d{4}-\d{2}-\d{2}T[\d-]+Z-[0-9a-f]{6}$/);
 });
 
 it('finds the form by role and label, fills it, and waits for the save to show', async () => {

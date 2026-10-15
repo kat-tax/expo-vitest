@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {HarnessConfig} from './config.ts';
-import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, portOf, requiresDriver, resolveRun, sameConfig, serialisable, setRun, validate} from './config.ts';
+import {configFromRun, currentRun, DEFAULTS, defineHarness, findHarnessFile, isCI, loadHarness, portOf, requiresDriver, resolveRun, runId, sameConfig, serialisable, setRun, validate} from './config.ts';
 
 const root = path.resolve('/project');
 const at = (...parts: string[]) => path.join(root, ...parts);
@@ -340,8 +340,10 @@ describe('the run a worker hands the device', () => {
       assertionTimeout: 5000,
       stable: 1000,
       statusBar: 'fixed',
+      actionTimeout: 30_000,
     });
-    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000, statusBar: 'fixed'});
+    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000, statusBar: 'fixed', actionTimeout: 30_000});
+    expect(configFromRun(resolveRun('ios', {actionTimeout: 5}, env(), root), env()).actionTimeout).toBe(5);
     expect(configFromRun(resolveRun('ios', {statusBar: 'real'}, env(), root), env()).statusBar).toBe('real');
   });
 
@@ -354,5 +356,15 @@ describe('the run a worker hands the device', () => {
     expect(configFromRun(resolveRun('ios', full, env(), root), env()).app).toEqual({bundleId: 'com.example.app', launchArguments: ['--initialUrl', 'http://localhost:8081']});
     expect(configFromRun(resolveRun('windows', full, env(), root), env()).app).toEqual({stateDir: at('windows', 'state')});
     expect(configFromRun(resolveRun('web', full, env(), root), env())).not.toHaveProperty('app');
+  });
+});
+
+describe("the run's id", () => {
+  it('is made once, sorts by when the run began, and is safe in a file name', () => {
+    const store = {};
+    const id = runId(store, new Date('2026-10-15T07:31:02.345Z'), () => 'a1b2c3');
+    expect(id).toBe('2026-10-15T07-31-02-345Z-a1b2c3');
+    expect(runId(store, new Date('2027-01-01T00:00:00.000Z'), () => 'ffffff')).toBe(id);
+    expect(runId({})).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{6}$/);
   });
 });
