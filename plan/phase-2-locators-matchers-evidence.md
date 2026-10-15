@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (item 1 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 3 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -39,6 +39,34 @@ below, the build is what holds.
       on its Documents and Settings screens, with the host and the scripts
       agreeing on every node.
   - **Not seen:** iOS, which needs a Mac.
+- **Item 2: the fixtures are in `src/harness/lib/__fixtures__/`.**
+  - **Android:** three screens of a clean emulator's Settings app, as
+    agent-device printed them. They showed the field is called
+    `placeholder`, not `hint`, which corrected item 1.
+  - **Windows:** two screens of a react-native-windows app, with the app's
+    words replaced.
+  - **Web:** react-native-web's output, and a page of controls in each
+    state.
+  - Capturing the web one showed icon-font glyphs read as text, which is
+    fixed in a commit of its own.
+  - There is no iOS fixture.
+- **Item 3: `kind`.**
+  - Each backend sets it where it has the native facts:
+    - **Windows:** the driver, from the host's control types and patterns,
+      with each node's parent.
+    - **agent-device:** the mapping, from the Android class or the
+      XCUIElement type, the parent's, and agent-device's own `kind` for a
+      class the table lacks.
+    - **Web:** the driver, from the ARIA role the page gives or the tag
+      implies.
+  - react-native-windows gives `switch` and `togglebutton` the same
+    control type, `Button`, and sets no localized type to tell them apart.
+    So a toggling `Button` without Invoke is a `switch` and reads
+    `checked`, and item 1's `pressed` there was changed. `pressed` is kept
+    for a `Button` that also invokes.
+  - Every node of the Windows and Android fixtures has a kind, but the
+    window and custom views.
+  - The iOS table is XCUIElement's type names, unread off a device.
 
 ## Purpose and the claims it proves
 

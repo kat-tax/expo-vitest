@@ -6,6 +6,7 @@ import {HarnessError, codeOf} from '../lib/errors.ts';
 import type {PatternAnswer} from '../lib/patterns.ts';
 import {afterFill, afterPress, chooseFill, choosePress} from '../lib/patterns.ts';
 import {desk, refusal} from '../lib/quiet.ts';
+import {kindOnWindows, withKinds} from '../lib/roles.ts';
 import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
@@ -225,7 +226,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     } catch (error) {
       throw new HarnessError('ACTION_FAILED', `could not read the tree of ${processName}: ${(error as Error).message}`, {platform: 'windows', cause: error});
     }
-    return {platform: 'windows', source: tree.process, nodes: (tree.nodes ?? []).map(present)};
+    return {platform: 'windows', source: tree.process, nodes: withKinds((tree.nodes ?? []).map(present), kindOnWindows)};
   }
 
   /**

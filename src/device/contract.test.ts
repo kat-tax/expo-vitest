@@ -24,7 +24,7 @@ import type {Driver, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, selfAliases} from '../projects.ts';
-import type {DeviceConfig, HarnessCode, Selector, Snapshot, SnapshotNode} from './index.ts';
+import type {DeviceConfig, HarnessCode, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
 import {by, configFromEnvironment, device, element, isHarnessError} from './index.ts';
 import './matchers.ts';
 
@@ -440,6 +440,7 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<Plain<SnapshotNode>>().toMatchObjectType<{
       ref: string;
       role: string;
+      kind?: Kind;
       name: string;
       testId?: string;
       depth: number;
@@ -478,5 +479,13 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{include?: string[]; timeout?: number; settle?: number | false; transition?: number | false}>();
     expectTypeOf<Parameters<typeof nodeProject>[0]>().toMatchObjectType<{name: string; include: string[]; root?: string; timeout?: number}>();
     expectTypeOf<Plain<ExpoProjectsOptions>>().toMatchObjectType<{root?: string; platforms?: Platform[]; include?: string[]; transformPackages?: string[]; timeout?: number}>();
+  });
+});
+
+describe('the kind vocabulary', () => {
+  it('is the 26 words a test asks for a role by, on every platform', () => {
+    expectTypeOf<Kind>().toEqualTypeOf<
+      'button' | 'textbox' | 'checkbox' | 'switch' | 'tab' | 'tablist' | 'link' | 'heading' | 'listitem' | 'menuitem' | 'radio' | 'slider' | 'progressbar' | 'dialog' | 'text' | 'image' | 'group' | 'list' | 'combobox' | 'searchbox' | 'spinbutton' | 'status' | 'alert' | 'toolbar' | 'menu' | 'radiogroup'
+    >();
   });
 });

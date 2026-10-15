@@ -172,7 +172,7 @@ that.
 | `by.testID(id)` | The `testID` the component was given. It reaches `data-testid` on web and `AutomationId` on Windows. |
 | `by.label(name)` | The accessible name, exactly. |
 | `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. |
-| `by.role(role)` | The platform's own word for what it is: `Button`, `TabItem`, `link`, `menuitem`. |
+| `by.role(role)` | What it is: the platform's own word (`Button`, `TabItem`, `link`), or its kind, the one word every platform shares (`button`, `tab`, `switch`). |
 | `by.ref(ref)` | A ref from a snapshot (`@e7`). Good for that snapshot only. |
 
 Prefer `by.testID`. A label is copy and changes with wording and language, a
@@ -186,6 +186,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | --- | --- |
 | `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. On web and Windows a node has the same ref in an interactive snapshot as in a full one of the same screen, so a ref read from an interactive snapshot presses that node while the screen stays as it was. On web a node keeps its ref for as long as it stays on the page, so a ref read earlier still presses it after the page has changed around it. |
 | `role` | The platform's own word for what this is. |
+| `kind` | One word for it on every platform, from a fixed list: `button`, `textbox`, `checkbox`, `switch`, `tab`, `tablist`, `link`, `heading`, `listitem`, `menuitem`, `radio`, `slider`, `progressbar`, `dialog`, `text`, `image`, `group`, `list`, `combobox`, `searchbox`, `spinbutton`, `status`, `alert`, `toolbar`, `menu`, `radiogroup`. Absent where the platform's word is not one the harness knows. On Windows a switch and a toggle button are the same control type, with the Toggle pattern and no Invoke, and both read as `switch`. The tree prints it beside the role where the two differ: `Button/switch`. |
 | `name` | The accessible name: what a screen reader says. |
 | `testId` | The `testID` from the source. |
 | `depth` | Depth in the tree. |
@@ -201,7 +202,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `checked` | A checkbox, radio or switch: `true`, `false`, or `'mixed'` in between. From `ToggleState` on Windows, `aria-checked` or the input's own state on web, agent-device's `checked` on Android and iOS. |
 | `selected` | A tab, option or item: whether it is the one selected. `SelectionItem` on Windows, `aria-selected` on web. On Android and iOS only a selected node carries it, since agent-device reports `false` on every Android node. |
 | `expanded` | A combo box, menu button or disclosure: whether it is open. `ExpandCollapse` on Windows, `aria-expanded` on web. |
-| `pressed` | A toggle button: whether it is pressed in, or `'mixed'`. `ToggleState` on a Windows `Button`, `aria-pressed` on web. |
+| `pressed` | A toggle button: whether it is pressed in, or `'mixed'`. `aria-pressed` on web; on Windows, `ToggleState` on a `Button` that also invokes. |
 | `value` | What a field holds, or a slider's value. Never set on a secure field. |
 | `placeholder` | The hint an empty field shows. Not on Windows, where react-native-windows does not report it. |
 | `secure` | `true` on a field whose text is hidden, such as a password. |

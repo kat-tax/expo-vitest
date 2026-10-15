@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
+import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
@@ -166,6 +167,15 @@ const COLLECT = `((last) => {
     // Never a secure field's value, which a tree must not carry.
     const value = secure ? undefined : field ? element.value : (aria('aria-valuetext') ?? aria('aria-valuenow') ?? undefined);
     const placeholder = aria('placeholder') || undefined;
+    // The ARIA role it has, said or implied by its tag, which the driver
+    // turns into a kind; and whether it is a plain element kept for its text.
+    const IMPLIED = {BUTTON: 'button', SELECT: 'combobox', TEXTAREA: 'textbox', IMG: 'img', UL: 'list', OL: 'list', LI: 'listitem', DIALOG: 'dialog', PROGRESS: 'progressbar', OUTPUT: 'status', H1: 'heading', H2: 'heading', H3: 'heading', H4: 'heading', H5: 'heading', H6: 'heading'};
+    const INPUTS = {checkbox: 'checkbox', radio: 'radio', range: 'slider', number: 'spinbutton', search: 'searchbox', button: 'button', submit: 'button', reset: 'button', image: 'button'};
+    const said = (element.getAttribute('role') || '').trim().split(/\\s+/)[0];
+    const implied = element.tagName === 'INPUT' ? (INPUTS[type] || 'textbox') : element.tagName === 'A' ? (element.hasAttribute('href') ? 'link' : undefined) : IMPLIED[element.tagName];
+    const ariaRole = said || implied;
+    const leaf = PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable;
+    const level = (/^H([1-6])$/.exec(element.tagName) || [])[1] || (ariaRole === 'heading' ? aria('aria-level') : null);
     nodes.push({
       ref,
       ...(parent ? {parent} : null),
@@ -186,6 +196,9 @@ const COLLECT = `((last) => {
       ...(value === undefined ? null : {value}),
       ...(placeholder ? {placeholder} : null),
       ...(secure ? {secure: true} : null),
+      ...(level ? {heading: Number(level)} : null),
+      ...(ariaRole ? {ariaRole} : null),
+      ...(leaf ? {leaf: true} : null),
     });
   }
   // The elements this read named, for a press to find the one it points at.
@@ -279,7 +292,8 @@ export function webDriver(options: DriverOptions): Driver {
   async function collect(): Promise<SnapshotNode[]> {
     const current = await open();
     const last = lastRead && Date.now() - lastRead.at < KEEP_MS ? {origin: lastRead.origin, generation: lastRead.generation} : null;
-    type Read = {same: true} | {same?: undefined; origin: number; generation: number; nodes: SnapshotNode[]};
+    type Collected = SnapshotNode & {ariaRole?: string; leaf?: boolean};
+    type Read = {same: true} | {same?: undefined; origin: number; generation: number; nodes: Collected[]};
     const read = (): Promise<Read> => current.evaluate<Read>(`(${COLLECT})(${JSON.stringify(last)})`);
     let answer: Read;
     try {
@@ -294,8 +308,13 @@ export function webDriver(options: DriverOptions): Driver {
     }
     if (answer.same && lastRead) return [...lastRead.nodes];
     if (answer.same) throw new Error('the page answered an unchanged tree to a first read');
-    lastRead = {origin: answer.origin, generation: answer.generation, at: Date.now(), nodes: answer.nodes};
-    return [...answer.nodes];
+    // The page says which ARIA role each node has; the kind is the harness's word for it.
+    const nodes = answer.nodes.map(({ariaRole, leaf, ...node}) => {
+      const kind = kindOnWeb(ariaRole, Boolean(leaf));
+      return kind ? {...node, kind} : node;
+    });
+    lastRead = {origin: answer.origin, generation: answer.generation, at: Date.now(), nodes};
+    return [...nodes];
   }
 
   function target(to: string): string {

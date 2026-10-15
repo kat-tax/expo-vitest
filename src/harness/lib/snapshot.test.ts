@@ -207,3 +207,25 @@ describe('seenInstead', () => {
     expect(seenInstead(tree, {ref: '@e9'})).toBe('');
   });
 });
+
+describe('kind', () => {
+  const tree: Snapshot = {
+    platform: 'windows',
+    nodes: [
+      {ref: '@e1', role: 'Button', kind: 'switch', name: 'Wi-Fi', depth: 0, interactive: true, checked: true},
+      {ref: '@e2', role: 'button', kind: 'button', name: 'Save', depth: 0, interactive: true},
+      {ref: '@e3', role: 'Custom', name: 'Canvas', depth: 0, interactive: false},
+    ],
+  };
+
+  it('is a role a selector can name, as well as the platform\'s own word', () => {
+    expect(findNode(tree, by.role('switch'))?.ref).toBe('@e1');
+    expect(findNode(tree, by.role('Button'))?.ref).toBe('@e1');
+    expect(findNode(tree, {role: 'switch', label: 'Wi-Fi'})?.ref).toBe('@e1');
+    expect(seenInstead(tree, {role: 'switch', label: 'Bluetooth'})).toBe('1 node has role switch: "Wi-Fi"');
+  });
+
+  it('is printed beside the role where the two differ', () => {
+    expect(renderSnapshot(tree).split('\n')).toEqual(['@e1 Button/switch "Wi-Fi" [checked]', '@e2 button "Save"', '@e3 Custom "Canvas"']);
+  });
+});

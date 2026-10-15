@@ -26,6 +26,7 @@ import path from 'node:path';
 import type {HarnessCode} from '../lib/errors.ts';
 import type {SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
+import {kindOnAndroid, kindOnIos} from '../lib/roles.ts';
 import {DEFAULT_TIMING} from '../lib/settle.ts';
 import type {StepTiming} from '../lib/types.ts';
 
@@ -94,20 +95,25 @@ export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
 
 /**
  * A snapshot's nodes in our shape, each with the ref of its parent where the
- * parent is in the same list. An interactive snapshot leaves most parents
- * out, and agent-device does not say whose child a missing parent was, so
- * those nodes have none rather than a guess.
+ * parent is in the same list, and its kind from what agent-device said of it
+ * and of its parent. An interactive snapshot leaves most parents out, and
+ * agent-device does not say whose child a missing parent was, so those nodes
+ * have none rather than a guess.
  */
-export function toSnapshotNodes(nodes: AgentNode[]): SnapshotNode[] {
+export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' = 'android'): SnapshotNode[] {
   const mapped = nodes.map(toSnapshotNode);
-  const refs = new Map<number, string>();
+  const byIndex = new Map<number, {node: AgentNode; ref: string}>();
   nodes.forEach((node, at) => {
-    if (typeof node.index === 'number') refs.set(node.index, mapped[at]!.ref);
+    if (typeof node.index === 'number') byIndex.set(node.index, {node, ref: mapped[at]!.ref});
   });
   return mapped.map((node, at) => {
-    const index = nodes[at]!.parentIndex;
-    const parent = typeof index === 'number' ? refs.get(index) : undefined;
-    return parent === undefined ? node : {...node, parent};
+    const raw = nodes[at]!;
+    const above = typeof raw.parentIndex === 'number' ? byIndex.get(raw.parentIndex) : undefined;
+    const kind =
+      platform === 'ios'
+        ? kindOnIos(raw.role ?? raw.type ?? '', above ? (above.node.role ?? above.node.type) : undefined)
+        : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type);
+    return {...node, ...(above ? {parent: above.ref} : null), ...(kind ? {kind} : null)};
   });
 }
 

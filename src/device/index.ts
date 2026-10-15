@@ -18,13 +18,14 @@ import path from 'node:path';
 import {driverFor} from '../harness/lib/drivers.ts';
 import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError, isHarnessError} from '../harness/lib/errors.ts';
+import type {Kind} from '../harness/lib/roles.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 
 export {by, HarnessError, isHarnessError};
-export type {HarnessCode, Selector, Snapshot, SnapshotNode};
+export type {HarnessCode, Kind, Selector, Snapshot, SnapshotNode};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());

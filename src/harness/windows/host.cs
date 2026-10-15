@@ -408,13 +408,16 @@ public static class HarnessHost {
       if (status != null) node.Append(",\"status\":").Append(Json(status.ToString()));
       object dialog = Prop(walk, element, AutomationElement.IsDialogProperty, false);
       if (dialog is bool && (bool)dialog) node.Append(",\"dialog\":true");
-      // The state a control is in, present only where it has one. A toggle on
-      // a Button is a toggle button, pressed in or not; on anything else it is
-      // checked or not.
+      // The state a control is in, present only where it has one. A toggle is
+      // checked or not, as a switch is: react-native-windows gives a switch the
+      // control type Button, with Toggle and no Invoke. Only a Button that
+      // also invokes is a toggle button, pressed in or not.
       object toggle = Raw(walk, element, TogglePattern.ToggleStateProperty);
       if (toggle is ToggleState) {
         ToggleState on = (ToggleState)toggle;
-        node.Append(role == "Button" ? ",\"pressed\":" : ",\"checked\":").Append(on == ToggleState.On ? "true" : on == ToggleState.Off ? "false" : "\"mixed\"");
+        object invokable = Prop(walk, element, AutomationElement.IsInvokePatternAvailableProperty, false);
+        bool pressable = role == "Button" && invokable is bool && (bool)invokable;
+        node.Append(pressable ? ",\"pressed\":" : ",\"checked\":").Append(on == ToggleState.On ? "true" : on == ToggleState.Off ? "false" : "\"mixed\"");
       }
       object selected = Raw(walk, element, SelectionItemPattern.IsSelectedProperty);
       if (selected is bool) node.Append(",\"selected\":").Append(Bool((bool)selected));

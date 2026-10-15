@@ -71,7 +71,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
       const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
-      return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload))};
+      return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android')};
     },
 
     press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {

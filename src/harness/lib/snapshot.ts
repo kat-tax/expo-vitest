@@ -4,6 +4,7 @@
  * of naming coordinates. A coordinate written into a test goes stale the moment
  * the layout moves; a ref is resolved from a fresh tree every time.
  */
+import type {Kind} from './roles.ts';
 
 export interface Bounds {
   x: number;
@@ -17,6 +18,12 @@ export interface SnapshotNode {
   ref: string;
   /** The platform's own word for what this is: Button, TabItem, link, menuitem. */
   role: string;
+  /**
+   * One word for it on every platform, from a fixed vocabulary (`button`,
+   * `textbox`, `switch`, `tab` and the rest in `roles.ts`). Absent where the
+   * platform's word is not one the harness knows.
+   */
+  kind?: Kind;
   /** The accessible name — what a screen reader says. */
   name: string;
   /**
@@ -180,7 +187,7 @@ export function seenInstead(snapshot: Snapshot, selector: Selector): string {
   }
   if (selector.role) {
     const role = selector.role.toLowerCase();
-    const named = snapshot.nodes.filter(node => node.role.toLowerCase() === role);
+    const named = snapshot.nodes.filter(node => node.role.toLowerCase() === role || node.kind === role);
     if (named.length === 0) return `no node has role ${selector.role}`;
     return `${named.length} ${named.length === 1 ? 'node has' : 'nodes have'} role ${selector.role}: ${list(named.map(node => node.name))}`;
   }
@@ -197,7 +204,9 @@ export function findNode(snapshot: Snapshot, selector: Selector): SnapshotNode |
   const {nodes} = snapshot;
   if (selector.ref) return nodes.find(node => node.ref === selector.ref);
   if (selector.testId) return nodes.find(node => node.testId === selector.testId);
-  const candidates = selector.role ? nodes.filter(node => node.role.toLowerCase() === selector.role?.toLowerCase()) : nodes;
+  // A role names the platform's own word or the one kind every platform shares.
+  const role = selector.role?.toLowerCase();
+  const candidates = role ? nodes.filter(node => node.role.toLowerCase() === role || node.kind === role) : nodes;
   if (selector.label) {
     return (
       candidates.find(node => node.name === selector.label) ??
@@ -271,7 +280,9 @@ export function renderSnapshot(snapshot: Snapshot): string {
         node.placeholder && `placeholder:${JSON.stringify(node.placeholder)}`,
         node.secure && 'secure',
       ].filter(Boolean).join(' ');
-      return `${indent}${node.ref} ${node.role} ${JSON.stringify(node.name)}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
+      // The kind beside the role where they differ, so a reader sees the word getByRole takes.
+      const role = node.kind && node.kind !== node.role.toLowerCase() ? `${node.role}/${node.kind}` : node.role;
+      return `${indent}${node.ref} ${role} ${JSON.stringify(node.name)}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
     })
     .join('\n');
 }

@@ -103,9 +103,12 @@ function Walk($element, $depth, $parent) {
     $itemStatus = Prop $element ([System.Windows.Automation.AutomationElement]::ItemStatusProperty)
     $isDialog = Prop $element ([System.Windows.Automation.AutomationElement]::IsDialogProperty) $false
     $live = Prop $element $liveSetting
-    # The state a control is in. A toggle on a Button is a toggle button,
-    # pressed in or not; on anything else it is checked or not.
+    # The state a control is in. A toggle is checked or not, as a switch is:
+    # react-native-windows gives a switch the control type Button, with Toggle
+    # and no Invoke. Only a Button that also invokes is a toggle button.
     $toggle = Raw $element ([System.Windows.Automation.TogglePattern]::ToggleStateProperty)
+    $invokes = (Prop $element ([System.Windows.Automation.AutomationElement]::IsInvokePatternAvailableProperty) $false) -eq $true
+    $toggleButton = $role -eq 'Button' -and $invokes
     $isSelected = Raw $element ([System.Windows.Automation.SelectionItemPattern]::IsSelectedProperty)
     $expandState = Raw $element ([System.Windows.Automation.ExpandCollapsePattern]::ExpandCollapseStateProperty)
     $password = (Raw $element ([System.Windows.Automation.AutomationElement]::IsPasswordProperty)) -eq $true
@@ -143,8 +146,8 @@ function Walk($element, $depth, $parent) {
         live        = if ($live -is [int] -and $live -gt 0 -and $live -lt $LIVE_NAMES.Count) { $LIVE_NAMES[$live] } else { $null }
         status      = $itemStatus
         dialog      = if ($isDialog -eq $true) { $true } else { $null }
-        checked     = if ($null -ne $toggle -and $role -ne 'Button') { ToggleValue $toggle } else { $null }
-        pressed     = if ($null -ne $toggle -and $role -eq 'Button') { ToggleValue $toggle } else { $null }
+        checked     = if ($null -ne $toggle -and -not $toggleButton) { ToggleValue $toggle } else { $null }
+        pressed     = if ($null -ne $toggle -and $toggleButton) { ToggleValue $toggle } else { $null }
         selected    = if ($isSelected -is [bool]) { $isSelected } else { $null }
         expanded    = if ($null -ne $expandState -and "$expandState" -ne 'LeafNode') { "$expandState" -ne 'Collapsed' } else { $null }
         value       = if ($fieldValue -is [string]) { $fieldValue } else { $null }
