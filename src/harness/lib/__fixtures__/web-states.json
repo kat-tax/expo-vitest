@@ -1,0 +1,221 @@
+{
+ "platform": "web",
+ "source": "a page of one control in each state",
+ "nodes": [
+  {
+   "ref": "@e1",
+   "role": "input",
+   "name": "Send me news",
+   "testId": "news",
+   "depth": 3,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 12,
+    "y": 11,
+    "width": 13,
+    "height": 13
+   },
+   "checked": false
+  },
+  {
+   "ref": "@e2",
+   "role": "input",
+   "name": "Select all",
+   "testId": "all",
+   "depth": 3,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 132,
+    "y": 11,
+    "width": 13,
+    "height": 13
+   },
+   "checked": "mixed"
+  },
+  {
+   "ref": "@e3",
+   "role": "switch",
+   "name": "Wi-Fi",
+   "testId": "wifi",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 28,
+    "width": 1264,
+    "height": 18
+   },
+   "checked": true
+  },
+  {
+   "ref": "@e4",
+   "role": "tablist",
+   "name": "Inbox Sent",
+   "depth": 2,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 46,
+    "width": 1264,
+    "height": 36
+   }
+  },
+  {
+   "ref": "@e5",
+   "parent": "@e4",
+   "role": "tab",
+   "name": "Inbox",
+   "depth": 3,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 46,
+    "width": 1264,
+    "height": 18
+   },
+   "selected": true
+  },
+  {
+   "ref": "@e6",
+   "parent": "@e4",
+   "role": "tab",
+   "name": "Sent",
+   "depth": 3,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 64,
+    "width": 1264,
+    "height": 18
+   },
+   "selected": false
+  },
+  {
+   "ref": "@e7",
+   "role": "button",
+   "name": "More",
+   "testId": "more",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 82,
+    "width": 46,
+    "height": 21
+   },
+   "expanded": false
+  },
+  {
+   "ref": "@e8",
+   "role": "button",
+   "name": "Bold",
+   "testId": "bold",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 58,
+    "y": 82,
+    "width": 43,
+    "height": 21
+   },
+   "pressed": true
+  },
+  {
+   "ref": "@e9",
+   "role": "input",
+   "name": "",
+   "testId": "name",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 105,
+    "y": 82,
+    "width": 177,
+    "height": 21
+   },
+   "value": "Ada",
+   "placeholder": "Your name"
+  },
+  {
+   "ref": "@e10",
+   "role": "input",
+   "name": "",
+   "testId": "search",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 286,
+    "y": 82,
+    "width": 177,
+    "height": 21
+   },
+   "value": "",
+   "placeholder": "Search"
+  },
+  {
+   "ref": "@e11",
+   "role": "input",
+   "name": "Password",
+   "testId": "secret",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 467,
+    "y": 82,
+    "width": 177,
+    "height": 21
+   },
+   "secure": true
+  },
+  {
+   "ref": "@e12",
+   "role": "slider",
+   "name": "Volume",
+   "depth": 2,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": true,
+   "bounds": {
+    "x": 8,
+    "y": 103,
+    "width": 1264,
+    "height": 0
+   },
+   "value": "40"
+  }
+ ]
+}
