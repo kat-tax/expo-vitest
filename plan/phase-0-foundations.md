@@ -1,6 +1,6 @@
 # Phase 0. Foundations
 
-Status: built; two baselines open (iOS, the Windows press) · Size: S · Depends on: nothing · Unblocks: every later phase
+Status: built; the iOS baseline is open · Size: S · Depends on: nothing · Unblocks: every later phase
 
 Nothing in this phase is visible to a user of the package. It puts in place the
 four things every later phase leans on: a test that pins today's public
@@ -65,11 +65,12 @@ Work item 6's baselines are in `docs/performance.md` for web (the
 expo-interface example under `expo start`), Windows (a react-native-windows
 0.84 Release build made with expo-windows 0.25, standing in for
 expo-windows's example app, which this machine does not have) and Android
-(a Pixel 7 Pro over agent-device 0.21.27, installed with bun). Two are
-open: iOS, which needs a Mac, and the Windows press, which needs a desk
-left alone long enough for the guard to let twenty-one presses through.
-The Windows numbers for snapshot and screenshot are the "before" Phase 1's
-host is measured against; its press target waits on that run.
+(a Pixel 7 Pro over agent-device 0.21.27, installed with bun). One is open:
+iOS, which needs a Mac. The Windows press was taken with `--force`, with
+the owner's leave, after the guard had skipped it on every run because the
+desk was in use. The guard is asked outside the timing, so `--force`
+changes nothing that is timed. It pressed the tab already selected, and the
+app was on the same 94-node screen after forty-two presses.
 
 ## Purpose and the claims it proves
 

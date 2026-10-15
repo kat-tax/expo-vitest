@@ -50,15 +50,14 @@ page, so web is cheap.
 ## Windows
 
 A react-native-windows 0.84 Release build made with expo-windows 0.25, at
-its first screen of 94 nodes. `--press` named the tab already selected, but
-the press is not in the table: someone was using the machine each time it
-was about to run, and the quiet-desk guard skipped it.
+its first screen of 94 nodes. `--press` named the tab already selected.
 
 ```
   operation         cold      p50      p95      min      max
-  snapshot         728.7    681.2    722.6    655.1    724.0
-  snapshot -i      668.6    658.7    688.7    627.7    721.3
-  screenshot       380.9    350.6    367.3    341.3    404.1
+  snapshot         712.8    680.7    702.2    648.7    728.8
+  snapshot -i      684.3    648.8    707.4    633.9    712.8
+  press           2204.2   2227.1   2269.0   2186.0   2272.2
+  screenshot       382.4    351.6    376.2    336.1    385.4
 ```
 
 Every step starts a PowerShell 5.1 process, which loads UI Automation and
