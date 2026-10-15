@@ -1,12 +1,104 @@
 # Phase 4. Developer experience
 
-Status: not started · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs an account, a push or a machine this one is not: a provider's hosted device, the pull request comment and the CI jobs, iOS, and `test:device` on an app `init` set up · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
 
 The shared goal, the bar, the compatibility contract and the dependency policy
 are in [README.md](README.md). The shared facts this phase builds on, the
 Vitest reporter hooks, Playwright's `connectOverCDP` and `recordVideo`, and
 agent-device's `record` and `connect`, are in README.md section 11. This
 document does not repeat them.
+
+## As built
+
+On the `e2e` branch, after Phase 3, one commit an item or more. Where the
+build differs from the design below, the build is what holds.
+
+- **Items 1 to 5: `init`, the skill and `guide`.** `src/cli/detect.ts`,
+  `templates.ts`, `plan.ts` (`planInit`, the diffs), `init.ts`,
+  `skill.ts` and `guide.ts`; `init` and `guide` known in the first place
+  of the command line; `expo-vitest` as a second bin; `skills/expo-vitest/`
+  shipped, with `metadata.version` 0.1.0. `init` writes no line into
+  `AGENTS.md` or `CLAUDE.md`: it prints the line, and the file is the
+  project's.
+- **Items 6 to 8: the reporter.** `src/reporter/render.ts`, `github.ts`,
+  `records.ts` and `index.ts` as `expo-vitest/reporter`, with
+  `summary()` and `github({key})`, and `reporters` on `deviceConfig`.
+  Vitest's `--reporter` on the command line replaces a config's reporters,
+  so a run that fails on purpose names its own and posts nothing.
+- **Item 9: video.** Web records with `page.screencast` (playwright-core
+  1.59 on) rather than a context made with `recordVideo`: a page per test
+  made a test that relied on the page before it fail only with video on.
+  A recording starts at the test's first step, so a test that never uses
+  the device opens nothing. A page the test replaces, by a restart, is a
+  part of its own, kept as `video-2.webm`. agent-device records with
+  `--scope device`, since its default, the app it opened, has no session at
+  a test's first step. Playwright records only with the ffmpeg build its
+  own version names, so the fixture's copy fetches its own. Measured: 70 to
+  250 ms a test on web, 4.4 to 5.6 s on the Android emulator, most of it in
+  the stop.
+- **Item 10: the browsers and CDP.** As designed, and: what each browser
+  grants a page, measured with a page open, is `GRANTS` in
+  `web-browsers.ts`, and a grant a browser lacks is passed over and noted,
+  since one it does not know fails the whole context. The clipboard is
+  Chromium's alone on web. The warm-up prints what a run passes over, once.
+  While one CDP client is blocked, a page another opens does not load, so
+  the fixture's test of the command runs it with `execFile`. The install
+  hints name `npx playwright-core install`, the project's own version.
+- **Item 11: hosted devices.** As designed, with `--no-login` on every
+  `connect`, and the connection made through the command line from either
+  transport, since the Node client has none. agent-device allocates on
+  every command but `connect`, `close`, `disconnect`, `session` and a few
+  more, so the warm-up's availability check allocates the device; the
+  warm-up then installs `appPath`. Not run against a provider: there is no
+  account here. The refusal without credentials is what was run.
+- **Item 12: pools.** Vitest 4.1 takes workers per project, not as one sum
+  at the root: a pooled project gets `maxWorkers`, `fileParallelism` and a
+  `sequence.groupOrder` of its own, which Vitest asks of projects whose
+  workers differ. The size is read from the harness config while the
+  Vitest config is built, with `require` and Node's type stripping
+  (`loadHarnessSync`). A claim is a lock file, then a session of its own
+  opened with nothing in it, which agent-device holds the device for. The
+  setup file closes the device when its file ends. The warm-up warms each
+  device of the pool by name, since a driver left to agent-device's choice
+  could take any device on the machine. Run with two emulators, the second
+  an AVD made for it and removed after.
+- **Item 13: `device.web`.** As designed, and: a frame is read in the frame,
+  of any origin, its refs `@f<n>e<m>` and its boxes the page's, and every
+  step on such a ref resolves in the frame. A download goes where the test
+  says, or `.harness/downloads/`, not the test's evidence folder, which the
+  device does not know while the test runs. Each call is a `'web'` step.
+- **Item 14: the docs.** `ci.md`, `migrating.md` and `coding-agents.md`,
+  `init` and `guide` in `harness.md`, the browser, pools and hosted devices
+  where they belong, and the README's rows. `locators.md`, `matchers.md` and
+  `controls.md` were split from `device-tests.md` in earlier phases. The
+  CI page says which of its jobs have run: the web job's steps, in this
+  repository's CI.
+- **Item 15: the fixture.** It ends with `init --yes` on the copy with its
+  configs and tests taken away, the component tests on what it wrote, and
+  a second `init --yes` that must write nothing and name each file it
+  kept. This repository's CI gives the fixture its token, with
+  `pull-requests: write`.
+
+Against the exit criteria:
+
+- `init` with every default, then the component tests: green in the
+  fixture. `test:device` on web on an app it set up was not run: the
+  device config it writes serves the app on 8081, where this machine's own
+  dev server is.
+- A second `init` changes nothing and says so per file: checked in the
+  fixture.
+- The pull request comment: not seen, since nothing is pushed.
+- Video: `video.webm` for a failing web test and none for a passing one,
+  `video.mp4` on the Android emulator, and Windows has no `video`
+  capability, with the reason.
+- `HARNESS_BROWSER=webkit`, and `firefox`, run the fixture's web device
+  suite, and `HARNESS_CDP` runs it on a Chromium the run did not start.
+- Two emulators in `devices` ran two files at the same time, each device
+  held by one file at a time, and agent-device showed no claim left after.
+- The CI jobs: the web one's steps run in this repository's CI; the iOS,
+  Android and Windows jobs have not run.
+- `docs/migrating.md` has every row of e2e's Detox and Maestro guides, read
+  for it, and the Playwright and e2e tables.
 
 ## Purpose and the claims it proves
 
