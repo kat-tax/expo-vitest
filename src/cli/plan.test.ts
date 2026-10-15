@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Detection} from './detect.ts';
-import type {Reader, Shipped} from './plan.ts';
+import type {Reader, Shipped, Step} from './plan.ts';
 import {indentOf, planInit, unifiedDiff, versionIn} from './plan.ts';
 import type {Choices} from './templates.ts';
 
@@ -137,6 +137,45 @@ describe('the files the package ships', () => {
     expect(versionIn('metadata:\n  version: "0.2.0"\n')).toBe('0.2.0');
     expect(versionIn('version: 1.0.0')).toBe('1.0.0');
     expect(versionIn('nothing')).toBeNull();
+  });
+});
+
+describe("the MCP server's files", () => {
+  const entry = {type: 'stdio', command: 'npx', args: ['expo-harness', 'mcp']};
+  const plan = (files: Record<string, string>, mcp = true) => planInit(found(), chose({mcp}), project({'package.json': manifest, ...files})).filter(step => step.path.endsWith('mcp.json'));
+  const written = (step: Step | undefined) => (step && 'content' in step ? (step.content as string) : '');
+
+  it("are written where they are not there, Claude Code's and Cursor's, and only when asked for", () => {
+    const steps = plan({});
+    expect(steps.map(step => [step.kind, step.path])).toEqual([
+      ['create', '.mcp.json'],
+      ['create', '.cursor/mcp.json'],
+    ]);
+    expect(written(steps[0])).toBe(`${JSON.stringify({mcpServers: {'expo-harness': entry}}, null, 2)}\n`);
+    expect(plan({}, false)).toEqual([]);
+  });
+
+  it('gain the server where they name others, keeping each in its own indent, and are left where they have it', () => {
+    const others = '{\n    "mcpServers": {\n        "agent-device": {"command": "agent-device", "args": ["mcp"]}\n    }\n}\n';
+    const [merged] = plan({'.mcp.json': others});
+    expect(merged?.kind).toBe('edit');
+    expect(JSON.parse(written(merged))).toEqual({mcpServers: {'agent-device': {command: 'agent-device', args: ['mcp']}, 'expo-harness': entry}});
+    expect(merged && 'diff' in merged ? merged.diff : '').toContain('+        "expo-harness": {');
+    const stale = JSON.stringify({mcpServers: {'expo-harness': {command: 'node', args: ['old.js']}}});
+    expect(JSON.parse(written(plan({'.mcp.json': stale})[0])).mcpServers['expo-harness']).toEqual(entry);
+    expect(JSON.parse(written(plan({'.mcp.json': '{"name": "shop"}'})[0]))).toEqual({name: 'shop', mcpServers: {'expo-harness': entry}});
+    expect(plan({'.mcp.json': JSON.stringify({mcpServers: {'expo-harness': entry}})})[0]).toEqual({kind: 'keep', path: '.mcp.json', why: '.mcp.json has the expo-harness server already'});
+  });
+
+  it('are left to a person where one is not a plain JSON object', () => {
+    for (const text of ['{\n  // the servers\n}\n', '[]', 'null']) {
+      expect(plan({'.cursor/mcp.json': text})[1]).toEqual({
+        kind: 'print',
+        path: '.cursor/mcp.json',
+        why: '.cursor/mcp.json is not a plain JSON object, so init cannot edit it; add the server to its mcpServers by hand',
+        content: JSON.stringify({mcpServers: {'expo-harness': entry}}),
+      });
+    }
   });
 });
 

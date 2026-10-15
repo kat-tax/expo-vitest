@@ -1,7 +1,7 @@
 ---
 name: expo-vitest
 description: "Test Expo code with Vitest on iOS, Android, web and Windows: component tests routed by file name, device tests against a running app, and the expo-harness command. Use when writing or running a test in a project that uses expo-vitest, or when a device test failed and left evidence under .harness/."
-argument-hint: "[projects|device|evidence|harness]"
+argument-hint: "[projects|device|evidence|harness|agent|mcp|explore|bug-bash]"
 allowed-tools: Bash(npx vitest *), Bash(npx expo-harness *), Bash(npx expo-vitest *), Bash(bunx vitest *), Bash(bunx expo-harness *), Bash(bunx expo-vitest *), Read, Grep
 metadata:
   version: 0.1.0
@@ -86,6 +86,15 @@ end. `screenshot.png` and `tree.txt` are beside it. A screenshot baseline is
 recorded only under `HARNESS_UPDATE_SCREENSHOTS=1` or `vitest -u`, never by a
 run on its own.
 
+## For a coding agent
+
+- To find a flow before writing its test, drive the app over the MCP server
+  (`mcp`): observe, act by ref, and `locate` the node, which answers the
+  `screen.*` call to write.
+- To look for bugs, `explore` runs the agent with a goal, and `bug-bash`
+  runs many goals at once and writes a test for each issue it finds.
+- A step in words is `agent.act` (`agent`); follow it with a check.
+
 ## Topics
 
 Each prints with `npx expo-vitest guide <topic>`:
@@ -96,5 +105,9 @@ Each prints with `npx expo-vitest guide <topic>`:
 | `device` | Device tests: the configs, `harness.config.ts`, queries, actions, matchers, the app's life, the device's settings, gating, screenshots. |
 | `evidence` | What a failing device test leaves, and how to read it. |
 | `harness` | The `expo-harness` command, for looking at a running app by hand. |
+| `agent` | Steps in words: `agent.act`, `assert`, `waitFor`, `extract`, secrets and the replay cache. |
+| `mcp` | The MCP server a coding agent drives the app through, and its loop. |
+| `explore` | The agent with a goal: writing one, and reading its report against its evidence. |
+| `bug-bash` | Many explores at once, the feature map, and promoting a skeleton to a test. |
 
 The package's whole documentation is in `node_modules/expo-vitest/docs/`.

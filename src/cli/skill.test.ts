@@ -36,7 +36,7 @@ describe('the skill', () => {
     const overview = fs.readFileSync(path.join(SKILL_FOLDER, 'SKILL.md'), 'utf8');
     expect(overview).toMatch(/^---\nname: expo-vitest\ndescription: "[^"]+"\n/);
     expect(overview.split('\n').length).toBeLessThan(200);
-    expect(skillNames()).toEqual(['SKILL.md', 'device.md', 'evidence.md', 'harness.md', 'projects.md']);
+    expect(skillNames()).toEqual(['SKILL.md', 'agent.md', 'bug-bash.md', 'device.md', 'evidence.md', 'explore.md', 'harness.md', 'mcp.md', 'projects.md']);
   });
 
   it("is read from the package's root, which is beside both src and dist", () => {

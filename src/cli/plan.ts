@@ -7,7 +7,7 @@
  */
 import type {Detection, Manifest} from './detect.ts';
 import type {Choices} from './templates.ts';
-import {deviceExampleTest, deviceVitestConfig, harnessConfig, IGNORED, platformTest, scripts, TYPES, vitestConfig} from './templates.ts';
+import {deviceExampleTest, deviceVitestConfig, harnessConfig, IGNORED, MCP_FILES, MCP_SERVER, platformTest, scripts, TYPES, vitestConfig} from './templates.ts';
 
 export type Step =
   /** A file that is not there, written whole. */
@@ -145,6 +145,31 @@ function ignoreStep(read: Reader): Step {
   return {kind: 'edit', path: '.gitignore', content, diff: unifiedDiff('.gitignore', text, content)};
 }
 
+/**
+ * A coding agent's MCP config with the server in it: new where there is
+ * none, merged where there is one, every other server kept, and left where
+ * it has the entry already. One that is not plain JSON gets the entry to
+ * add by hand.
+ */
+function mcpStep(read: Reader, file: string): Step {
+  const text = read(file);
+  const entry = {mcpServers: {'expo-harness': MCP_SERVER}};
+  if (text === undefined) return {kind: 'create', path: file, content: `${JSON.stringify(entry, null, 2)}\n`};
+  let config: unknown;
+  try {
+    config = JSON.parse(text);
+  } catch {
+    config = undefined;
+  }
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    return {kind: 'print', path: file, why: `${file} is not a plain JSON object, so init cannot edit it; add the server to its mcpServers by hand`, content: JSON.stringify(entry)};
+  }
+  const servers = (config as {mcpServers?: Record<string, unknown>}).mcpServers ?? {};
+  if (JSON.stringify(servers['expo-harness']) === JSON.stringify(MCP_SERVER)) return {kind: 'keep', path: file, why: `${file} has the expo-harness server already`};
+  const content = rewrite(text, {...config, mcpServers: {...servers, 'expo-harness': MCP_SERVER}});
+  return {kind: 'edit', path: file, content, diff: unifiedDiff(file, text, content)};
+}
+
 /** The version a copy of a skill file says it came from. */
 export function versionIn(text: string): string | null {
   return text.match(/^\s*version:\s*["']?([^"'\s]+)/m)?.[1] ?? null;
@@ -175,5 +200,6 @@ export function planInit(detection: Detection, choices: Choices, read: Reader, s
   if (types) steps.push(types);
   steps.push(ignoreStep(read));
   if (choices.agent) steps.push(...shipped.map(file => shippedStep(read, file)));
+  if (choices.mcp) steps.push(...MCP_FILES.map(file => mcpStep(read, file)));
   return steps;
 }

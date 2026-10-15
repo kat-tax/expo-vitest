@@ -17,7 +17,7 @@ import type {Step} from './plan.ts';
 import {planInit} from './plan.ts';
 import {skillFiles} from './skill.ts';
 import type {Choices, Command} from './templates.ts';
-import {AGENT_LINE, installCommands, shown} from './templates.ts';
+import {AGENT_LINE, installCommands, MCP_ADD, MCP_FILES, shown} from './templates.ts';
 
 /** The folders a project keeps its tests in, walked to see whether it has any. */
 const WALKED = ['src', 'app', 'components', 'lib', 'device', 'test', 'tests', '__tests__'];
@@ -99,13 +99,15 @@ function run(command: Command, root: string): boolean {
 
 export async function init(argv: string[], root: string = process.cwd()): Promise<number> {
   const yes = argv.includes('--yes') || argv.includes('-y');
+  // The MCP server's files are offered to a person, and written under --yes only where --mcp asks for them.
+  const mcp = argv.includes('--mcp');
   if (argv.includes('--agent')) {
     console.error('init --agent sets up the agent, which this version does not have yet');
     return 2;
   }
-  const unknown = argv.filter(argument => argument !== '--yes' && argument !== '-y');
+  const unknown = argv.filter(argument => argument !== '--yes' && argument !== '-y' && argument !== '--mcp');
   if (unknown.length) {
-    console.error(`init takes --yes, and not ${unknown.join(' ')}`);
+    console.error(`init takes --yes and --mcp, and not ${unknown.join(' ')}`);
     return 2;
   }
   const manifestFile = path.join(root, 'package.json');
@@ -125,8 +127,9 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
           platforms: platformsIn(await ask(rl, `Platforms [${detection.platforms.join(' ')}]: Enter keeps them, or type the ones you want: `, ''), detection.platforms),
           device: await yesNo(rl, 'Set up device tests?'),
           agent: await yesNo(rl, 'Add the skill for coding agents?'),
+          mcp: mcp || (await yesNo(rl, `Register the MCP server for Claude Code and Cursor, in ${MCP_FILES.join(' and ')}?`)),
         }
-      : {platforms: detection.platforms, device: true, agent: true};
+      : {platforms: detection.platforms, device: true, agent: true, mcp};
     const install = rl ? await yesNo(rl, 'Install the packages now?') : false;
 
     const read = (file: string) => {
@@ -170,6 +173,7 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
     console.log(`  ${script(detection, 'test').padEnd(26)}the component tests`);
     if (choices.device) console.log(`  ${script(detection, 'test:device').padEnd(26)}the device tests, which start the app through harness.config.ts`);
     if (choices.agent) console.log(`\nFor a coding agent, add this line to AGENTS.md or CLAUDE.md, which init leaves to you:\n  ${AGENT_LINE}`);
+    if (choices.mcp) console.log(`\nClaude Code asks before it first starts a server a project names. For Claude Code alone, this writes the same entry:\n  ${MCP_ADD}`);
     return 0;
   } finally {
     rl?.close();

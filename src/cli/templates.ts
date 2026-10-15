@@ -10,6 +10,8 @@ export interface Choices {
   platforms: Platform[];
   device: boolean;
   agent: boolean;
+  /** The MCP server, registered where Claude Code and Cursor read a project's servers. */
+  mcp?: boolean;
 }
 
 /** The order a config names platforms in. */
@@ -156,6 +158,15 @@ export function installCommands(detection: Detection, choices: Choices, manifest
 export function shown(command: Command): string {
   return [command.command, ...command.args].map(word => (/\s/.test(word) ? JSON.stringify(word) : word)).join(' ');
 }
+
+/** The MCP server's entry, the same where Claude Code reads a project's servers and where Cursor does. */
+export const MCP_SERVER = {type: 'stdio', command: 'npx', args: ['expo-harness', 'mcp']};
+
+/** Where Claude Code and Cursor read a project's MCP servers. */
+export const MCP_FILES = ['.mcp.json', '.cursor/mcp.json'];
+
+/** The command that writes the same entry for Claude Code alone. */
+export const MCP_ADD = 'claude mcp add --transport stdio --scope project expo-harness -- npx expo-harness mcp';
 
 /** The line `init` asks a person to add to their agent instructions, which it does not write itself. */
 export const AGENT_LINE = 'Tests use expo-vitest. Run `npx expo-vitest guide` for how to write them, run them and read a failure.';

@@ -43,4 +43,6 @@ On Windows, synthetic input waits until nobody has used the machine for three
 minutes, since it goes to whatever window is in front; `--force` sends it
 anyway.
 
+`expo-harness mcp`, `explore` and `bug-bash` are topics of their own.
+
 More: `node_modules/expo-vitest/docs/harness.md`.
