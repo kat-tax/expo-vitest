@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import type {Snapshot} from './snapshot.ts';
-import {asSelector, by, centreOf, describeTarget, findNode, isPoint, parseTarget, renderSnapshot} from './snapshot.ts';
+import type {Snapshot, SnapshotNode} from './snapshot.ts';
+import {asSelector, by, centreOf, describeTarget, findNode, isPoint, narrow, parseTarget, renderSnapshot} from './snapshot.ts';
 
 const tree: Snapshot = {
   platform: 'windows',
@@ -110,5 +110,41 @@ describe('renderSnapshot', () => {
     expect(text).toContain('@e4 Button "New drop" #new-drop [focused]');
     expect(text).toContain('@e1 TabItem "Drops"');
     expect(text).not.toContain('@e1 TabItem "Drops" #');
+  });
+
+  it('prints what a screen reader says past the name, where the platform reported it', () => {
+    const said: Snapshot = {
+      platform: 'windows',
+      nodes: [
+        {ref: '@e1', role: 'ListItem', name: 'Inbox', depth: 0, interactive: true, inSet: '2 of 5', heading: 2, live: 'polite', status: 'Busy', dialog: true, help: 'Opens the inbox'},
+      ],
+    };
+    expect(renderSnapshot(said)).toBe('@e1 ListItem "Inbox" (2 of 5 h2 live:polite status:Busy dialog help:"Opens the inbox")');
+  });
+});
+
+describe('narrow', () => {
+  const node = (ref: string, parent: string | undefined, interactive: boolean): SnapshotNode => ({ref, ...(parent ? {parent} : null), role: 'View', name: ref, depth: 0, interactive});
+  // A list (kept) inside a pane (not kept) inside a window (kept), and a button
+  // in the list, and one in a group that is not kept.
+  const nodes = [node('@e1', undefined, true), node('@e2', '@e1', false), node('@e3', '@e2', true), node('@e4', '@e3', true), node('@e5', '@e3', false), node('@e6', '@e5', true)];
+
+  it('keeps what it is asked to, each under its nearest ancestor that is kept', () => {
+    const kept = narrow(nodes, each => each.interactive);
+    expect(kept.map(each => [each.ref, each.parent])).toEqual([
+      ['@e1', undefined],
+      ['@e3', '@e1'],
+      ['@e4', '@e3'],
+      ['@e6', '@e3'],
+    ]);
+    expect('parent' in kept[0]!).toBe(false);
+  });
+
+  it('leaves a node with no kept ancestor at the top, and does not loop on a chain that goes round', () => {
+    expect(narrow(nodes, each => each.ref === '@e4')).toEqual([{ref: '@e4', role: 'View', name: '@e4', depth: 0, interactive: true}]);
+    const circle = [node('@e1', '@e2', false), node('@e2', '@e1', false), node('@e3', '@e1', true)];
+    expect(narrow(circle, each => each.interactive)).toEqual([{ref: '@e3', role: 'View', name: '@e3', depth: 0, interactive: true}]);
+    // A parent that names nothing in the list ends the chain.
+    expect(narrow([node('@e2', '@e9', true)], () => true)).toEqual([{ref: '@e2', role: 'View', name: '@e2', depth: 0, interactive: true}]);
   });
 });

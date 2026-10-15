@@ -28,6 +28,11 @@ export interface SnapshotNode {
   testId?: string;
   /** Depth in the tree, for rendering it as text. */
   depth: number;
+  /**
+   * The ref of the nearest node in the same snapshot that this one sits
+   * inside. Absent at the top, and where the platform did not say.
+   */
+  parent?: string;
   /** Whether a person can act on it. */
   interactive: boolean;
   focused?: boolean;
@@ -151,6 +156,23 @@ export function findNode(snapshot: Snapshot, selector: Selector): SnapshotNode |
     return candidates.find(node => node.name.toLowerCase().includes(needle));
   }
   return candidates[0];
+}
+
+/**
+ * The nodes a narrower snapshot keeps, each with `parent` naming its nearest
+ * ancestor among them, so a parent left out of the narrower tree hands the
+ * part on to its own.
+ */
+export function narrow(nodes: SnapshotNode[], keep: (node: SnapshotNode) => boolean): SnapshotNode[] {
+  const parents = new Map(nodes.map(node => [node.ref, node.parent]));
+  const kept = nodes.filter(keep);
+  const refs = new Set(kept.map(node => node.ref));
+  return kept.map(({parent, ...node}) => {
+    let nearest = parent;
+    // No chain is longer than the tree; a longer one goes round in a circle.
+    for (let hops = 0; nearest !== undefined && !refs.has(nearest); hops++) nearest = hops < nodes.length ? parents.get(nearest) : undefined;
+    return nearest === undefined ? node : {...node, parent: nearest};
+  });
 }
 
 /** The point to press for a node: the middle of what it covers. */

@@ -67,8 +67,11 @@ function Prop($element, $property, $unsetBelowOne = $true) {
   return $value
 }
 
-function Walk($element, $depth) {
+# $parent is the ref of the nearest kept ancestor, which is what a node's
+# `parent` names; it passes through a node that is not kept.
+function Walk($element, $depth, $parent) {
   if ($script:nodes.Count -ge $Max) { return }
+  $childParent = $parent
   try {
     $current = $element.Current
     $role = $current.ControlType.ProgrammaticName -replace '^ControlType\.', ''
@@ -92,8 +95,10 @@ function Walk($element, $depth) {
     if ($keep) {
       $box = $current.BoundingRectangle
       $script:next++
+      $childParent = "@e$($script:next)"
       [void]$script:nodes.Add([pscustomobject]@{
-        ref         = "@e$($script:next)"
+        ref         = $childParent
+        parent      = $parent
         role        = $role
         name        = $name
         # Empty rather than absent would put a dead field on every node of
@@ -131,12 +136,12 @@ function Walk($element, $depth) {
   }
   $child = $walker.GetFirstChild($element)
   while ($null -ne $child) {
-    Walk $child ($depth + 1)
+    Walk $child ($depth + 1) $childParent
     $child = $walker.GetNextSibling($child)
   }
 }
 
-Walk $root 0
+Walk $root 0 $null
 [pscustomobject]@{
   process = $proc.ProcessName
   window  = [pscustomobject]@{

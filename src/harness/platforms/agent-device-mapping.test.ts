@@ -15,6 +15,7 @@ import {
   parsePayload,
   toAgentTarget,
   toSnapshotNode,
+  toSnapshotNodes,
 } from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
@@ -227,5 +228,28 @@ describe('the manifest', () => {
     expect(cliScript({bin: 'bin/agent-device.mjs'})).toBe('bin/agent-device.mjs');
     expect(cliScript({bin: {other: 'bin/other.mjs'}})).toBeNull();
     expect(cliScript({})).toBeNull();
+  });
+});
+
+describe('toSnapshotNodes', () => {
+  it('names each node parent by its ref, where the parent is in the same list', () => {
+    const nodes = toSnapshotNodes([
+      {index: 0, ref: 'e1', type: 'android.widget.FrameLayout'},
+      {index: 1, parentIndex: 0, ref: 'e2', type: 'android.widget.LinearLayout'},
+      {index: 2, parentIndex: 1, ref: 'e3', type: 'android.widget.TextView'},
+      // Its parent was left out of an interactive snapshot, and nothing says whose child that was.
+      {index: 7, parentIndex: 5, ref: 'e8', type: 'android.widget.Button'},
+    ]);
+    expect(nodes.map(node => [node.ref, node.parent])).toEqual([
+      ['@e1', undefined],
+      ['@e2', '@e1'],
+      ['@e3', '@e2'],
+      ['@e8', undefined],
+    ]);
+    expect('parent' in nodes[0]!).toBe(false);
+  });
+
+  it('names no parent from a list that does not carry the indexes', () => {
+    expect(toSnapshotNodes([{ref: 'e1'}, {ref: 'e2', depth: 1}]).map(node => node.parent)).toEqual([undefined, undefined]);
   });
 });

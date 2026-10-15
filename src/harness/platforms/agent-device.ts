@@ -5,7 +5,7 @@ import type {Snapshot, Target} from '../lib/snapshot.ts';
 import {describeTarget} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, Platform, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {nodesFrom, openTarget, toSnapshotNode} from './agent-device-mapping.ts';
+import {nodesFrom, openTarget, toSnapshotNodes} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -67,7 +67,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
       const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
-      return {platform, source: options.target ?? name, nodes: nodesFrom(payload).map(toSnapshotNode)};
+      return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload))};
     },
 
     press(what: Target): Promise<StepResult> {

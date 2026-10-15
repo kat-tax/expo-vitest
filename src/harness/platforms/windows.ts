@@ -83,10 +83,10 @@ export function windowsDriver(options: DriverOptions): Driver {
     if (!result.ok) {
       throw new HarnessError('ACTION_FAILED', `could not read the tree of ${processName}: ${firstLine(result.stderr) || firstLine(result.stdout)}`, {platform: 'windows'});
     }
-    const parsed = JSON.parse(result.stdout) as {process: string; nodes: (SnapshotNode & {testId?: string | null})[]};
-    // PowerShell writes a null for a control with no AutomationId; the node
-    // shape says a testId is a string or is not there at all.
-    const nodes = (parsed.nodes ?? []).map(({testId, ...node}) => (testId ? {...node, testId} : node));
+    const parsed = JSON.parse(result.stdout) as {process: string; nodes: (SnapshotNode & {testId?: string | null; parent?: string | null})[]};
+    // PowerShell writes a null for a control with no AutomationId and for the
+    // root's parent; the node shape says each is a string or not there at all.
+    const nodes = (parsed.nodes ?? []).map(({testId, parent, ...node}) => ({...node, ...(testId ? {testId} : null), ...(parent ? {parent} : null)}));
     return {platform: 'windows', source: parsed.process, nodes};
   }
 

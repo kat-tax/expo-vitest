@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
+import {asSelector, describeTarget, findNode, isPoint, narrow} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 
@@ -49,6 +49,10 @@ const COLLECT = `(() => {
   const selector = '[role],button,a,input,select,textarea,h1,h2,h3,h4,dialog,[popover],[tabindex],p,li,td,label,span,div';
   const ACTIONABLE = new Set(['button', 'link', 'a', 'menuitem', 'menuitemcheckbox', 'checkbox', 'switch', 'tab', 'textbox', 'input', 'select', 'textarea', 'slider', 'option', 'radio']);
   const depthOf = (node) => { let d = 0; for (let p = node.parentElement; p; p = p.parentElement) d++; return d; };
+  // The refs given out by this collect, so a node's parent is the nearest
+  // ancestor kept now, and not one an attribute from an earlier collect names.
+  const kept = new Map();
+  const parentOf = (node) => { for (let p = node.parentElement; p; p = p.parentElement) if (kept.has(p)) return kept.get(p); return undefined; };
   let next = 0;
   const nodes = [];
   const PLAIN = new Set(['P', 'LI', 'TD', 'LABEL', 'SPAN', 'DIV']);
@@ -81,11 +85,16 @@ const COLLECT = `(() => {
     next++;
     const ref = 'e' + next;
     element.setAttribute('data-harness-ref', ref);
+    // Elements come in document order, so an ancestor is always kept before
+    // anything inside it.
+    const parent = parentOf(element);
+    kept.set(element, '@' + ref);
     // react-native-web writes testID as data-testid, and an app's own DOM
     // components write it directly, so both arrive here the same way.
     const testId = element.getAttribute('data-testid');
     nodes.push({
       ref: '@' + ref,
+      ...(parent ? {parent} : null),
       role,
       name,
       ...(testId ? {testId} : null),
@@ -177,7 +186,7 @@ export function webDriver(options: DriverOptions): Driver {
     return {
       platform: 'web',
       source: base,
-      nodes: snapshotOptions.interactive ? nodes.filter(node => node.interactive && !node.offscreen) : nodes,
+      nodes: snapshotOptions.interactive ? narrow(nodes, node => node.interactive && !node.offscreen) : nodes,
     };
   }
 

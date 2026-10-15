@@ -26,6 +26,9 @@ import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
 
 /** A node as agent-device reports it. */
 export interface AgentNode {
+  /** Where the node is in agent-device's own list, which `parentIndex` points into. */
+  index?: number;
+  parentIndex?: number;
   ref?: string;
   role?: string;
   type?: string;
@@ -65,6 +68,25 @@ export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
         ? {x: Math.round(rect.x), y: Math.round(rect.y ?? 0), width: Math.round(rect.width), height: Math.round(rect.height ?? 0)}
         : null,
   };
+}
+
+/**
+ * A snapshot's nodes in our shape, each with the ref of its parent where the
+ * parent is in the same list. An interactive snapshot leaves most parents
+ * out, and agent-device does not say whose child a missing parent was, so
+ * those nodes have none rather than a guess.
+ */
+export function toSnapshotNodes(nodes: AgentNode[]): SnapshotNode[] {
+  const mapped = nodes.map(toSnapshotNode);
+  const refs = new Map<number, string>();
+  nodes.forEach((node, at) => {
+    if (typeof node.index === 'number') refs.set(node.index, mapped[at]!.ref);
+  });
+  return mapped.map((node, at) => {
+    const index = nodes[at]!.parentIndex;
+    const parent = typeof index === 'number' ? refs.get(index) : undefined;
+    return parent === undefined ? node : {...node, parent};
+  });
 }
 
 /** The nodes inside whatever shape an answer came in. */

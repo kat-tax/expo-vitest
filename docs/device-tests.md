@@ -158,6 +158,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `name` | The accessible name: what a screen reader says. |
 | `testId` | The `testID` from the source. |
 | `depth` | Depth in the tree. |
+| `parent` | The ref of the nearest node in the same snapshot that this one sits inside. Absent at the top, and where the platform does not say: on iOS and Android, a node whose parent an interactive snapshot left out. |
 | `interactive` | Whether a person can act on it. |
 | `focused`, `focusable`, `enabled`, `offscreen` | State, where the platform reports it. |
 | `help` | The hint or description: `HelpText` on Windows, `aria-description` on web. |

@@ -395,6 +395,7 @@ describe('the types a consumer compiled against', () => {
       name: string;
       testId?: string;
       depth: number;
+      parent?: string;
       interactive: boolean;
       focused?: boolean;
       focusable?: boolean;
