@@ -43,6 +43,8 @@ import type {QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
 import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
+import type {VideoMode} from './video.ts';
+import {videoModeOf} from './video.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
 export type {AppConfig, Capability, CommandConfig, HarnessConfig, Orientation, Permission};
@@ -73,6 +75,8 @@ export interface DeviceConfig {
   statusBar?: 'fixed' | 'real';
   /** How long one call to the driver may take, in ms. */
   actionTimeout?: number;
+  /** When a test's screen is recorded: `on`, `retain-on-failure` or `off`. */
+  video?: VideoMode;
 }
 
 /** A count of milliseconds from the environment, with `false` as 0, as e2e spells it; undefined when it is not one. */
@@ -89,6 +93,7 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
   const transition = milliseconds(environment.HARNESS_TRANSITION);
   const assertionTimeout = milliseconds(environment.HARNESS_ASSERTION_TIMEOUT);
   const stable = milliseconds(environment.HARNESS_STABLE);
+  const video = videoModeOf(environment.HARNESS_VIDEO);
   return {
     platform,
     url: environment.HARNESS_URL,
@@ -101,6 +106,7 @@ export function configFromEnvironment(environment: NodeJS.ProcessEnv = process.e
     ...(transition === undefined ? {} : {transition}),
     ...(assertionTimeout === undefined ? {} : {assertionTimeout}),
     ...(stable === undefined ? {} : {stable}),
+    ...(video ? {video} : {}),
   };
 }
 
@@ -121,6 +127,11 @@ class Device {
   lastSkip: string | null = null;
   /** What the driver found of the device when it opened. */
   private facts: DeviceFacts | undefined;
+  /** Whether the screen is being recorded for the test that is running. */
+  private recording = false;
+  /** A recording asked for before the device was opened, which starts when it is. */
+  private recordWhenReady = false;
+  private videoWarned = false;
 
   constructor(resolve: () => DeviceConfig) {
     this.resolve = resolve;
@@ -205,6 +216,7 @@ class Device {
     this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
     // What the app writes to its console goes in the journal, beside the steps.
     driver.onConsole?.((level, text) => this.journal.log(level, text));
+    if (this.recordWhenReady) await this.startRecording(this.driver);
     return this.driver;
   }
 
@@ -427,9 +439,52 @@ class Device {
     return doneOrSkipped(await this.control({name: 'alert', action}));
   }
 
+  /**
+   * Records the screen until `saveVideo`, where the platform records: from now
+   * where the device is open, and from the first step where it is not yet. The
+   * evidence hook does this under `video` or `HARNESS_VIDEO`. True while it is
+   * recording or waiting to, false where the platform records nothing.
+   */
+  async recordVideo(): Promise<boolean> {
+    if (this.recording) return true;
+    if (!this.can('video')) return false;
+    if (this.driver) return this.startRecording(this.driver);
+    // Opening the device to record it would open it for a test that never uses it, so the recording waits for the first step.
+    this.recordWhenReady = true;
+    return true;
+  }
+
+  private async startRecording(driver: Driver): Promise<boolean> {
+    this.recordWhenReady = false;
+    const result = await driver.video?.('start');
+    this.recording = Boolean(result?.ok && !result.skipped);
+    if (result && !result.ok) this.warnVideo(result.message);
+    return this.recording;
+  }
+
+  /** A recording that failed, in the journal each time and on the console once: the test goes on without it. */
+  private warnVideo(message: string): void {
+    this.journal.log('warn', `video: ${message}`);
+    if (this.videoWarned) return;
+    this.videoWarned = true;
+    console.warn(`video: ${message}`);
+  }
+
+  /** Ends the recording, and keeps it at `file`, from the project root, or throws it away without one; the path it was kept at, or null. */
+  async saveVideo(file?: string): Promise<string | null> {
+    this.recordWhenReady = false;
+    if (!this.recording || !this.driver?.video) return null;
+    this.recording = false;
+    const result = await this.driver.video('stop', file === undefined ? undefined : path.resolve(ROOT, file));
+    if (!result.ok) this.warnVideo(result.message);
+    return result.ok && result.value ? result.value : null;
+  }
+
   async close(): Promise<void> {
     await this.driver?.close();
     this.driver = null;
+    this.recording = false;
+    this.recordWhenReady = false;
     this.feed.invalidate();
   }
 }

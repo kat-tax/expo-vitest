@@ -35,7 +35,7 @@ export function recordOf(testCase: CaseLike, root: string): TestRecord {
   const diagnostic = testCase.diagnostic();
   const state = result.state === 'passed' || result.state === 'failed' || result.state === 'skipped' ? result.state : 'pending';
   const error = errorOf(result.errors);
-  const evidence = (testCase.meta() as {evidence?: {folder: string; trace: string; screenshot?: string}}).evidence;
+  const evidence = (testCase.meta() as {evidence?: {folder: string; trace?: string; screenshot?: string; video?: string}}).evidence;
   return {
     project: testCase.project.name,
     file: fromRoot(root, testCase.module.moduleId),
@@ -46,7 +46,14 @@ export function recordOf(testCase: CaseLike, root: string): TestRecord {
     duration: diagnostic?.duration ?? 0,
     ...(error ? {error} : {}),
     ...(evidence
-      ? {evidence: {folder: fromRoot(root, evidence.folder), trace: fromRoot(root, evidence.trace), ...(evidence.screenshot ? {screenshot: fromRoot(root, evidence.screenshot)} : {})}}
+      ? {
+          evidence: {
+            folder: fromRoot(root, evidence.folder),
+            ...(evidence.trace ? {trace: fromRoot(root, evidence.trace)} : {}),
+            ...(evidence.screenshot ? {screenshot: fromRoot(root, evidence.screenshot)} : {}),
+            ...(evidence.video ? {video: fromRoot(root, evidence.video)} : {}),
+          },
+        }
       : {}),
   };
 }

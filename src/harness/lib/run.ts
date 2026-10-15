@@ -138,6 +138,13 @@ export function prepare(file: string): string {
   return path.resolve(file);
 }
 
+/** The nth of a file and its siblings: the file itself first, then `name-2.ext`, `name-3.ext` beside it. */
+export function numbered(file: string, n: number): string {
+  if (n <= 1) return file;
+  const extension = path.extname(file);
+  return path.join(path.dirname(file), `${path.basename(file, extension)}-${n}${extension}`);
+}
+
 export function firstLine(text: string): string {
   // `split` always answers with at least one string, so the first is there.
   return text.trim().split(/\r?\n/)[0]!;

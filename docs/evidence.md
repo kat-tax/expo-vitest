@@ -5,7 +5,8 @@
 A device test that fails leaves what a person needs to see what went wrong:
 the screen when it failed, the tree, and a trace of the steps it took, with
 what each did to the screen. Nothing is to set up: the device project's setup
-file records the steps and writes the evidence.
+file records the steps and writes the evidence. A [recording](#video) of the
+screen through the test is one setting away.
 
 ```
 evidence: .harness/results/web/device/settings/opens-the-profile-form-3f9a1c/trace.md
@@ -21,16 +22,17 @@ evidence: .harness/results/web/device/settings/opens-the-profile-form-3f9a1c/tra
 | `tree.txt` | The tree then, as `expo-harness tree` prints it. |
 | `tree.json` | The same tree as JSON. |
 | `trace.md` | The test, its failure, its steps and the screen at the end. |
+| `video.webm` or `video.mp4` | The screen through the test, where [video](#video) is on. |
 
 The test file is its path from the project root without the extension, and
 the test is its title, with the suites it sits in, made safe for a folder
 name and given six characters of a hash, so two titles that clean up alike
-never share a folder. A test's folder is replaced each time it runs.
+never share a folder. A test's folder is replaced each time it is written to.
 
-The trace and the screenshot are also recorded as a Vitest artifact of type
-`expo-vitest:evidence`, with the two files attached, which a reporter sees
-in `onTestCaseArtifactRecord`, and their paths are on the task's
-`meta.evidence`.
+The trace, the screenshot and the recording are also recorded as a Vitest
+artifact of type `expo-vitest:evidence`, with the files attached, which a
+reporter sees in `onTestCaseArtifactRecord`, and their paths are on the
+task's `meta.evidence`.
 
 ## The trace
 
@@ -97,3 +99,53 @@ the last tree the test read. Close it in `afterAll` instead:
 ```ts
 afterAll(() => device.close());
 ```
+
+## Video
+
+`video` in the [harness config](configuration.md#harnessconfigts), or
+`HARNESS_VIDEO` over it, records the screen through each device test and
+keeps the recording in the test's folder:
+
+| `video` | Keeps a recording of |
+| --- | --- |
+| `retain-on-failure` | A test that failed. |
+| `on` | Every test that used the device. |
+| `off` | None. The default. |
+
+Under either of the first two every test that uses the device is recorded,
+since a test is known to fail only at its end, and a recording that is not
+kept is thrown away. A recording starts at the test's first step, so a test
+that never uses the device opens nothing and records nothing. Recording
+changes nothing a test sees: each test starts where the one before it left
+the app, as it does with video off.
+
+| Platform | File | What records it |
+| --- | --- | --- |
+| Web | `video.webm` | Playwright's screencast of the page, at the page's size, from playwright-core 1.59 on. Playwright encodes it with its own build of ffmpeg, which `playwright install chromium` fetches with the browser. |
+| Android, iOS | `video.mp4` | agent-device's recording of the whole screen, whichever app is on it. |
+| Windows | none | Nothing: `device.can('video')` is false there, and the setting is passed over. |
+
+On web a recording is of a page, and a test that replaces the page, with a
+[restart or a clearState](controls.md), ends one part and starts the next:
+the second is beside the first as `video-2.webm`, and so on.
+
+A recording costs up to a quarter of a second a test on web, and about five
+seconds a test on an Android emulator, most of it in ending the recording.
+The [performance page](performance.md#video) has the measurements. A
+recording that cannot start, such as on web where Playwright's ffmpeg is
+missing, is said on the console once and in the trace's console part, and
+the test goes on without one.
+
+The same can be done by hand, with video off, for a part of a test:
+
+```ts
+await device.recordVideo();
+await screen.getByRole('button', {name: 'Pay'}).press();
+await device.saveVideo('.harness/pay.webm');
+```
+
+`recordVideo()` answers false where the platform records nothing.
+`saveVideo(file)` ends the recording, keeps it at `file`, from the project
+root, and answers where. The file is WebM on web and MP4 on a device,
+whatever its name says. Without a file the recording is thrown away, and
+the answer is null.

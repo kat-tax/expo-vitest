@@ -154,6 +154,15 @@ export function screenshotRequest(platform: string, statusBar: 'fixed' | 'real' 
   return platform === 'ios' ? {normalizeStatusBar: true} : {};
 }
 
+/**
+ * A recording started or stopped, on the command line. `start` takes the file
+ * it is written to, and records the whole screen: agent-device's default is the
+ * app it opened, which a test that has not opened it yet has none of.
+ */
+export function recordArgs(action: 'start' | 'stop', file?: string): string[] {
+  return action === 'start' ? ['record', 'start', ...(file ? [file] : []), '--scope', 'device'] : ['record', 'stop'];
+}
+
 /** What the command line printed, as JSON, even when a line of prose comes first. */
 export function parsePayload(stdout: string): unknown {
   try {

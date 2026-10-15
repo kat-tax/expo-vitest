@@ -126,3 +126,25 @@ The client saves the command line's process start on every step, 5 to 14%
 of a step here. The rest is the phone: agent-device's daemon asks its runner
 on the device for the tree, the tap or the picture, and on either path that
 is most of the time.
+
+## Video
+
+What a [recording](evidence.md#video) adds to a test: each test's time with
+`HARNESS_VIDEO=on` against `off`, each run twice, on the same machine. A
+recording is made of every test under `retain-on-failure` too, so the cost is
+the same there.
+
+| Where | A test that | Off | On | More |
+| --- | --- | --- | --- | --- |
+| Web, a page of a heading, two lines and a button | opens the page and finds the button | 2183, 2202 | 2275, 2269 | 70 to 90 |
+| | opens it, presses the button and waits for what never comes | 5294, 5335 | 5548, 5463 | 130 to 250 |
+| | finds a line on the page the last test left | 1, 2 | 169, 176 | about 170 |
+| An Android 16 emulator, a Pixel 9 Pro XL, agent-device 0.21.27 | restarts Settings and asks which app is in front | 11276, 11386 | 15763, 16190 | 4400 to 4900 |
+| | does that, and fails | 12994, 13127 | 18639, 18437 | 5300 to 5600 |
+
+On web the cost is the screencast's start and the file written at its end.
+On Android most of it is the end: through agent-device's command line, a
+start took 2.0 to 2.3 s and a stop 6.9 to 7.6 s, and hiding the touches made
+no difference. The emulator ran without a window, and drew nothing on its
+screen, so its recordings were about 13 KB each. A device whose screen
+changes makes bigger files, so expect a stop to take longer there.

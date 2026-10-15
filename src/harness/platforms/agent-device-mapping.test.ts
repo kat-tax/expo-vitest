@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -417,5 +417,13 @@ describe('the status bar in a screenshot', () => {
     expect(screenshotRequest('android', 'real')).toEqual({stabilize: false});
     expect(screenshotRequest('ios', 'fixed')).toEqual({normalizeStatusBar: true});
     expect(screenshotRequest('ios', 'real')).toEqual({});
+  });
+});
+
+describe('a recording through agent-device', () => {
+  it('starts into a file, of the whole screen, and stops, on the command line', () => {
+    expect(recordArgs('start', '/r/a.mp4')).toEqual(['record', 'start', '/r/a.mp4', '--scope', 'device']);
+    expect(recordArgs('start')).toEqual(['record', 'start', '--scope', 'device']);
+    expect(recordArgs('stop', '/r/a.mp4')).toEqual(['record', 'stop']);
   });
 });

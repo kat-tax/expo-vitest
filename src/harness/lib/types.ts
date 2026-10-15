@@ -207,6 +207,12 @@ export interface Driver {
    * `skipped`, with the reason.
    */
   control?(request: ControlRequest): Promise<ControlResult>;
+  /**
+   * Records the screen for one test: `start` begins, and `stop` ends and keeps
+   * the recording at `file`, its path the answer's `value`, or throws it away
+   * without one. Left off where the platform records nothing.
+   */
+  video?(action: 'start' | 'stop', file?: string): Promise<ControlResult>;
   /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
   onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */

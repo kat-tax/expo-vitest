@@ -113,6 +113,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_SETTLE`, `HARNESS_TRANSITION` | How long a step waits for the screen, and gives a control that just came in, in ms. `deviceConfig`'s `settle` and `transition` set them. |
 | `HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE` | How long a locator's wait looks, and how long something must stay gone, in ms. `deviceConfig`'s `assertionTimeout` and `stable` set them. |
 | `HARNESS_TRACE` | When a test leaves [evidence](evidence.md): `retain-on-failure` (the default), `on` or `off`. |
+| `HARNESS_VIDEO` | When a test keeps a [recording](evidence.md#video) of the screen: `on`, `retain-on-failure` or `off`, over the harness config's `video`, which is `off` unless set. |
 | `HARNESS_HEADED`, `HARNESS_SLOWMO` | On web, `1` opens the browser in a window to watch, and a number of ms slows each operation by that much. A window needs the full Chromium, not only the headless shell. |
 | `HARNESS_METRO` | Where Metro runs, for the React tree of a development build: `http://localhost:8081` by default. |
 | `HARNESS_REACT` | `take` to read the React tree of an app that takes one debugger only, which closes React Native DevTools if it is open. |

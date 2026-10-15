@@ -6,13 +6,18 @@
  * says: close it in `afterAll`.
  *
  * `HARNESS_TRACE` says when: `retain-on-failure` (the default) for a test
- * that failed, `on` for every test, `off` for none.
+ * that failed, `on` for every test, `off` for none. `HARNESS_VIDEO`, or
+ * `video` in the harness config, records the screen through each test and
+ * keeps the recording beside the rest by the same three words.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import type {TestArtifactBase, TestAttachment} from 'vitest';
 import {afterEach, beforeEach, recordArtifact} from 'vitest';
-import {writeEvidence} from './evidence.ts';
+import type {Written} from './evidence.ts';
+import {resultsFolder, writeEvidence} from './evidence.ts';
 import {device} from './index.ts';
+import {keepVideo, videoName} from './video.ts';
 
 /**
  * What a reporter is handed for a test's evidence, through
@@ -24,8 +29,9 @@ export interface EvidenceArtifact extends TestArtifactBase {
   type: 'expo-vitest:evidence';
   failed: boolean;
   folder: string;
-  trace: string;
+  trace?: string;
   screenshot?: string;
+  video?: string;
   attachments: TestAttachment[];
 }
 
@@ -56,27 +62,45 @@ function titlePathOf(task: Task): string[] {
   return names;
 }
 
-beforeEach(() => device.journal.begin());
+beforeEach(async () => {
+  device.journal.begin();
+  if ((device.config.video ?? 'off') !== 'off') await device.recordVideo();
+});
 
 afterEach(async context => {
   const task = context.task as unknown as Task;
   const failed = task.result?.state === 'fail';
   const mode = process.env.HARNESS_TRACE ?? 'retain-on-failure';
-  if (mode === 'off' || (mode !== 'on' && !failed)) return;
+  const titlePath = titlePathOf(task);
+  const file = path.relative(ROOT, task.file.filepath).replace(/\\/g, '/');
+  let written: Written | undefined;
   // A test that never touched the device has nothing to show.
-  if (device.journal.steps.length === 0 && !device.isOpen()) return;
-  const started = task.result?.startTime ?? Date.now();
-  const written = await writeEvidence(device.evidence(), {
-    root: ROOT,
-    titlePath: titlePathOf(task),
-    file: path.relative(ROOT, task.file.filepath).replace(/\\/g, '/'),
-    failed,
-    duration: task.result?.duration ?? Date.now() - started,
-    at: new Date(started),
-    errors: (task.result?.errors ?? []).map(error => `${error.code ? `${error.code}: ` : ''}${error.message ?? String(error)}`),
-  });
-  console.log(`evidence: ${path.relative(ROOT, written.trace)}`);
-  task.meta.evidence = {folder: written.folder, trace: written.trace, ...(written.screenshot ? {screenshot: written.screenshot} : {})};
-  const attachments: TestAttachment[] = [{path: written.trace, contentType: 'text/markdown'}, ...(written.screenshot ? [{path: written.screenshot, contentType: 'image/png'}] : [])];
-  await recordArtifact(context.task, {type: 'expo-vitest:evidence', failed, folder: written.folder, trace: written.trace, ...(written.screenshot ? {screenshot: written.screenshot} : {}), attachments});
+  if ((mode === 'on' || (mode !== 'off' && failed)) && (device.journal.steps.length > 0 || device.isOpen())) {
+    const started = task.result?.startTime ?? Date.now();
+    written = await writeEvidence(device.evidence(), {
+      root: ROOT,
+      titlePath,
+      file,
+      failed,
+      duration: task.result?.duration ?? Date.now() - started,
+      at: new Date(started),
+      errors: (task.result?.errors ?? []).map(error => `${error.code ? `${error.code}: ` : ''}${error.message ?? String(error)}`),
+    });
+    console.log(`evidence: ${path.relative(ROOT, written.trace)}`);
+  }
+  // The recording ends after the evidence is written, so it runs to the screen the evidence shows.
+  const folder = written?.folder ?? resultsFolder(ROOT, device.platform, file, titlePath);
+  const keep = keepVideo(device.config.video ?? 'off', failed);
+  // A test's folder is replaced each time it is written to, so a recording alone is never beside an older run's trace.
+  if (keep && !written) fs.rmSync(folder, {recursive: true, force: true});
+  const video = await device.saveVideo(keep ? path.join(folder, videoName(device.platform)) : undefined);
+  if (!written && !video) return;
+  const kept = {folder, ...(written ? {trace: written.trace} : {}), ...(written?.screenshot ? {screenshot: written.screenshot} : {}), ...(video ? {video} : {})};
+  task.meta.evidence = kept;
+  const attachments: TestAttachment[] = [
+    ...(kept.trace ? [{path: kept.trace, contentType: 'text/markdown'}] : []),
+    ...(kept.screenshot ? [{path: kept.screenshot, contentType: 'image/png'}] : []),
+    ...(video ? [{path: video, contentType: video.endsWith('.webm') ? 'video/webm' : 'video/mp4'}] : []),
+  ];
+  await recordArtifact(context.task, {type: 'expo-vitest:evidence', failed, ...kept, attachments});
 });

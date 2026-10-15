@@ -54,6 +54,8 @@ describe('the evidence links', () => {
     const {screenshot: _screenshot, ...noPicture} = failed.evidence as NonNullable<TestRecord['evidence']>;
     expect(evidenceLinks(noPicture, {kind: 'artifacts', url: 'https://x/#artifacts'})).toBe('[tree](https://x/#artifacts) · [trace](https://x/#artifacts)<br>`.harness/results/android/device/settings/opens-the-profile-a1b2c3`');
     expect(evidenceLinks(undefined, {kind: 'artifacts', url: 'u'})).toBe('');
+    expect(evidenceLinks({folder: 'r/t', video: 'r/t/video.webm'}, {kind: 'relative', from: 'summary.md'})).toBe('[video](r/t/video.webm)');
+    expect(evidenceLinks({folder: 'r/t', trace: 'r/t/trace.md', video: 'r/t/video.mp4'}, {kind: 'relative', from: 'summary.md'})).toBe('[tree](r/t/tree.txt) · [trace](r/t/trace.md) · [video](r/t/video.mp4)');
   });
 
   it('name the platform, not the project', () => {

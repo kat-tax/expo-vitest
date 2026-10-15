@@ -33,6 +33,7 @@ import {
   installArgs,
   launchArgs,
   packageFolders,
+  recordArgs,
   parseFailure,
   parsePayload,
   screenshotArgs,
@@ -83,6 +84,8 @@ export interface AgentDeviceTransport {
   appState(): Promise<unknown>;
   /** One of the device commands, with what it answered. */
   command(command: DeviceCommand): Promise<unknown>;
+  /** Starts a recording of the screen into a file, or stops it. */
+  record(action: 'start' | 'stop', file?: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -111,6 +114,7 @@ interface Client {
   apps: {open: Call; install: Call; reinstall: Call};
   command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call};
   settings: {update: Call};
+  recording: {record: Call};
   capture: {snapshot: Call; screenshot: Call};
   interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call};
   sessions: {close: Call};
@@ -254,6 +258,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
       const {method, options: given} = commandRequest(command);
       return call(signal => client.command[method]({...select, ...given, signal}), 'ACTION_FAILED');
     },
+    async record(action, file) {
+      await call(signal => client.recording.record({...select, action, ...(action === 'start' ? {recordingScope: 'device', ...(file ? {path: file} : {})} : {}), signal}), 'ACTION_FAILED');
+    },
     async close() {
       await call(signal => client.sessions.close({signal}), 'ACTION_FAILED', 10_000).catch(() => {});
     },
@@ -331,6 +338,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async command(command) {
       return parsePayload(await agent(commandArgs(command), 'ACTION_FAILED'));
+    },
+    async record(action, file) {
+      await agent(recordArgs(action, file), 'ACTION_FAILED');
     },
     async close() {
       await agent(['close'], 'ACTION_FAILED', 60_000).catch(() => {});

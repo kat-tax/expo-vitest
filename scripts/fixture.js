@@ -92,6 +92,11 @@ try {
   // with the driver's reason, and fail where the run requires the platform.
   const absent = process.platform === 'darwin' ? 'windows' : 'ios';
   const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'];
+  // Playwright records video with the build of ffmpeg its own version names,
+  // and looks for no other, so the copy's playwright-core fetches its own. It
+  // is a small download, once, and nothing where it is already there.
+  console.log("==== The fixture's playwright-core, with its ffmpeg");
+  run(process.execPath, [path.join(modules, 'playwright-core', 'cli.js'), 'install', 'ffmpeg']);
   const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on'};
   console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
   const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
@@ -100,6 +105,22 @@ try {
   if (!skipped.includes('web cannot home, since a browser has no home screen')) throw new Error('the test that needs a home screen was not skipped on web with the reason');
   const summarised = fs.readFileSync(path.join(scratch, '.harness', 'summary.md'), 'utf8');
   if (!/^## expo-vitest · \d+ passed · \d+ skipped/.test(summarised)) throw new Error(`the summary reporter wrote no summary of the run: ${summarised.slice(0, 200)}`);
+  // The reporter named on the command line replaces the config's, so a run
+  // that fails on purpose writes no summary and posts no comment.
+  console.log('==== Video kept for the test that fails, and for no other');
+  let videoRun = '';
+  try {
+    execFileSync(process.execPath, [...device, '--project', 'device:web', '--reporter', 'verbose', 'device/video'], {cwd: scratch, env: {...environment, FIXTURE_VIDEO: '1', HARNESS_VIDEO: 'retain-on-failure'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+    throw new Error('the test that fails on purpose passed');
+  } catch (error) {
+    videoRun = `${error.stdout}${error.stderr}`;
+    if (!`${error.stdout}`.includes('fails on purpose, and keeps its recording')) throw error;
+  }
+  const recorded = path.join(scratch, '.harness', 'results', 'web', 'device', 'video');
+  const kept = fs.readdirSync(recorded).filter(test => fs.existsSync(path.join(recorded, test, 'video.webm')));
+  if (kept.length !== 1 || !kept[0].startsWith('fails-on-purpose')) throw new Error(`video.webm was kept for ${kept.join(', ') || 'no test'}, not for the one test that failed:\n${videoRun}`);
+  if (fs.readFileSync(path.join(recorded, kept[0], 'video.webm')).readUInt32BE(0) !== 0x1a45dfa3) throw new Error('the video.webm kept is not a WebM file');
+  console.log(`video.webm is in ${kept[0]} alone`);
   console.log(`==== ${absent} required, so its tests fail`);
   try {
     execFileSync(process.execPath, [...device, '--project', `device:${absent}`], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});

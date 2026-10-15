@@ -26,6 +26,8 @@ import type {Platform} from '../harness/lib/types.ts';
 import {PLATFORMS} from '../harness/lib/types.ts';
 import type {DeviceConfig} from './index.ts';
 import {DEFAULT_POLLING} from './polling.ts';
+import type {VideoMode} from './video.ts';
+import {videoModeOf} from './video.ts';
 
 /** A process started once per run, such as a dev server, and stopped after. */
 export interface CommandConfig {
@@ -91,6 +93,8 @@ export interface HarnessConfig {
   statusBar?: 'fixed' | 'real';
   /** How long one call to a driver may take, in ms. 30 s. */
   actionTimeout?: number;
+  /** When a test's screen is recorded: `on`, `retain-on-failure` or `off`, the default. `HARNESS_VIDEO` beats it. */
+  video?: VideoMode;
 }
 
 /** A harness config, as written: the function only gives it its type. */
@@ -129,7 +133,7 @@ export async function loadHarness(file: string | null, load: (file: string) => P
 /** The keys a later version gives meaning, refused by name until then, so a config written for them is not quietly ignored. */
 const RESERVED = ['agents', 'tools', 'secrets', 'cache'];
 
-const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout'];
+const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video'];
 const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'command', 'readyUrl'];
 const COMMAND_KEYS = ['executable', 'args', 'cwd', 'env', 'startupTimeout', 'shutdownTimeout', 'log', 'reuseExisting'];
 
@@ -147,8 +151,9 @@ const permissions: Check = value =>
   isObject(value) && Object.values(value).every(each => each === 'grant' || each === 'deny' || each === 'reset') ? null : "an object of 'grant', 'deny' or 'reset'";
 const logTo: Check = value => (value === false || typeof value === 'string' ? null : 'a path, or false');
 const statusBar: Check = value => (value === 'fixed' || value === 'real' ? null : "'fixed' or 'real'");
+const video: Check = value => (videoModeOf(value) ? null : "'on', 'retain-on-failure' or 'off'");
 
-const ROOT_CHECKS: Record<string, Check> = {assertionTimeout: ms, stable: ms, settle: msOrOff, transition: msOrOff, statusBar, actionTimeout: ms};
+const ROOT_CHECKS: Record<string, Check> = {assertionTimeout: ms, stable: ms, settle: msOrOff, transition: msOrOff, statusBar, actionTimeout: ms, video};
 const APP_CHECKS: Record<string, Check> = {
   url: text,
   target: text,
@@ -226,6 +231,7 @@ export interface ResolvedRun {
   transition: number;
   statusBar: 'fixed' | 'real';
   actionTimeout: number;
+  video: VideoMode;
 }
 
 /** The built-in defaults: the device layer's own, and e2e's numbers for what it has. */
@@ -325,6 +331,7 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
     transition: fromEnvironment(environment.HARNESS_TRANSITION) ?? off(config?.transition) ?? DEFAULTS.transition,
     statusBar: config?.statusBar ?? DEFAULTS.statusBar,
     actionTimeout: config?.actionTimeout ?? DEFAULTS.actionTimeout,
+    video: videoModeOf(environment.HARNESS_VIDEO) ?? config?.video ?? 'off',
   };
 }
 
@@ -359,6 +366,7 @@ export function configFromRun(run: ResolvedRun, environment: NodeJS.ProcessEnv):
     stable: run.stable,
     statusBar: run.statusBar,
     actionTimeout: run.actionTimeout,
+    video: run.video,
     ...appOf(run),
   };
 }

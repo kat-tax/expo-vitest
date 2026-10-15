@@ -45,6 +45,7 @@ describe('a record', () => {
     expect(recordOf(testCase({evidence}), root).evidence).toEqual({folder: '.harness/results/web/t', trace: '.harness/results/web/t/trace.md', screenshot: '.harness/results/web/t/screenshot.png'});
     const {screenshot: _screenshot, ...noPicture} = evidence;
     expect(recordOf(testCase({evidence: noPicture}), root).evidence).toEqual({folder: '.harness/results/web/t', trace: '.harness/results/web/t/trace.md'});
+    expect(recordOf(testCase({evidence: {folder: evidence.folder, video: at('.harness', 'results', 'web', 't', 'video.webm')}}), root).evidence).toEqual({folder: '.harness/results/web/t', video: '.harness/results/web/t/video.webm'});
   });
 
   it('counts a case that did not run as pending, and one with no diagnostic as instant', () => {

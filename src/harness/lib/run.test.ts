@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {firstLine, installed, powershell, prepare, run, runAsync, runBinary} from './run.ts';
+import {firstLine, installed, numbered, powershell, prepare, run, runAsync, runBinary} from './run.ts';
 
 // Every program here is this Node, so the cases run the same on every CI machine.
 const node = process.execPath;
@@ -135,5 +135,13 @@ describe('firstLine', () => {
     expect(firstLine('  one\r\ntwo\n')).toBe('one');
     expect(firstLine('one')).toBe('one');
     expect(firstLine('')).toBe('');
+  });
+});
+
+describe('numbered', () => {
+  it('is the file itself first, then a sibling with the number before the extension', () => {
+    expect(numbered(path.join('r', 't', 'video.webm'), 1)).toBe(path.join('r', 't', 'video.webm'));
+    expect(numbered(path.join('r', 't', 'video.webm'), 3)).toBe(path.join('r', 't', 'video-3.webm'));
+    expect(numbered(path.join('r', 'clip'), 2)).toBe(path.join('r', 'clip-2'));
   });
 });

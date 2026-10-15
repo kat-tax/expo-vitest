@@ -22,7 +22,7 @@ export interface TestRecord {
   duration: number;
   error?: {code?: string; message: string};
   /** Where the test's evidence is, from the project root. */
-  evidence?: {folder: string; trace: string; screenshot?: string};
+  evidence?: {folder: string; trace?: string; screenshot?: string; video?: string};
 }
 
 /** What the footer says of the run. */
@@ -89,7 +89,11 @@ export function spoken(ms: number): string {
 /** The evidence of a test as links: the screenshot where there is one, the tree and the trace. */
 export function evidenceLinks(evidence: TestRecord['evidence'], links: Links): string {
   if (!evidence) return '';
-  const files: [string, string][] = [...(evidence.screenshot ? ([['screenshot', evidence.screenshot]] as [string, string][]) : []), ['tree', path.posix.join(evidence.folder, 'tree.txt')], ['trace', evidence.trace]];
+  const files = [
+    ...(evidence.screenshot ? [['screenshot', evidence.screenshot]] : []),
+    ...(evidence.trace ? [['tree', path.posix.join(evidence.folder, 'tree.txt')], ['trace', evidence.trace]] : []),
+    ...(evidence.video ? [['video', evidence.video]] : []),
+  ] as [string, string][];
   if (links.kind === 'artifacts') return `${files.map(([word]) => `[${word}](${links.url})`).join(' · ')}<br>\`${evidence.folder}\``;
   const from = path.posix.dirname(links.from);
   return files.map(([word, file]) => `[${word}](${path.posix.relative(from, file)})`).join(' · ');

@@ -1,6 +1,7 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {HarnessError, codeOf} from '../lib/errors.ts';
-import {prepare} from '../lib/run.ts';
+import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
@@ -63,6 +64,9 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)`, {platform});
     return node;
   }
+
+  /** The file the recording in progress is written to, until it is stopped. */
+  let recordingTo: string | null = null;
 
   /** The app a location is for: on an iOS simulator the app's own, and on Android the device's, which takes none. */
   const locationApp = (bundleId?: string): {app?: string} => (platform === 'ios' && bundleId ? {app: bundleId} : {});
@@ -157,6 +161,30 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     async screenshot(file: string): Promise<StepResult> {
       const out = prepare(file);
       return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out, options.statusBar));
+    },
+
+    async video(action: 'start' | 'stop', file?: string): Promise<ControlResult> {
+      try {
+        const current = await transport();
+        if (action === 'start') {
+          recordingTo = prepare(path.join(options.root, '.harness', 'video-raw', `${platform}-${Date.now()}.mp4`));
+          await current.record('start', recordingTo);
+          return ok('recording the screen');
+        }
+        const raw = recordingTo;
+        recordingTo = null;
+        if (!raw) return ok('nothing was being recorded');
+        await current.record('stop');
+        if (file) fs.copyFileSync(raw, prepare(file));
+        // agent-device writes files of its own beside a recording, such as the gestures in it, and they go with it.
+        const stem = path.basename(raw, '.mp4');
+        for (const name of fs.readdirSync(path.dirname(raw))) {
+          if (name === `${stem}.mp4` || name.startsWith(`${stem}.`)) fs.rmSync(path.join(path.dirname(raw), name), {force: true});
+        }
+        return file ? {...ok(`saved ${path.relative(options.root, file)}`), value: file} : ok('threw the recording away');
+      } catch (error) {
+        return failed(`the recording failed: ${firstLine((error as Error).message)}`, codeOf(error));
+      }
     },
 
     async control(request: ControlRequest): Promise<ControlResult> {

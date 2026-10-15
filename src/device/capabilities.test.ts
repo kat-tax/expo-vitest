@@ -5,7 +5,7 @@ const pixel = {name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'};
 
 describe('the capabilities', () => {
   it('are the steps first, then every control, each once', () => {
-    expect(CAPABILITIES.slice(0, 11)).toEqual(ACTIONS.web);
+    expect(CAPABILITIES.slice(0, 12)).toEqual(ACTIONS.web);
     expect(CAPABILITIES).toContain('restart');
     expect(CAPABILITIES).toContain('alert');
     expect(new Set(CAPABILITIES).size).toBe(CAPABILITIES.length);
@@ -16,6 +16,8 @@ describe('the capabilities', () => {
     expect(absentBecause('hover', 'ios')).toBe('the ios harness has no hover');
     expect(absentBecause('swipe', 'windows')).toBe('the windows harness has no swipe');
     expect(absentBecause('swipe', 'web')).toBeNull();
+    expect(absentBecause('video', 'windows')).toBe('the windows harness has no video');
+    expect([absentBecause('video', 'web'), absentBecause('video', 'android'), absentBecause('video', 'ios')]).toEqual([null, null, null]);
   });
 
   it("are a platform's controls, less what it lacks, with the controls' own reason", () => {

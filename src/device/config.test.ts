@@ -22,6 +22,7 @@ const full = defineHarness({
   transition: false,
   statusBar: 'real',
   actionTimeout: 30_000,
+  video: 'retain-on-failure',
 });
 
 /** The message a config fails with. */
@@ -86,7 +87,7 @@ describe('checking it', () => {
   });
 
   it('names a key it does not take, and what it takes', () => {
-    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout');
+    expect(failure({timeout: 5})).toBe('harness.config.ts: timeout is not something a harness config takes here; it takes app, assertionTimeout, stable, settle, transition, statusBar, actionTimeout, video');
     expect(failure({app: {macos: {}}})).toBe('harness.config.ts: app.macos is not something a harness config takes here; it takes web, windows, android, ios');
     expect(failure({app: {web: {port: 1}}})).toMatch(/^harness\.config\.ts: app\.web\.port is not something .* it takes url, target, device,/);
     expect(failure({app: {web: {command: {executable: 'npx', shell: true}}}})).toMatch(/^harness\.config\.ts: app\.web\.command\.shell is not something/);
@@ -143,8 +144,9 @@ describe('what a run goes by', () => {
       transition: 500,
       statusBar: 'fixed',
       actionTimeout: 30_000,
+      video: 'off',
     });
-    expect(resolveRun('android', null, env(), root)).toEqual({platform: 'android', launchArguments: [], permissions: {}, assertionTimeout: 5000, stable: 1000, settle: 150, transition: 500, statusBar: 'fixed', actionTimeout: 30_000});
+    expect(resolveRun('android', null, env(), root)).toEqual({platform: 'android', launchArguments: [], permissions: {}, assertionTimeout: 5000, stable: 1000, settle: 150, transition: 500, statusBar: 'fixed', actionTimeout: 30_000, video: 'off'});
   });
 
   it("is the defaults the device layer already keeps", () => {
@@ -167,6 +169,7 @@ describe('what a run goes by', () => {
       transition: 0,
       statusBar: 'real',
       actionTimeout: 30_000,
+      video: 'retain-on-failure',
     });
     expect(resolveRun('windows', full, env(), root)).toMatchObject({target: 'windows/x64/Release/MyApp.exe', stateDir: at('windows', 'state')});
     expect(resolveRun('windows', full, env(), root)).not.toHaveProperty('identity');
@@ -192,6 +195,14 @@ describe('what a run goes by', () => {
     });
     expect(resolveRun('android', file, environment, root)).toMatchObject({url: 'http://env:2', target: 'env-target', scheme: 'env', assertionTimeout: 10, stable: 20, settle: 0, transition: 40});
     expect(resolveRun('android', file, env(), root)).toMatchObject({url: 'http://file:1', target: 'file-target', scheme: 'file', assertionTimeout: 1, stable: 2, settle: 3, transition: 4});
+  });
+
+  it('records video as the environment says, else the file, else not at all', () => {
+    expect(resolveRun('web', {video: 'on'}, env(), root).video).toBe('on');
+    expect(resolveRun('web', {video: 'on'}, env({HARNESS_VIDEO: 'retain-on-failure'}), root).video).toBe('retain-on-failure');
+    expect(resolveRun('web', {video: 'on'}, env({HARNESS_VIDEO: 'sometimes'}), root).video).toBe('on');
+    expect(resolveRun('web', null, env(), root).video).toBe('off');
+    expect(failure({video: 'always'})).toBe("harness.config.ts: video is \"always\"; it takes 'on', 'retain-on-failure' or 'off'");
   });
 
   it('passes over an environment value that is not a count of ms', () => {
@@ -341,8 +352,9 @@ describe('the run a worker hands the device', () => {
       stable: 1000,
       statusBar: 'fixed',
       actionTimeout: 30_000,
+      video: 'off',
     });
-    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000, statusBar: 'fixed', actionTimeout: 30_000});
+    expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000, statusBar: 'fixed', actionTimeout: 30_000, video: 'off'});
     expect(configFromRun(resolveRun('ios', {actionTimeout: 5}, env(), root), env()).actionTimeout).toBe(5);
     expect(configFromRun(resolveRun('ios', {statusBar: 'real'}, env(), root), env()).statusBar).toBe('real');
   });

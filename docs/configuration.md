@@ -234,6 +234,7 @@ parameter properties.
 | `transition` | How long a control the last step brought in is given before it is pressed, in ms, or `false`. | 500 |
 | `statusBar` | On a device, `fixed` makes the status bar the same in every screenshot, and `real` leaves it as it is. | `fixed` |
 | `actionTimeout` | How long one call to a driver may take before it is given up on, in ms: a step through agent-device, and a page's navigation on web. | 30000 |
+| `video` | Which device tests keep a [recording](evidence.md#video) of the screen: `on`, `retain-on-failure` or `off`. `HARNESS_VIDEO` wins over it. | `off` |
 
 A key the file does not take, or a value of the wrong kind, fails the run
 with `INVALID_CONFIG`, naming it and what the file takes there. So does a

@@ -26,7 +26,7 @@ with one project per platform. New here? Start with
 | [Locators](locators.md) | `screen` and `within`: RNTL's queries over the running app, the locator they give, how it waits. |
 | [Matchers](matchers.md) | The eighteen matchers on a locator, which wait for the tree, what a failure says, and the four on a snapshot or the device, screenshots among them. |
 | [Controls](controls.md) | The app's life from a test, and the device's settings: appearance, orientation, network, permissions, location, biometrics, the clipboard and alerts, on each platform. |
-| [Evidence](evidence.md) | The screenshot, tree and trace a failing device test leaves, and `HARNESS_TRACE`. |
+| [Evidence](evidence.md) | The screenshot, tree, trace and recording a failing device test leaves, `HARNESS_TRACE` and `video`. |
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
 

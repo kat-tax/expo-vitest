@@ -9,6 +9,7 @@ A failing device test leaves what it saw in
 | `screenshot.png` | The screen when the test ended. |
 | `tree.txt` | The tree then, as `expo-harness tree` prints it. |
 | `tree.json` | The same tree as JSON. |
+| `video.webm`, `video.mp4` | The screen through the test, where video is on. |
 
 ## Reading the trace
 
@@ -34,8 +35,11 @@ failing step was after, and on web the page's console follows.
 ## When it is written
 
 `HARNESS_TRACE` decides: `retain-on-failure`, the default, keeps a failed
-test's folder; `on` keeps every test's; `off` keeps none. A folder is
-replaced each time its test runs. Nothing under `.harness/` is for
-committing, and a baseline is never recorded by a run on its own.
+test's folder; `on` keeps every test's; `off` keeps none. `video` in the
+harness config, or `HARNESS_VIDEO`, keeps a recording by the same three
+words, and is `off` unless set: it costs about five seconds a test on a
+device. A folder is replaced each time its test writes to it. Nothing under
+`.harness/` is for committing, and a baseline is never recorded by a run on
+its own.
 
 More: `node_modules/expo-vitest/docs/evidence.md`.

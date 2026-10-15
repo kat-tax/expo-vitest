@@ -584,7 +584,11 @@ describe('the types a consumer compiled against', () => {
       app?: {bundleId?: string; appPath?: string; launchArguments?: string[]; permissions?: Record<string, 'grant' | 'deny' | 'reset'>; stateDir?: string};
       statusBar?: 'fixed' | 'real';
       actionTimeout?: number;
+      video?: 'on' | 'retain-on-failure' | 'off';
     }>();
+    expectTypeOf(device.recordVideo).toEqualTypeOf<() => Promise<boolean>>();
+    expectTypeOf(device.saveVideo).toEqualTypeOf<(file?: string) => Promise<string | null>>();
+    expectTypeOf<'video'>().toExtend<Capability>();
     expectTypeOf(device.restart).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.clearState).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.back).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();

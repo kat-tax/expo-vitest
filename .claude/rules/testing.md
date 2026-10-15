@@ -36,7 +36,10 @@ copy's `node_modules`, names it in the copy's manifest, and runs the tests by
 name, then `fixture/device/`: on web, against a page its harness config's
 command serves, which needs a Chromium (`bunx playwright-core install
 chromium --only-shell`), and on a platform the machine cannot drive, whose
-tests are skipped. It is the only thing that can catch what differs when
+tests are skipped. It runs the web video test once more with
+`HARNESS_VIDEO=retain-on-failure`, and checks that only the test that fails
+on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
+own version names, so the copy's playwright-core fetches its own first. It is the only thing that can catch what differs when
 installed:
 
 - Node will not strip types under `node_modules`.

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {HarnessError, codeOf} from '../lib/errors.ts';
-import {firstLine, prepare} from '../lib/run.ts';
+import {firstLine, numbered, prepare} from '../lib/run.ts';
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
@@ -280,6 +280,8 @@ export function webDriver(options: DriverOptions): Driver {
   const listeners = new Set<(level: string, text: string) => void>();
   const require = createRequire(path.join(options.root, 'package.json'));
   const base = options.url ?? DEFAULT_URL;
+  /** The size every page opens at. */
+  const VIEWPORT = {width: 1280, height: 900};
   /** How long a navigation may take before the page is taken not to be there. */
   const navigation = options.actionTimeout ?? 30_000;
   let browser: Browser | null = null;
@@ -325,6 +327,9 @@ export function webDriver(options: DriverOptions): Driver {
     title(): Promise<string>;
     context(): Context;
     emulateMedia(o: {colorScheme: 'light' | 'dark'}): Promise<void>;
+    // From playwright-core 1.59; an older one has none.
+    screencast?: {start(o: {path: string; size?: {width: number; height: number}}): Promise<unknown>; stop(): Promise<void>};
+    isClosed(): boolean;
     viewportSize(): {width: number; height: number} | null;
     setViewportSize(size: {width: number; height: number}): Promise<void>;
   }
@@ -354,10 +359,41 @@ export function webDriver(options: DriverOptions): Driver {
     return launched;
   }
 
+  /** The recording in progress: the page it is on, the file each page it has been on is written to, in order, and why it stopped short. */
+  let recording: {page: Page | null; parts: string[]; failure?: string} | null = null;
+
+  /** The recording carried onto a page. A page's screencast ends with the page, so each page is a part of its own. */
+  async function record(next: Page): Promise<void> {
+    if (!recording) return;
+    const screencast = next.screencast;
+    if (!screencast) {
+      recording.failure = 'this playwright-core has no page.screencast to record with; 1.59 and later have it';
+      return;
+    }
+    const part = prepare(path.join(options.root, '.harness', 'video-raw', `web-${process.pid}-${Date.now()}-${recording.parts.length + 1}.webm`));
+    try {
+      await screencast.start({path: part, size: next.viewportSize() ?? VIEWPORT});
+      recording.page = next;
+      recording.parts.push(part);
+    } catch (error) {
+      // The test goes on without a recording, and the stop says why there is none. Playwright counts a start that failed as started until it is stopped.
+      await screencast.stop().catch(() => {});
+      const reason = firstLine((error as Error).message);
+      recording.failure = /ffmpeg/i.test(reason) ? `${reason}; run \`bunx playwright install ffmpeg\`` : reason;
+    }
+  }
+
+  /** The part of the recording on a page about to be thrown away, written out while the page is still there. */
+  async function endPart(old: Page | null): Promise<void> {
+    if (!recording || !old || recording.page !== old) return;
+    recording.page = null;
+    await old.screencast?.stop().catch(() => {});
+  }
+
   /** A page in a context of its own, which keeps nothing from before: no cookies, no storage, only the permissions the app is granted. */
   async function freshPage(launched: Browser): Promise<Page> {
     const granted = webGrants(options.app?.permissions);
-    const context = await launched.newContext({viewport: {width: 1280, height: 900}, ...(granted.length ? {permissions: granted} : {})});
+    const context = await launched.newContext({viewport: VIEWPORT, ...(granted.length ? {permissions: granted} : {})});
     const fresh = await context.newPage();
     await fresh.addInitScript(INIT);
     fresh.on('console', message => {
@@ -378,6 +414,7 @@ export function webDriver(options: DriverOptions): Driver {
     if (page) return page;
     browser ??= await launch();
     page = await freshPage(browser);
+    await record(page);
     return page;
   }
 
@@ -386,6 +423,7 @@ export function webDriver(options: DriverOptions): Driver {
     const old = page;
     page = null;
     lastRead = null;
+    await endPart(old);
     await old?.context().close();
     const current = await open();
     try {
@@ -520,6 +558,39 @@ export function webDriver(options: DriverOptions): Driver {
     },
 
     snapshot,
+
+    async video(action: 'start' | 'stop', file?: string): Promise<ControlResult> {
+      if (action === 'start') {
+        if (recording) return ok('already recording');
+        // The page goes on as it was: a page already open is recorded from now, and otherwise the first page the test opens is.
+        recording = {page: null, parts: []};
+        if (page) await record(page);
+        const failure = recording.failure;
+        if (!failure) return ok('recording the page');
+        recording = null;
+        return failed(`the recording could not start: ${failure}`);
+      }
+      const done = recording;
+      recording = null;
+      if (!done) return ok('nothing was being recorded');
+      try {
+        if (done.page && !done.page.isClosed()) await done.page.screencast?.stop();
+      } catch (error) {
+        done.failure ??= firstLine((error as Error).message);
+      }
+      const parts = done.parts.filter(part => fs.existsSync(part));
+      if (!file || parts.length === 0) {
+        for (const part of done.parts) fs.rmSync(part, {force: true});
+        if (done.failure) return failed(`the recording failed: ${done.failure}`);
+        return ok(file ? 'the test opened no page to record' : 'threw the recording away');
+      }
+      // The first page's part is the file, and each page after it is beside it, numbered.
+      parts.forEach((part, index) => {
+        fs.copyFileSync(part, prepare(numbered(file, index + 1)));
+        fs.rmSync(part, {force: true});
+      });
+      return {...ok(`saved ${path.relative(options.root, file)}${parts.length > 1 ? ` and ${parts.length - 1} more beside it` : ''}`), value: file};
+    },
 
     async control(request: ControlRequest): Promise<ControlResult> {
       const lacks = lacking(request, 'web');
@@ -759,8 +830,11 @@ export function webDriver(options: DriverOptions): Driver {
 
     async close(): Promise<void> {
       await browser?.close().catch(() => {});
+      // A recording the browser's close cut short is not kept.
+      for (const part of recording?.parts ?? []) fs.rmSync(part, {force: true});
       browser = null;
       page = null;
+      recording = null;
       lastRead = null;
     },
   };
