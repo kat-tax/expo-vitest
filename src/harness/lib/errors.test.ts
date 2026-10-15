@@ -48,7 +48,7 @@ describe('codeOf', () => {
 });
 
 describe('HarnessCode', () => {
-  it('is these nine, so a new one is a deliberate edit here', () => {
+  it('is these ten, so a new one is a deliberate edit here', () => {
     expectTypeOf<HarnessCode>().toEqualTypeOf<
       | 'DRIVER_UNAVAILABLE'
       | 'APP_UNREACHABLE'
@@ -59,6 +59,7 @@ describe('HarnessCode', () => {
       | 'NOT_ACTIONABLE'
       | 'UNSUPPORTED_CAPABILITY'
       | 'INVALID_ARGUMENT'
+      | 'INVALID_CONFIG'
     >();
   });
 });

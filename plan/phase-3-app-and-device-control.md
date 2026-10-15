@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (item 1 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 and 2 done) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -29,6 +29,25 @@ below, the build is what holds.
   - So the projects run one platform after another, each one file at a
     time, which is the plan's fallback. Platforms in parallel wait for
     Phase 4's pools, as separate runs.
+- **Item 2: `src/device/config.ts`.**
+  - `defineHarness`, `findHarnessFile`, `validate`, `serialisable`, and
+    `resolveRun`, which is the design's `resolveApp` and resolves the waits
+    as well as the app.
+  - `loadHarness` takes the import from its caller, because only an
+    `import()` written in a file the module runner loads goes through it.
+  - `sameConfig` is the worker's hash check.
+  - `validate` names the first key it does not take, with the keys it
+    does, and the first value of the wrong kind. `agents`, `tools`,
+    `secrets` and `cache` are refused by name until Phase 5.
+  - `device` takes a name only; the pool and the hosted device wait for
+    Phase 4.
+  - Two more failures than the design names, both `INVALID_CONFIG`: a
+    command whose arguments have `{port}` on a platform with no url, and
+    a command with neither a `readyUrl` nor a url to tell it has started.
+  - The environment applies to every platform in a run, so a value that
+    differs by platform goes in the file.
+  - `HarnessCode` gains `INVALID_CONFIG`. The docs gain its row with the
+    file that throws it.
 
 ## Purpose and the claims it proves
 

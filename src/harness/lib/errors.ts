@@ -24,7 +24,9 @@ export type HarnessCode =
   /** Asked of a platform that has no counterpart, where answering `skipped` would hide a mistake. */
   | 'UNSUPPORTED_CAPABILITY'
   /** A call or a command line that cannot be acted on as it stands. */
-  | 'INVALID_ARGUMENT';
+  | 'INVALID_ARGUMENT'
+  /** A harness config that names something it cannot take, or a value of the wrong kind. */
+  | 'INVALID_CONFIG';
 
 export class HarnessError extends Error {
   override readonly name = 'HarnessError';
