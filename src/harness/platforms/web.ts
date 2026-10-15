@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {HarnessError, codeOf} from '../lib/errors.ts';
-import {prepare} from '../lib/run.ts';
+import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
@@ -217,7 +217,13 @@ export function webDriver(options: DriverOptions): Driver {
     async open(to: string): Promise<StepResult> {
       const current = await open();
       const url = target(to);
-      await current.goto(url, {waitUntil: 'load', timeout: 30_000});
+      try {
+        await current.goto(url, {waitUntil: 'load', timeout: 30_000});
+      } catch (error) {
+        // A server that is not up, or a page that never finishes loading: the
+        // app is not there to drive, which is a different fix from a step failing.
+        return failed(`could not open ${url}: ${firstLine((error as Error).message)}`, 'APP_UNREACHABLE');
+      }
       return ok(`opened ${url}`);
     },
 
