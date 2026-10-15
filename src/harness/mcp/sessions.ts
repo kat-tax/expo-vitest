@@ -4,16 +4,20 @@
  * session's calls run one at a time, since a driver is one window or one
  * device, while two sessions run side by side. A session closes after 30
  * idle minutes or 4 hours, whichever comes first, the way `close` closes it.
+ * An open answers within 3 minutes, as a call does within its own limit, so
+ * a driver that never answers does not hold a client's call for ever.
  */
 
 /** How long a session may sit unused, and live at all, in ms. */
 export const IDLE_MS = 30 * 60_000;
 export const TOTAL_MS = 4 * 3_600_000;
+/** How long an open may take, a cold simulator's boot among it, in ms. */
+export const OPEN_MS = 3 * 60_000;
 
 /** Why the table refused, in e2e's words for it. */
 export class SessionError extends Error {
   override readonly name = 'SessionError';
-  readonly code: 'NO_SESSION' | 'SESSION_REQUIRED' | 'SESSION_OPEN';
+  readonly code: 'NO_SESSION' | 'SESSION_REQUIRED' | 'SESSION_OPEN' | 'OPEN_TIMEOUT';
 
   constructor(code: SessionError['code'], message: string) {
     super(message);
@@ -45,6 +49,7 @@ export interface SessionOptions<T> {
   now?: () => number;
   idleMs?: number;
   totalMs?: number;
+  openMs?: number;
 }
 
 export class Sessions<T> {
@@ -85,7 +90,7 @@ export class Sessions<T> {
     this.opening += 1;
     let value: T;
     try {
-      value = await make();
+      value = await this.bounded(make());
     } finally {
       this.opening -= 1;
     }
@@ -95,6 +100,30 @@ export class Sessions<T> {
     const session: Session<T> = {id, value, openedAt: at, touchedAt: at};
     this.rows.set(id, {session, queue: Promise.resolve(), idle: this.timer(id, this.options.idleMs ?? IDLE_MS), total: this.timer(id, this.options.totalMs ?? TOTAL_MS)});
     return session;
+  }
+
+  /** What an open answers, or OPEN_TIMEOUT once it has taken too long; what it answers after that is let go of. */
+  private bounded(pending: Promise<T>): Promise<T> {
+    const ms = this.options.openMs ?? OPEN_MS;
+    return new Promise((resolve, reject) => {
+      let late = false;
+      const timer = setTimeout(() => {
+        late = true;
+        reject(new SessionError('OPEN_TIMEOUT', `the session did not open in ${ms / 1000} s, and is closed if it opens after; expo-harness doctor says what this machine can drive`));
+      }, ms);
+      (timer as unknown as {unref?: () => void}).unref?.();
+      pending.then(
+        value => {
+          clearTimeout(timer);
+          if (late) void this.options.close(value).catch(() => undefined);
+          else resolve(value);
+        },
+        (error: unknown) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
+    });
   }
 
   /** The session an id names, or the one open where it names none. */

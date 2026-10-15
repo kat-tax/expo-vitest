@@ -110,6 +110,9 @@ finds each one alone; where none does, the names near the one asked for.
   `SESSION_OPEN`. Synthetic input on Windows waits until nobody has used the
   machine for three minutes, unless the session was opened with
   `force: true` or the server with `--force`.
+- An open answers within three minutes, a cold simulator's boot included.
+  One that takes longer is `OPEN_TIMEOUT`, and the session is closed if it
+  opens after. Each action has 15 seconds of its own, as an agent's does.
 - A session closes at `close_session`, after 30 idle minutes, after 4 hours,
   and when the client goes. SIGINT and SIGTERM close them all.
 - stdout is the protocol's alone. Everything the server would print goes to

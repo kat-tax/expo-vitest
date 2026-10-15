@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {IDLE_MS, SessionError, Sessions, TOTAL_MS} from './sessions.ts';
+import {IDLE_MS, OPEN_MS, SessionError, Sessions, TOTAL_MS} from './sessions.ts';
 
 /** A table over fake drivers, each a name, every close kept. */
 function tableOf(max = 2, close: (value: string) => Promise<void> = () => Promise.resolve()) {
@@ -139,6 +139,40 @@ describe("a session's time", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     await closing;
     expect([stuck.closed, stuck.sessions.size]).toEqual([['web'], 0]);
+  });
+
+  it('answers an open that takes too long with OPEN_TIMEOUT, frees its place, and lets go of what it answers late', async () => {
+    const {sessions, closed} = tableOf(1);
+    let answer: (value: string) => void = () => undefined;
+    const opening = sessions.open(() => new Promise<string>(resolve => (answer = resolve)));
+    const refused = expect(opening).rejects.toMatchObject({code: 'OPEN_TIMEOUT', message: 'the session did not open in 180 s, and is closed if it opens after; expo-harness doctor says what this machine can drive'});
+    await vi.advanceTimersByTimeAsync(OPEN_MS);
+    await refused;
+    expect((await sessions.open(async () => 'web')).id).toBe('s1');
+    answer('android');
+    await vi.advanceTimersByTimeAsync(0);
+    expect([closed, sessions.ids]).toEqual([['android'], ['s1']]);
+    const late = tableOf(1, () => Promise.reject(new Error('the device is gone')));
+    let lateAnswer: (value: string) => void = () => undefined;
+    const lateOpen = late.sessions.open(() => new Promise<string>(resolve => (lateAnswer = resolve)));
+    const lateRefused = expect(lateOpen).rejects.toMatchObject({code: 'OPEN_TIMEOUT'});
+    await vi.advanceTimersByTimeAsync(OPEN_MS);
+    await lateRefused;
+    lateAnswer('ios');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(late.sessions.size).toBe(0);
+  });
+
+  it('keeps an open that fails after its time from answering twice', async () => {
+    const {sessions} = tableOf(1);
+    let fail: (error: Error) => void = () => undefined;
+    const opening = sessions.open(() => new Promise<string>((_, reject) => (fail = reject)));
+    const refused = expect(opening).rejects.toMatchObject({code: 'OPEN_TIMEOUT'});
+    await vi.advanceTimersByTimeAsync(OPEN_MS);
+    await refused;
+    fail(new Error('no device'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sessions.size).toBe(0);
   });
 
   it('keeps the times a clock it is given says', async () => {

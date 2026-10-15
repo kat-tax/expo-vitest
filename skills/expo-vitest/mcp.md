@@ -42,6 +42,8 @@ tools, `tools` lists a session's own.
   one session each at a time: one desktop, one device. Synthetic input on
   Windows waits until the machine has been quiet for three minutes, unless
   the session was opened with `force: true` or the server with `--force`.
+- An open that takes more than three minutes answers `OPEN_TIMEOUT`; run
+  `npx expo-harness doctor` to see what the machine can drive.
 - A session ends at `close_session`, after 30 idle minutes, after 4 hours, and
   when the client goes.
 
