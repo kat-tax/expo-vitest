@@ -1,6 +1,6 @@
 # Phase 6. Agent surfaces
 
-Status: not started · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
+Status: done, but for what needs a live model or a live client, which run by hand: the explore smoke and the cost it prints, a coding agent writing a test through a real MCP client, and explore and bug bash on Windows and iOS. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
 
 The agent of Phase 5 reached from outside a test file: an MCP server a coding
 agent drives the app through, an `explore` command that runs the agent with a
@@ -8,6 +8,101 @@ goal instead of a test, and a `bug-bash` command that runs many explores at
 once and turns what they find into failing tests. The shared facts this
 document leans on, including the MCP framing and lifecycle shapes, are in
 [README.md, section 11](README.md#11-shared-facts-the-phases-build-on).
+
+## As built
+
+On the `e2e` branch, after Phase 5, one commit an item or more. Where the
+build differs from the design below, the build is what holds.
+
+- **Item 1: the framing.** `src/harness/mcp/rpc.ts` as designed:
+  `parseLine` tells a request, a notification, a response and an error
+  apart, a batch is refused, and `streamTransport` reads lines through a
+  `readline` made at once and waits on `drain`.
+- **Item 2: the sessions.** `sessions.ts` as designed, and an open answers
+  within 3 minutes: past that it is `OPEN_TIMEOUT`, its place is freed, and
+  a session that opens after is closed. A rehearsal on the emulator once
+  waited in `open_session` for more than 3 minutes, which two runs after it
+  did not repeat; what held it was not found.
+- **Item 3: the catalog.** Not e2e's catalog: `catalog.ts` offers the
+  agent's own tools, `grammarLoopTools` and the default agent's project
+  tools, over a step context that lasts the session and has no model, so a
+  coding agent acts by the agent's rules. A ref is the agent's (`RefBook`),
+  the same node for the whole session, rather than e2e's `#id`, good
+  against the newest observation only; a node that has gone is
+  `NODE_STALE`. `observe` answers the agent's view and an action the view's
+  diff, rather than `#id role "name"`. `locate` answers one call, the calls
+  that tell several matches apart, or the names near a miss. Not built:
+  `hover_at`, `type_at`, `press_at`, `select_at`, the recording tools, and
+  the mobile pack's `open_app` and `alert`.
+- **Item 4: the server and `mcp`.** `server.ts` answers `initialize`,
+  `ping`, `tools/list` and `tools/call`; `serve.ts` is the command, with
+  `--platform`, `--config`, `--headed`, `--force` and `--max-sessions`
+  (`mcp/args.ts`). Not built: progress notifications. A cancellation drops
+  the answer of the call in flight, which finishes. A session starts the
+  config's command only where nothing answers at its url, since a coding
+  agent's app is usually served already. Windows, Android and iOS take one
+  session at a time, since a session's driver names no device and two would
+  act on one screen; web takes up to `--max-sessions`. Node's calls for a
+  command moved to `src/device/system.ts`, and the opening of the configured
+  app to `src/harness/lib/app.ts`, which `explore` and `bug-bash` share.
+- **Item 5: explore.** `src/harness/explore/` (`args.ts`, `run.ts`,
+  `command.ts`) and `src/harness/lib/report.ts`. No `explore` step kind was
+  added to `AgentStepKind`, which is public: the run is a step context of
+  kind `act` under its own frozen prompt and first turn. `report_finding`
+  takes `expected` and `observed` in place of `detail`, which a skeleton's
+  check needs. A finding cites the step it was reported after, with that
+  step's route, tree and screenshot. Each step keeps the tree the model saw,
+  a screenshot taken by the model's rules at a person's size
+  (`Hands.picture`, which leaves `tap_at` aiming at the model's last
+  screenshot), and the query that finds its node (`queryFor` in
+  `src/device/queries.ts`). `transcript.txt` sits beside the report. The
+  model calls are the agent's `maxModelCalls`. It exits 2 where it could not
+  explore, as well as 1 on an issue.
+- **Item 6: bug bash.** `src/harness/bug-bash/` (`args.ts`, `command.ts`,
+  `reporter.ts`), with the pure part in `src/harness/lib/charters.ts` as
+  item 9 asked. Android and iOS run one charter at a time, as Windows does:
+  the bug bash claims no devices from a pool. A skeleton's check is
+  `agent.assert` of what was expected, marked for review, rather than a
+  matcher worked out from the words, and it sits in `onlyOn` the platform.
+  The confirmation run is the project's own `vitest` with its device config
+  and a reporter of the command's, which records each test's error code. An
+  issue is confirmed, rejected, not verified (its skeleton failed before its
+  check) or not checked (it did not run), and a duplicate is named on the
+  finding it was merged into. It exits 1 on a bug and on an issue not
+  checked.
+- **Item 7: init and the skill.** As designed; `--mcp` under `--yes`, and
+  init prints the `claude mcp add` line. The topics are files beside the
+  others, `mcp.md`, `agent.md`, `explore.md` and `bug-bash.md`, rather than
+  under `reference/`, since `guide` reads the skill's folder.
+- **Item 8: the fixture.** `device/mcp.test.ts`, which spawns the packed
+  command and fails on any stdout line that is not JSON-RPC;
+  `device/explore.test.ts`; and `device/bug-bash.test.ts` over
+  `device/features.json`, whose two areas the model of rules explores alike.
+  The model of rules gained an explore.
+- **Items 9 and 10: the gate and the docs.** `rpc.ts`, `sessions.ts`,
+  `catalog.ts`, `server.ts`, `mcp/args.ts`, `report.ts`, `explore/args.ts`,
+  `explore/run.ts`, `charters.ts` and `bug-bash/args.ts` are under it.
+  `docs/coding-agents.md` holds all three surfaces; `harness.md`, the
+  README and the migration guide point to it. The MCP column of the
+  platform table is rows instead, since that table's columns are platforms.
+
+Run by hand. On web, the server from source against a page of control
+states. On the Android emulator, with the config naming it: a session on
+Settings opened in about 4 s, `locate` answered
+`screen.getByText("Network & internet")`, then a tap, back, a stale ref and
+close, every stdout line JSON-RPC; and an explore there, with a model of
+rules, kept two steps with their trees and screenshots. On Windows, reading
+only: a session opened on a running app in under a second, listed the
+Windows tools, located, refused a second Windows session, and closed,
+sending no input.
+
+Not run: any live model, so the explore smoke and its cost line are not
+recorded; a Claude Code session with only the `.mcp.json` entry and the
+skill writing a test, which needs a client started with the server; and
+explore and bug bash on Windows, where they would press controls in the
+apps on this machine's desk, and on iOS. The nearest to the first exit
+criterion is the fixture's bug bash: its skeleton is built from the queries
+`queryFor` gives, and it ran and reached its check.
 
 ## Purpose and the claims it proves
 
