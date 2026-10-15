@@ -11,6 +11,8 @@ concurrency:
 
 permissions:
   contents: read
+  # The fixture's device run posts its summary on the pull request.
+  pull-requests: write
 
 jobs:
   check:
@@ -43,4 +45,8 @@ jobs:
       - name: Test the package as an app installs it
         # Packed, unpacked into the fixture's node_modules and run by name: the
         # one place the source cannot speak for, since Node strips no types there.
+        # Its device tests' summary goes on the pull request, one comment, updated
+        # on a rerun; a fork's token only reads, and the job summary has it then.
         run: bun run test:fixture
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

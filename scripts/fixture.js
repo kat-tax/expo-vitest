@@ -126,12 +126,27 @@ try {
   console.log(`video.webm is in ${kept[0]} alone`);
   console.log(`==== ${absent} required, so its tests fail`);
   try {
-    execFileSync(process.execPath, [...device, '--project', `device:${absent}`], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+    execFileSync(process.execPath, [...device, '--project', `device:${absent}`, '--reporter', 'verbose'], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
     throw new Error(`the ${absent} tests passed under HARNESS_REQUIRE`);
   } catch (error) {
     if (!`${error.stdout}${error.stderr}`.includes('DRIVER_UNAVAILABLE')) throw error;
     console.log('they failed with DRIVER_UNAVAILABLE');
   }
+
+  // Last, since it takes the app's own tests and configs away: init on what
+  // a project starting out has, from the packed package's command, and then
+  // the component tests on the config it wrote. The device config it writes
+  // is not run: its command serves the app on the port of an app's own.
+  console.log('==== init --yes, on the app with its tests and configs taken away');
+  for (const name of ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'src', 'device', '.harness']) {
+    fs.rmSync(path.join(scratch, name), {recursive: true, force: true});
+  }
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes']);
+  for (const file of ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'src/platform.test.ts', 'device/example.test.ts', '.claude/skills/expo-vitest/SKILL.md', '.gitignore']) {
+    if (!fs.existsSync(path.join(scratch, file))) throw new Error(`init --yes did not write ${file}`);
+  }
+  console.log('==== The component tests init wrote, on the config it wrote');
+  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
 } finally {
   try {
     fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});

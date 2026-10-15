@@ -40,8 +40,10 @@ which needs a Chromium (`bunx playwright-core install chromium
 skipped. It runs the web video test once more with
 `HARNESS_VIDEO=retain-on-failure`, and checks that only the test that fails
 on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
-own version names, so the copy's playwright-core fetches its own first. It
-is the only thing that can catch what differs when installed:
+own version names, so the copy's playwright-core fetches its own first.
+Last, it takes the copy's configs and tests away, runs `init --yes` from the
+packed command, and runs the component tests on the config it wrote. It is
+the only thing that can catch what differs when installed:
 
 - Node will not strip types under `node_modules`.
 - Vitest leaves what is there out of its module graph unless told otherwise.

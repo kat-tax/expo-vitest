@@ -80,6 +80,10 @@ instead, and `HARNESS_CDP` in a Chromium already running. The copy's own
 `playwright-core` fetches the browser named, and the ffmpeg it records video
 with, since it takes no build but its own.
 
+Last, it takes the copy's configs and tests away, runs `init --yes` from the
+packed package's command, and runs the component tests on what `init` wrote,
+which proves that a project set up that way runs.
+
 It is how the package is known to work installed, which its source cannot
 say. Three things differ for an installed package:
 
