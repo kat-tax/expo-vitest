@@ -13,6 +13,7 @@ page per topic. A change to a feature changes its page.
 | `src/setup/` | the setup file of each project |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | the test helpers, one subpath each |
 | `src/device/` | the device object and its matchers, over the harness's drivers |
+| `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter |
 | `src/harness/` | the drivers and the `expo-harness` command |
 | `src/cli/` | `init` and `guide`, which the command runs by either name |
 | `src/reporter/` | the summary and GitHub reporters, as `expo-vitest/reporter` |

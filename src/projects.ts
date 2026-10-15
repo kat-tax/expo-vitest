@@ -30,6 +30,8 @@ export const SUBPATHS: Record<string, string> = {
   'device/matchers': 'device/matchers.ts',
   reporter: 'reporter/index.ts',
   'metro-compat': 'metro-compat.ts',
+  agent: 'agent/index.ts',
+  'agent/anthropic': 'agent/anthropic.ts',
 };
 
 /** A file of this package, as it is on disk here: source in the repository, compiled once installed. */

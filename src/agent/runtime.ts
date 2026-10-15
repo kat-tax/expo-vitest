@@ -234,6 +234,8 @@ export class AgentRuntime {
     this.write = options.write ?? (text => void process.stderr.write(text));
     this.secrets = new SecretStore(this.harness.secrets, this.environment);
     this.cache = cacheSettings(this.harness.cache, this.environment, this.host.root);
+    // What the evidence writes hides every secret value, and keeps no picture after one was filled.
+    this.host.journal.privacy = {redact: text => this.redact()(text), withheld: () => (tainted() ? 'a secret was filled in this test, so no picture of the screen is kept' : undefined)};
     // An act is recorded at the first check after it that passes.
     this.host.journal.onStep(step => {
       if (step.event === 'verified') this.recordPending();

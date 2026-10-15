@@ -298,6 +298,20 @@ describe('writeEvidence', () => {
     fs.rmSync(root, {recursive: true, force: true});
   });
 
+  it("hides the agent's secrets in what it writes, and keeps no picture where the agent says none may be", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
+    const typed = tree(node('@e1', 'input', 'Recovery code', {kind: 'textbox', value: 'rc-7731-secret', interactive: true}));
+    const kept = source({tree: async () => typed});
+    kept.journal.privacy = {redact: text => text.replaceAll('rc-7731-secret', '<secret:RECOVERY>'), withheld: () => 'a secret was filled in this test'};
+    const written = await writeEvidence(kept, input(root));
+    const all = ['tree.txt', 'tree.json', 'trace.md'].map(name => fs.readFileSync(path.join(written.folder, name), 'utf8')).join('\n');
+    expect(all).not.toContain('rc-7731-secret');
+    expect(all).toContain('<secret:RECOVERY>');
+    expect([written.screenshot, fs.existsSync(path.join(written.folder, 'screenshot.png'))]).toEqual([undefined, false]);
+    expect(fs.readFileSync(written.trace, 'utf8')).toContain('Screenshot: not taken, a secret was filled in this test.');
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
   it('says why there is no picture, and falls back to the last tree the journal kept', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
     const closed = await writeEvidence(source({open: false}), input(root));

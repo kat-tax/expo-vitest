@@ -76,6 +76,8 @@ function runtimeOf(options: SetUp = {}) {
 }
 
 const cacheDir = (root: string) => path.join(root, '.harness', 'cache');
+/** The journal a runtime acts through. */
+const journalOf = (runtime: AgentRuntime) => (runtime as unknown as {host: AgentHost}).host.journal;
 const entries = (root: string) => (fs.existsSync(cacheDir(root)) ? fs.readdirSync(cacheDir(root)) : []);
 
 afterEach(() => {
@@ -511,8 +513,9 @@ describe('a test', () => {
     const {runtime} = runtimeOf({replies: [callsTool('type_secret', {ref: '@e3', secret: 'ADA_PASSWORD'}), complete()]});
     await runtime.act('sign in with {password}', {params: {password: secret('ADA_PASSWORD')}});
     expect(tainted()).toBe(true);
+    expect([journalOf(runtime).privacy?.withheld(), journalOf(runtime).privacy?.redact('typed correct horse battery')]).toEqual(['a secret was filled in this test, so no picture of the screen is kept', 'typed <secret:ADA_PASSWORD>']);
     runtime.begin();
-    expect(tainted()).toBe(false);
+    expect([tainted(), journalOf(runtime).privacy?.withheld()]).toEqual([false, undefined]);
   });
 });
 

@@ -37,9 +37,13 @@ name, then `fixture/device/`: on web, against the pages its harness
 config's command serves, one of them for `device.web` with a frame in it,
 which needs a Chromium (`bunx playwright-core install chromium
 --only-shell`), and on a platform the machine cannot drive, whose tests are
-skipped. It runs the web video test once more with
-`HARNESS_VIDEO=retain-on-failure`, and checks that only the test that fails
-on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
+skipped. The agent's tests act with a model of rules from the fixture's
+harness config, which needs no key: the first run records the sign-in, a
+second run of `device/agent` with `FIXTURE_AGENT_REPLAY` replays it, the
+model refusing to act, and `scripts/secret-grep.js` then checks that neither
+of the fixture's made-up secrets is anywhere under `.harness/`. It runs the
+web video test once more with `HARNESS_VIDEO=retain-on-failure`, and checks
+that only the test that fails on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
 own version names, so the copy's playwright-core fetches its own first.
 Last, it takes the copy's configs and tests away, runs `init --yes` from the
 packed command, and runs the component tests on the config it wrote. It is

@@ -90,7 +90,8 @@ afterEach(async context => {
   }
   // The recording ends after the evidence is written, so it runs to the screen the evidence shows.
   const folder = written?.folder ?? resultsFolder(ROOT, device.platform, file, titlePath);
-  const keep = keepVideo(device.config.video ?? 'off', failed);
+  // A recording after a secret was filled could show it, as a picture could.
+  const keep = keepVideo(device.config.video ?? 'off', failed) && !device.journal.privacy?.withheld();
   // A test's folder is replaced each time it is written to, so a recording alone is never beside an older run's trace.
   if (keep && !written) fs.rmSync(folder, {recursive: true, force: true});
   const video = await device.saveVideo(keep ? path.join(folder, videoName(device.platform)) : undefined);

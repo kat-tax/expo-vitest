@@ -108,6 +108,17 @@ export function diffDigests(before: TreeDigest, after: TreeDigest): string {
 
 export type StepListener = (step: Step) => void;
 
+/**
+ * What the agent tells the journal of a test's secrets: how to hide their
+ * values in what the evidence writes, and why no picture of the screen may
+ * be kept, as after a secret was filled into a field that shows it.
+ */
+export interface Privacy {
+  redact(text: string): string;
+  /** Why no picture of the screen may be kept for this test, or undefined where one may. */
+  withheld(): string | undefined;
+}
+
 /** What an agent's step leaves for the trace: what it was, how it ended, and its last turns. */
 export interface AgentNote {
   /** `act`, `assert`, `waitFor` or `extract`. */
@@ -139,6 +150,8 @@ export class Journal {
   last: Snapshot | null = null;
   /** The agent's steps, for the trace's Agent section. */
   agents: AgentNote[] = [];
+  /** Set by the agent: what the evidence writes is redacted by it, and keeps no picture where it says none may be. */
+  privacy: Privacy | undefined;
   private began = 0;
   private running: Step | null = null;
   private readonly listeners = new Set<StepListener>();
@@ -389,10 +402,14 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
   let tree = source.journal.last;
   let screenshot: string | undefined;
   let noScreenshot: string | undefined;
+  const {privacy} = source.journal;
+  const hide = (text: string) => (privacy ? privacy.redact(text) : text);
+  const withheld = privacy?.withheld();
   if (source.open()) {
     const file = path.join(folder, 'screenshot.png');
     try {
-      if (await source.screenshot(file)) screenshot = file;
+      if (withheld) noScreenshot = withheld;
+      else if (await source.screenshot(file)) screenshot = file;
       else noScreenshot = 'the backend could not take one';
     } catch (error) {
       noScreenshot = `taking it failed: ${(error as Error).message.split('\n')[0]}`;
@@ -410,14 +427,15 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
     if (node && behind) chain = {node: `${node.ref} ${node.kind ?? node.role} ${JSON.stringify(node.name)}`, ...(behind.component ? {component: behind.component} : {}), chain: behind.chain};
   }
   if (tree) {
-    fs.writeFileSync(path.join(folder, 'tree.txt'), `${renderSnapshot(tree)}\n`);
-    fs.writeFileSync(path.join(folder, 'tree.json'), `${JSON.stringify(tree, null, 2)}\n`);
+    // A field a secret was typed into, where the field shows what it holds, has the value in the tree.
+    fs.writeFileSync(path.join(folder, 'tree.txt'), `${hide(renderSnapshot(tree))}\n`);
+    fs.writeFileSync(path.join(folder, 'tree.json'), `${hide(JSON.stringify(tree, null, 2))}\n`);
   }
   const trace = path.join(folder, 'trace.md');
   const {root: _root, ...rest} = input;
   fs.writeFileSync(
     trace,
-    renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, agents: source.journal.agents, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})}),
+    hide(renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, agents: source.journal.agents, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})})),
   );
   // The agent's pictures go beside the trace, where its errors said they would be.
   for (const note of source.journal.agents) if (note.picture) fs.writeFileSync(path.join(folder, note.picture.name), note.picture.png);

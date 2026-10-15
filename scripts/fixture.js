@@ -100,7 +100,8 @@ try {
   const own = ['ffmpeg', ...(['firefox', 'webkit'].includes(process.env.HARNESS_BROWSER) ? [process.env.HARNESS_BROWSER] : [])];
   console.log(`==== The fixture's playwright-core, with its ${own.join(' and ')}`);
   run(process.execPath, [path.join(modules, 'playwright-core', 'cli.js'), 'install', ...own]);
-  const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on'};
+  // Every call the agent makes is kept, so the grep after the runs reads them too.
+  const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on', HARNESS_AI_TRACE: '1'};
   console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
   const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
   process.stdout.write(skipped);
@@ -108,6 +109,24 @@ try {
   if (!skipped.includes('web cannot home, since a browser has no home screen')) throw new Error('the test that needs a home screen was not skipped on web with the reason');
   const summarised = fs.readFileSync(path.join(scratch, '.harness', 'summary.md'), 'utf8');
   if (!/^## expo-vitest · \d+ passed · \d+ skipped/.test(summarised)) throw new Error(`the summary reporter wrote no summary of the run: ${summarised.slice(0, 200)}`);
+  // The agent's sign-in was recorded once the assertion after it held, with
+  // each secret by its name; a second run replays it, and the model of rules
+  // refuses to act there, so a pass is the replay's.
+  console.log("==== The agent's sign-in, replayed from the cache it recorded");
+  const cache = path.join(scratch, '.harness', 'cache');
+  const recordedEntries = fs.existsSync(cache) ? fs.readdirSync(cache) : [];
+  if (recordedEntries.length !== 1) throw new Error(`the agent's run left ${recordedEntries.length} cache entries, not the one sign-in`);
+  const recordedEntry = JSON.parse(fs.readFileSync(path.join(cache, recordedEntries[0]), 'utf8'));
+  const filled = recordedEntry.actions.filter(action => action.tool === 'type_secret').map(action => action.input.secret);
+  if (filled.join() !== 'FIXTURE_RECOVERY,FIXTURE_PASSWORD' || recordedEntry.params.password?.secret !== 'FIXTURE_PASSWORD') throw new Error('the cache entry does not keep the secrets by their names');
+  const replayed = execFileSync(process.execPath, [...device, '--project', 'device:web', '--reporter', 'verbose', 'device/agent'], {cwd: scratch, env: {...environment, FIXTURE_AGENT_REPLAY: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
+  process.stdout.write(replayed);
+  const typed = path.join(scratch, '.harness', 'results', 'web', 'device', 'agent');
+  const keeps = fs.readdirSync(typed).find(test => test.startsWith('keeps-a-secret'));
+  if (!keeps || !fs.readFileSync(path.join(typed, keeps, 'tree.json'), 'utf8').includes('<secret:FIXTURE_RECOVERY>')) throw new Error('the tree of the test that typed a secret does not hide it');
+  if (fs.existsSync(path.join(typed, keeps, 'screenshot.png'))) throw new Error('the test that typed a secret kept a screenshot');
+  console.log("==== No secret's value anywhere under .harness/");
+  run(process.execPath, [path.join(root, 'scripts', 'secret-grep.js'), path.join(scratch, '.harness'), 'fixture-horse-battery', 'rc-4417-fixture-code']);
   // The reporter named on the command line replaces the config's, so a run
   // that fails on purpose writes no summary and posts no comment.
   console.log('==== Video kept for the test that fails, and for no other');
