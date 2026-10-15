@@ -7,6 +7,16 @@ export type Platform = 'web' | 'windows' | 'android' | 'ios';
 
 export const PLATFORMS: Platform[] = ['web', 'windows', 'android', 'ios'];
 
+/** What a driver found of the device it drives, which says what the device can do beyond its platform. */
+export interface DeviceFacts {
+  /** Its name, as a foldable's says it folds. */
+  name?: string;
+  /** `simulator`, `emulator`, or `device` for a physical one. */
+  kind?: string;
+  /** Its operating system's version. */
+  osVersion?: string;
+}
+
 /** Whether a driver can work on this machine right now, and what is missing when it cannot. */
 export interface Availability {
   ready: boolean;
@@ -14,6 +24,8 @@ export interface Availability {
   found?: string;
   /** Why it cannot work, in a sentence a person can act on. */
   reason?: string;
+  /** What the driver found of the device, where it can tell. */
+  device?: DeviceFacts;
 }
 
 /** What a step did. `skipped` is for what a platform has no counterpart for, which is not a failure. */

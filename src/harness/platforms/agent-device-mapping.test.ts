@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -372,5 +372,22 @@ describe("the app's life through agent-device", () => {
     expect(foregroundOf({data: null})).toBeNull();
     expect(foregroundOf('nothing')).toBeNull();
     expect(foregroundOf(null)).toBeNull();
+  });
+});
+
+describe("the device's capabilities", () => {
+  const device = {platform: 'android', id: 'emulator-5554', name: 'Pixel 9 Pro XL', kind: 'emulator', target: 'mobile', model: 'sdk_gphone64_x86_64', osVersion: '16', booted: true};
+
+  it('are read from what the command line prints and the client answers', () => {
+    expect(capabilitiesFrom({success: true, data: {device, availableCommands: ['open', 'fold']}})).toEqual({device, availableCommands: ['open', 'fold']});
+    expect(capabilitiesFrom({device})).toEqual({device, availableCommands: []});
+    expect(capabilitiesFrom({data: {availableCommands: []}})).toBeNull();
+    expect(capabilitiesFrom('capabilities')).toBeNull();
+    expect(capabilitiesFrom(null)).toBeNull();
+  });
+
+  it("say what the device is: its name, its kind and its version", () => {
+    expect(factsOf({device, availableCommands: []})).toEqual({name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'});
+    expect(factsOf({device: {name: 'iPhone 17', platform: 'ios', kind: 'simulator', target: 'mobile'}, availableCommands: []})).toEqual({name: 'iPhone 17', kind: 'simulator'});
   });
 });

@@ -16,6 +16,7 @@
  *   expect(await device.fullSnapshot()).toHaveElement(by.label('Name'));
  */
 import path from 'node:path';
+import {beforeEach, describe} from 'vitest';
 import {driverFor} from '../harness/lib/drivers.ts';
 import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError, isHarnessError} from '../harness/lib/errors.ts';
@@ -24,8 +25,10 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import {describeControl} from '../harness/lib/controls.ts';
-import type {AppOptions, ControlRequest, ControlResult, Driver, FillOptions, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, FillOptions, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 import {elsewhere} from '../harness/lib/types.ts';
+import type {Capability, Circumstances} from './capabilities.ts';
+import {cannotSentence, capabilitiesOf, knownFacts} from './capabilities.ts';
 import type {AppConfig, CommandConfig, HarnessConfig, Permission} from './config.ts';
 import {configFromRun, currentRun, defineHarness} from './config.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
@@ -42,7 +45,7 @@ import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './s
 import {queriesOn, scopeOf} from './screen.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
-export type {AppConfig, CommandConfig, HarnessConfig, Orientation, Permission};
+export type {AppConfig, Capability, CommandConfig, HarnessConfig, Orientation, Permission};
 export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
@@ -112,6 +115,8 @@ class Device {
   private settled: DeviceConfig | null = null;
   /** Why the last control that was skipped was, for a test or a report that says so; null after one that was done. */
   lastSkip: string | null = null;
+  /** What the driver found of the device when it opened. */
+  private facts: DeviceFacts | undefined;
 
   constructor(resolve: () => DeviceConfig) {
     this.resolve = resolve;
@@ -159,6 +164,27 @@ class Device {
     return this.config.platform;
   }
 
+  /** What decides a capability beyond the platform: the device found, by this driver or the warm-up, the app, and how Windows is driven. */
+  private circumstances(): Circumstances {
+    const device = this.facts ?? knownFacts();
+    return {...(device ? {device} : {}), ...(this.config.app ? {app: this.config.app} : {}), host: process.env.HARNESS_WINDOWS_HOST !== '0'};
+  }
+
+  /** Every step and control this platform and this device have. The device is known once the driver has opened, or from the warm-up. */
+  get capabilities(): ReadonlySet<Capability> {
+    return capabilitiesOf(this.platform, this.circumstances());
+  }
+
+  /** Whether this platform and this device have a step or a control. */
+  can(capability: Capability): boolean {
+    return this.capabilities.has(capability);
+  }
+
+  /** What of these this device cannot do, and why, in a sentence; null where it can do them all. */
+  cannot(capabilities: Capability[]): string | null {
+    return cannotSentence(capabilities, this.platform, this.circumstances());
+  }
+
   /** How long a wait lasts, and how long an absence must hold, from the run's config. */
   get polling(): Polling {
     return {assertionTimeout: this.config.assertionTimeout ?? DEFAULT_POLLING.assertionTimeout, stable: this.config.stable ?? DEFAULT_POLLING.stable};
@@ -171,6 +197,7 @@ class Device {
     const driver = driverFor(platform, {root: ROOT, url, scheme, target, force, ...(app ? {app} : {})});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
+    if (state.device) this.facts = state.device;
     this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
     // What the app writes to its console goes in the journal, beside the steps.
     driver.onConsole?.((level, text) => this.journal.log(level, text));
@@ -405,6 +432,38 @@ class Device {
 
 function doneOrSkipped(result: ControlResult): 'done' | 'skipped' {
   return result.skipped ? 'skipped' : 'done';
+}
+
+/** The platforms named, as a sentence names them. */
+function listed(platforms: Platform[]): string {
+  return platforms.length > 1 ? `${platforms.slice(0, -1).join(', ')} and ${platforms.at(-1)}` : (platforms[0] ?? 'no platform');
+}
+
+/** A block of tests that runs only on these platforms, and is reported skipped on the others. */
+export function onlyOn(platforms: Platform[], suite: () => void): void {
+  describe.skipIf(!platforms.includes(device.platform))(`on ${listed(platforms)}`, suite);
+}
+
+/** A block of tests that is reported skipped on these platforms, and runs on the others. */
+export function skipOn(platforms: Platform[], suite: () => void): void {
+  describe.skipIf(platforms.includes(device.platform))(`not on ${listed(platforms)}`, suite);
+}
+
+/**
+ * A block of tests that needs these steps or controls. On a platform or a
+ * device without one, as a phone that does not fold, each test is skipped,
+ * and the reason says which it lacks and why.
+ */
+export function requires(capabilities: Capability[], suite: () => void): void {
+  describe(`with ${capabilities.join(', ')}`, () => {
+    beforeEach(async context => {
+      // The driver opens first, so what it found of the device is known.
+      await device.ready();
+      const unmet = device.cannot(capabilities);
+      if (unmet) context.skip(unmet);
+    });
+    suite();
+  });
 }
 
 /** The device: on the run a project's setup file resolved from the harness config, or on the environment alone. */

@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {inject} from 'vitest';
-import {device, isHarnessError, screen, within} from 'expo-vitest/device';
+import {device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest/device';
 
 afterAll(() => device.close());
 
@@ -59,6 +59,18 @@ it('left a trace for each test before it, with its steps', () => {
   expect(first).toContain('| check getByRole("checkbox", {name: "Send me news"}) → ');
   expect(first).toContain('| verified expect(getByText("Saved")) to be visible |');
   expect(fs.readdirSync(folder).every(test => fs.existsSync(path.join(folder, test, 'tree.json')))).toBe(true);
+});
+
+requires(['home'], () => {
+  it('goes home, which a browser has no screen for, so it is skipped with the reason', async () => {
+    await device.home();
+  });
+});
+
+onlyOn(['android', 'ios'], () => {
+  it('runs on a phone only', () => {
+    throw new Error('this runs on a phone only');
+  });
 });
 
 it('drives the same page with the command an app has installed', () => {

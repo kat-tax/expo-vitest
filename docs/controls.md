@@ -67,7 +67,8 @@ afterEach(async () => {
 | `alert('accept' \| 'dismiss')` | The system alert on the screen answered | The next dialog the page opens answered, since a browser decides one as it opens | Skipped: a WinUI dialog is in the tree, so press its button by its label |
 
 Where the platform has a control but the device does not, the call throws
-with agent-device's reason: `fold` on a phone that does not fold is
+with agent-device's reason, and [`requires`](#what-a-device-can-do) is how a
+block of tests steps around it: `fold` on a phone that does not fold is
 `UNSUPPORTED_CAPABILITY`, and `alert` with no alert on the screen is
 `ACTION_FAILED`.
 
@@ -79,6 +80,52 @@ test that sets it replaces what someone copied.
 The headless Chromium has no notifications, so `Notification.permission`
 stays `denied` whatever is granted. A page that asks
 `navigator.permissions.query` sees the grant.
+
+## What a device can do
+
+`device.can(name)` says whether this platform and this device have a step or
+a control, and `device.capabilities` is the set of every one they have. The
+names are the steps, `open`, `press`, `fill`, `type`, `screenshot`, `key`,
+`longPress`, `hover`, `focus`, `scrollIntoView` and `swipe`, and the controls
+by their method names.
+
+A control a platform has no counterpart for is not in the set, and neither
+is one this device lacks:
+
+- `fold` on a phone or simulator whose name does not say it folds;
+- `setAirplaneMode` on Android before 11;
+- biometrics on a physical device;
+- on Windows, a long press, a hover, the focus, a scroll, the clipboard and
+  the app in front, with a PowerShell script per step rather than the host;
+- on Windows, `installApp` without an `.msix`, and `clearState` without a
+  `stateDir`.
+
+The device is known once its driver has opened, or before then from the
+warm-up of a project per platform.
+
+Three wrappers make a block of tests depend on it:
+
+```ts
+import {onlyOn, requires, skipOn} from 'expo-vitest/device';
+
+onlyOn(['windows', 'web'], () => {
+  it('has a menu bar', async () => {});
+});
+
+skipOn(['ios'], () => {
+  it('reads the network from the app', async () => {});
+});
+
+requires(['setLocation', 'fold'], () => {
+  it('shows the map on the inner screen', async () => {});
+});
+```
+
+`onlyOn` and `skipOn` report their block skipped on the other platforms.
+`requires` skips each test in its block where something is missing, and the
+reason names it: `android cannot fold, since Pixel 9 Pro XL does not fold`.
+`device.cannot(names)` gives that sentence, or null, to a test that decides
+for itself.
 
 ## A fresh launch
 

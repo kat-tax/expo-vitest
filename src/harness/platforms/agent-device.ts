@@ -76,7 +76,8 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     async available(): Promise<Availability> {
       try {
         const current = await transport();
-        return {ready: true, found: `${await current.capabilities()}, through ${current.description}`};
+        const {line, device} = await current.capabilities();
+        return {ready: true, found: `${line}, through ${current.description}`, ...(device ? {device} : {})};
       } catch (error) {
         return {ready: false, reason: (error as Error).message};
       }

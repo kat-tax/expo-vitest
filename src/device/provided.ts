@@ -3,7 +3,7 @@
  * Vitest's `provide`, by key. The config sets the first three; the global
  * setup sets the rest.
  */
-import type {Platform} from '../harness/lib/types.ts';
+import type {DeviceFacts, Platform} from '../harness/lib/types.ts';
 
 /** A command the run uses for a platform's app, as the tests see it. */
 export interface ProvidedCommand {
@@ -38,4 +38,6 @@ export interface ProvidedAvailability {
   found?: string;
   /** Why it cannot work here, in the driver's own sentence. */
   reason?: string;
+  /** What the driver found of the device, which some capabilities depend on. */
+  device?: DeviceFacts;
 }

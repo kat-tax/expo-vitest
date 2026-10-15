@@ -17,10 +17,11 @@ import type {HarnessCode} from '../lib/errors.ts';
 import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
 import type {Point, Target} from '../lib/snapshot.ts';
-import type {Platform} from '../lib/types.ts';
+import type {DeviceFacts, Platform} from '../lib/types.ts';
 import type {AgentFailure, Capabilities, DeviceCommand, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
 import {
   clientEntry,
+  capabilitiesFrom,
   clientTarget,
   cliScript,
   codeFor,
@@ -28,6 +29,7 @@ import {
   commandRequest,
   describeDevice,
   describeFailure,
+  factsOf,
   installArgs,
   launchArgs,
   packageFolders,
@@ -49,8 +51,8 @@ export interface AgentDeviceTransport {
   readonly kind: 'client' | 'cli';
   /** What is driving, for `doctor`. */
   readonly description: string;
-  /** The device a step would drive, in a line. */
-  capabilities(): Promise<string>;
+  /** The device a step would drive: in a line, and what it is. */
+  capabilities(): Promise<{line: string; device?: DeviceFacts}>;
   open(to: {app: string} | {url: string}): Promise<void>;
   /** The answer as agent-device gave it; `nodesFrom` reads the nodes out of it. */
   snapshot(interactive: boolean): Promise<unknown>;
@@ -192,7 +194,8 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     kind: 'client',
     description: `agent-device ${version}'s Node client`,
     async capabilities() {
-      return describeDevice((await call(signal => client.devices.capabilities({...select, signal}), 'DRIVER_UNAVAILABLE')) as Capabilities);
+      const capabilities = (await call(signal => client.devices.capabilities({...select, signal}), 'DRIVER_UNAVAILABLE')) as Capabilities;
+      return {line: describeDevice(capabilities), device: factsOf(capabilities)};
     },
     async open(to) {
       await call(signal => client.apps.open({...select, ...to, signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
@@ -270,7 +273,8 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     kind: 'cli',
     description: 'the agent-device command line',
     async capabilities() {
-      return firstLine(await agent(['capabilities'], 'DRIVER_UNAVAILABLE')).replace(/:$/, '');
+      const capabilities = capabilitiesFrom(parsePayload(await agent(['capabilities', '--json'], 'DRIVER_UNAVAILABLE')));
+      return capabilities ? {line: describeDevice(capabilities), device: factsOf(capabilities)} : {line: 'a device agent-device did not describe'};
     },
     async open(to) {
       await agent(['open', 'url' in to ? to.url : to.app], 'APP_UNREACHABLE', OPEN_TIMEOUT);

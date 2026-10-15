@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 7 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 8 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -207,6 +207,36 @@ below, the build is what holds.
     - the clipboard written on Windows or Android, since both are, or may
       be, the machine's own;
     - a fold on a foldable.
+- **Item 8: gating.**
+  - `src/device/capabilities.ts` holds the table:
+    - each platform's steps, from the drivers' optional members;
+    - every control less the platform's lacks;
+    - the predicates over the device. `fold` needs a name with Fold,
+      Flip or Duo in it. Airplane mode needs Android 11 or later.
+      Biometrics need a simulator or an emulator. On Windows the host
+      steps need the host, `installApp` an `.msix` and `clearState` a
+      `stateDir`.
+  - `statusBar`, `video` and `screenshot:element` wait for their items.
+  - **The device's facts** come from agent-device's capabilities: its
+    name, its kind and its version. agent-device's list of commands is the
+    platform's, and names `fold` on a phone that does not fold, so the
+    name decides. The facts travel with the warm-up's availability, so a
+    worker knows them before its driver opens.
+  - `device.can`, `device.capabilities` and `device.cannot`, the
+    sentence a skip says.
+  - `onlyOn` and `skipOn` are `describe.skipIf`. `requires` is a
+    `describe` with a `beforeEach` that opens the driver and skips with
+    that sentence.
+  - The device module now imports Vitest at run time; a scratch consumer
+    showed a harness config that does so still loads in a global setup.
+  - **Seen live:**
+    - On the Android emulator: the facts known before the driver opened;
+      `requires(['fold'])` skipped with "android cannot fold, since Pixel
+      9 Pro XL does not fold"; airplane mode ran; `onlyOn` and `skipOn`
+      routed.
+    - In the fixture, installed: `requires(['home'])` skipped on web
+      with its reason, which `scripts/fixture.js` now checks, and a block
+      for phones skipped.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,

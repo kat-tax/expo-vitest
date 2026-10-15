@@ -24,8 +24,8 @@ import type {Driver, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
-import type {DeviceConfig, HarnessCode, HarnessConfig, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
-import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, screen, withComponents, within} from './index.ts';
+import type {Capability, DeviceConfig, HarnessCode, HarnessConfig, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
+import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, requires, screen, skipOn, withComponents, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -605,6 +605,13 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(device.setClipboard).toEqualTypeOf<(text: string) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.dismissKeyboard).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.alert).toEqualTypeOf<(action: 'accept' | 'dismiss') => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.capabilities).toEqualTypeOf<ReadonlySet<Capability>>();
+    expectTypeOf(device.can).toEqualTypeOf<(capability: Capability) => boolean>();
+    expectTypeOf(device.cannot).toEqualTypeOf<(capabilities: Capability[]) => string | null>();
+    expectTypeOf(onlyOn).toEqualTypeOf<(platforms: Platform[], suite: () => void) => void>();
+    expectTypeOf(skipOn).toEqualTypeOf<(platforms: Platform[], suite: () => void) => void>();
+    expectTypeOf(requires).toEqualTypeOf<(capabilities: Capability[], suite: () => void) => void>();
+    expectTypeOf<'fold' | 'press' | 'setAppearance'>().toExtend<Capability>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();

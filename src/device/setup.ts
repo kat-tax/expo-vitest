@@ -11,6 +11,7 @@
 import {pathToFileURL} from 'node:url';
 import {beforeEach, inject} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
+import {rememberFacts} from './capabilities.ts';
 import {loadHarness, requiresDriver, resolveRun, sameConfig, setRun} from './config.ts';
 import './provided.ts';
 
@@ -21,6 +22,8 @@ sameConfig(config, inject('harness.config'), file);
 setRun(resolveRun(platform, config, process.env, inject('harness.root')));
 
 const available = inject('harness.available');
+// What the warm-up found of the device, so a capability that depends on it is known before the driver opens here.
+if (available.device) rememberFacts(available.device);
 if (!available.ready) {
   const reason = `no ${platform} device to drive here: ${available.reason}`;
   if (requiresDriver(process.env)) {

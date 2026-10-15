@@ -150,6 +150,7 @@ platform's project.
 | Matchers that wait | `toBeVisible`, `toHaveText`, `toBeChecked`, `toHaveCount` and fourteen more on a locator, reading the tree until it agrees, and holding a wait for something to be gone. | [Matchers](docs/matchers.md) |
 | The app's life | `restart`, `clearState`, `back`, `home`, `installApp`, `openLink` and `foregroundApp` on every platform, with launch arguments and permissions on a fresh launch, and skipped with the reason where a platform has no counterpart. | [Controls](docs/controls.md) |
 | The device's settings | Appearance, orientation, network, airplane mode, permissions, location, biometrics, a fold, the clipboard, the keyboard and alerts, from a test, on each platform that has them. | [Controls](docs/controls.md#the-devices-settings) |
+| Gating | `device.can`, and `onlyOn`, `skipOn` and `requires` around a block of tests, which skip with the reason where a platform or a device lacks what the tests need. | [Controls](docs/controls.md#what-a-device-can-do) |
 | Evidence | A failing device test leaves its screenshot, its tree and a trace of its steps, with what each did to the screen. | [Evidence](docs/evidence.md) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
 | The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |

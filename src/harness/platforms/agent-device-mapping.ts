@@ -28,7 +28,7 @@ import type {SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
 import {kindOnAndroid, kindOnIos} from '../lib/roles.ts';
 import {DEFAULT_TIMING} from '../lib/settle.ts';
-import type {StepTiming} from '../lib/types.ts';
+import type {DeviceFacts, StepTiming} from '../lib/types.ts';
 
 /** A node as agent-device reports it. */
 export interface AgentNode {
@@ -254,6 +254,19 @@ export interface Capabilities {
 }
 
 /** The device agent-device would drive, in the line its command line prints for `capabilities`. */
+/** agent-device's capabilities, from what the client answered or the command line printed as JSON; null where it named no device. */
+export function capabilitiesFrom(payload: unknown): Capabilities | null {
+  const answer = payload && typeof payload === 'object' && 'data' in payload ? (payload as {data: unknown}).data : payload;
+  if (!answer || typeof answer !== 'object') return null;
+  const {device, availableCommands} = answer as Partial<Capabilities>;
+  return device && typeof device === 'object' ? {device, availableCommands: Array.isArray(availableCommands) ? availableCommands : []} : null;
+}
+
+/** What the device is, from its capabilities: its name, its kind and its version. */
+export function factsOf({device}: Capabilities): DeviceFacts {
+  return {name: device.name, kind: device.kind, ...(device.osVersion ? {osVersion: device.osVersion} : {})};
+}
+
 export function describeDevice({device, availableCommands}: Capabilities): string {
   const model = device.model ? ` model="${device.model}"` : '';
   const os = device.osVersion ? ` os=${device.osVersion}` : '';
