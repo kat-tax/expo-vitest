@@ -368,12 +368,18 @@ prints the component beside the name: `@e7 button "Save" <SaveButton>`.
 It is read from React's DevTools hook, which only a development build has.
 On web the page is the runtime, and the harness puts the hook in place before
 React loads. On iOS, Android and Windows the walk runs in the app through
-Metro's inspector, at `HARNESS_METRO`. Metro closes every other debugger
-connected to an app when one more connects, unless the app says it takes
-more than one, so the harness reads only such an app, and says so otherwise:
-`HARNESS_REACT=take` reads it anyway, at the price of a React Native
-DevTools window that was open. Nothing else is sent to the app, and nothing
-it keeps after the connection goes.
+Metro's inspector, at `HARNESS_METRO`; a run that starts its own dev server,
+as an [Expo development build](controls.md#an-expo-development-build) does,
+sets it to that server's url. On a device only the page of the app under
+test, by its `bundleId`, is read, and a Metro serving another app is refused.
+Metro closes every other debugger connected to an app when one more
+connects, unless the app says it takes more than one, as React Native 0.86's
+development builds do, so the harness reads only such an app, and says so
+otherwise: `HARNESS_REACT=take` reads it anyway, at the price of a React
+Native DevTools window that was open. The walk is all that runs in the app,
+and what it leaves there for the harness is taken away when it is read.
+Expo Router's screens read as their route's component and file, such as
+`Explore(./explore.tsx)`.
 
 Where the tree can be read, a failing test's [evidence](evidence.md) names
 the component behind the node its failing step was for.

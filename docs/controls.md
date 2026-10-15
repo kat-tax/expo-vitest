@@ -161,6 +161,53 @@ export default defineHarness({
   browser lacks is passed over, and the run says so. Playwright has no deny,
   so `deny` and `reset` leave the default.
 
+## An Expo development build
+
+A development build loads its JavaScript from a dev server, so the run
+starts the server, the way it starts a web app's, and opens the build
+pointed at it. On Android:
+
+```ts
+// harness.config.ts
+export default defineHarness({
+  app: {
+    android: {
+      bundleId: 'com.example.app',
+      scheme: 'myapp',
+      url: 'http://localhost:8099',
+      command: {executable: 'npx', args: ['expo', 'start', '--dev-client', '--port', '{port}'], env: {EXPO_NO_DEV_MENU: '1'}},
+    },
+  },
+});
+```
+
+```ts
+// device/home.test.ts
+const server = 'http://localhost:8099';
+
+beforeAll(async () => {
+  await device.openLink(`exp+my-app://expo-development-client/?url=${encodeURIComponent(server)}&disableOnboarding=1&disableFab=1&disableAutoLaunch=1`);
+  // The first bundle takes a while.
+  await expect(screen.getByText('Welcome')).toBeVisible({timeout: 100_000});
+});
+```
+
+- The link is the one `expo-dev-client` registers, `exp+<slug>`, the app
+  config's `slug`. The launcher on Android reads no launch arguments, so the
+  link is how it learns where the server is.
+- `disableOnboarding=1` keeps the developer menu's first sheet away, which
+  otherwise covers the app on its first launch; `disableFab=1` hides the
+  menu's floating button, and `disableAutoLaunch=1` keeps the launcher from
+  opening the last server by itself.
+- The device reaches the server at the url the link gives. On an emulator,
+  or a device over USB, `adb reverse tcp:8099 tcp:8099` makes the device's
+  `localhost` the machine's, until the device restarts.
+- After it, `device.open('/settings')` opens a route through the app's
+  `scheme`, and `device.react()` reads the [React tree](device-tests.md#the-react-tree)
+  through the same server, with `HARNESS_METRO` set to its url.
+- A port of its own keeps the run off the dev server a person may have
+  running on 8081.
+
 ## On Windows
 
 A Windows app that is not running is started by the first `open` or
