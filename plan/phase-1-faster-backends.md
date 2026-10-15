@@ -137,6 +137,18 @@ below, the build is what holds:
   answered, with 12 elements where there had been 94, and a restart brought
   all 94 back with the cached read working again. So the cached read's
   exception came with an app in that state, which bears on item 19.
+- **Item 19 found the COM client no better, so nothing changed.** It was
+  declared by hand from the SDK's header and asked for the same cached
+  subtree.
+  - On a fresh Entz it read the Documents screen in about 35 ms, against
+    the managed client's 130 ms, but returned 124 elements against 145.
+  - On an Entz whose managed read throws, as it does after a visit to the
+    Inbox or Settings screen, it returned 7 elements and no error. A request
+    per level fails there too, on 58 of 203 requests, and so does a cached
+    raw view, in 7 ms.
+  - Part of a tree with no error is worse than an exception the host
+    answers by walking. So the host keeps the managed client and its walk,
+    and the probe was not kept.
 - **Our drivers stay, and borrow.** The owner would rather adopt a
   maintained driver than keep this one, so five were read. What they do
   with a react-native-windows app, and what to take from them, is in
