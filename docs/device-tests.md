@@ -27,6 +27,7 @@ screen by hand.
 ```sh
 npm install --save-dev playwright-core   # for web
 npm install --global agent-device        # for iOS and Android
+bun add --global agent-device            # the same, on a Windows machine
 ```
 
 Both are optional. `expo-harness doctor` says what this machine can drive, and

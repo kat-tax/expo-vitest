@@ -32,7 +32,7 @@ nothing here changes your machine; a "no" says what is missing.
 | --- | --- |
 | web | `playwright-core` in the project, and a Chromium: `npx playwright install chromium` |
 | windows | A Windows machine, and a built app |
-| android, ios | `agent-device`: `npm install --global agent-device` |
+| android, ios | `agent-device`: `npm install --global agent-device`. On Windows, `bun add --global agent-device`: npm installs a `.cmd` launcher there, which Node cannot start without a shell. |
 
 Nothing is installed in the app itself.
 

@@ -115,7 +115,12 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     async available(): Promise<Availability> {
       const version = run('agent-device', ['--version'], {timeout: 60_000});
-      if (version.missing) return {ready: false, reason: 'agent-device is not installed; `npm i -g agent-device` adds it'};
+      if (version.missing) {
+        // npm's launcher on Windows is a .cmd script, which Node will not start
+        // without a shell, so an npm install there still reads as missing.
+        const install = process.platform === 'win32' ? '`bun add --global agent-device` adds it (npm installs a .cmd launcher, which Node cannot start without a shell)' : '`npm i -g agent-device` adds it';
+        return {ready: false, reason: `agent-device is not installed; ${install}`};
+      }
       const capabilities = agent(['capabilities']);
       if (!capabilities.ok) return {ready: false, reason: firstLine(capabilities.stderr) || `agent-device has no ${name} target ready`};
       return {ready: true, found: firstLine(capabilities.stdout) || `agent-device ${firstLine(version.stdout)}`};
