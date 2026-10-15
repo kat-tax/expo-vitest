@@ -154,7 +154,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     react(): Promise<ReactTree | {unavailable: string}> {
       // A development build's, through Metro's inspector, where it is let.
-      return readReact({...metroFrom(process.env), ...(options.target ? {target: options.target} : {})});
+      return readReact({...metroFrom(process.env), ...(options.app?.bundleId ? {app: options.app.bundleId} : {}), ...(options.target ? {target: options.target} : {})});
     },
 
     swipe(from: Point, to: Point): Promise<StepResult> {

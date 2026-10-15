@@ -47,6 +47,15 @@ describe('choosePage', () => {
     expect(choosePage(pages, {take: false, target: 'nothing'})).toEqual({page: pages[1]});
   });
 
+  it("reads the app under test's own pages alone where its id is known, and refuses another app's", () => {
+    const pages = [page('1', {appId: 'com.example.app', deviceName: 'sdk_gphone64_x86_64 - 16 - API 36'}), page('2', {appId: 'com.example.other'}), page('3', {appId: 'com.example.app', deviceName: 'Pixel 9'})];
+    expect(choosePage(pages, {take: false, app: 'COM.EXAMPLE.APP'})).toEqual({page: pages[2]});
+    expect(choosePage(pages, {take: false, app: 'com.example.app', target: 'sdk_gphone'})).toEqual({page: pages[0]});
+    expect(choosePage(pages, {take: false, app: 'com.example.app', target: 'Pixel_9_Pro_XL'})).toEqual({page: pages[2]});
+    expect(choosePage([pages[1] as InspectorPage, page('4')], {take: false, app: 'com.example.app'})).toEqual({refused: 'Metro lists no page for com.example.app, only for com.example.other, App 4: it serves another app'});
+    expect(choosePage([], {take: false, app: 'com.example.app'})).toEqual({refused: 'Metro lists no app to read: a development build has to be running against it'});
+  });
+
   it('refuses where no app is there, or reading would close another debugger, unless told to take it', () => {
     expect(choosePage([], {take: false})).toEqual({refused: 'Metro lists no app to read: a development build has to be running against it'});
     const single = page('1', {reactNative: {capabilities: {}}});

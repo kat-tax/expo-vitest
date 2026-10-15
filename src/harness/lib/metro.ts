@@ -37,15 +37,22 @@ export function metroFrom(environment: NodeJS.ProcessEnv): {url: string; take: b
 }
 
 /**
- * The page to read: a React Native page with somewhere to connect, the one
- * whose app or device names `target` where one is given, the newest
- * otherwise. Refused where reading it would close another debugger.
+ * The page to read: a React Native page with somewhere to connect, of the
+ * app under test alone where its id is known, so another app's debugger is
+ * never read; of those, the one whose app or device names `target` where
+ * one is given, the newest otherwise. Refused where reading it would close
+ * another debugger.
  */
-export function choosePage(pages: InspectorPage[], options: {take: boolean; target?: string}): {page: InspectorPage} | {refused: string} {
+export function choosePage(pages: InspectorPage[], options: {take: boolean; app?: string; target?: string}): {page: InspectorPage} | {refused: string} {
   const connectable = pages.filter(page => page.webSocketDebuggerUrl && page.reactNative);
+  const app = options.app?.toLowerCase();
+  const own = app ? connectable.filter(page => page.appId?.toLowerCase() === app) : connectable;
+  if (app && own.length === 0 && connectable.length > 0) {
+    return {refused: `Metro lists no page for ${options.app}, only for ${[...new Set(connectable.map(page => page.appId ?? page.title))].join(', ')}: it serves another app`};
+  }
   const wanted = options.target?.toLowerCase();
-  const named = wanted ? connectable.filter(page => [page.appId, page.title, page.description, page.deviceName].some(field => field?.toLowerCase().includes(wanted))) : [];
-  const page = (named.length > 0 ? named : connectable).at(-1);
+  const named = wanted ? own.filter(page => [page.appId, page.title, page.description, page.deviceName].some(field => field?.toLowerCase().includes(wanted))) : [];
+  const page = (named.length > 0 ? named : own).at(-1);
   if (!page) return {refused: 'Metro lists no app to read: a development build has to be running against it'};
   if (!page.reactNative?.capabilities?.supportsMultipleDebuggers && !options.take) {
     return {
@@ -103,6 +110,8 @@ export function cdp(socket: Socket): {call(method: string, params?: Record<strin
 export interface MetroOptions {
   url: string;
   take: boolean;
+  /** The app under test, by its id: a page of another app is not read. */
+  app?: string;
   target?: string;
   /** How a page list is fetched, and a socket opened: Node's own by default. */
   fetch?: (url: string) => Promise<{ok: boolean; json(): Promise<unknown>}>;
