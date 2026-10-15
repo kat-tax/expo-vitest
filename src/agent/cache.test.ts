@@ -219,6 +219,20 @@ describe('a recorded control, found again', () => {
     expect(findTarget(screen, {kind: 'button', name: 'Save', testId: null, parent: ['dialog', 'Payment']})).toEqual({node: screen.nodes[3]});
   });
 
+  it("is told apart by its kind and name where a list's rows share its test id, and found by them where no node has the id now", () => {
+    const settings: Snapshot = {
+      platform: 'android',
+      nodes: [
+        node('@e1', 'TextView', 'Network & internet', {kind: 'text', testId: 'android:id/title', interactive: false}),
+        node('@e2', 'TextView', 'Connected devices', {kind: 'text', testId: 'android:id/title', interactive: false}),
+        node('@e3', 'Button', 'Done', {kind: 'button'}),
+      ],
+    };
+    expect(findTarget(settings, {kind: 'text', name: 'Connected devices', testId: 'android:id/title', parent: []})).toEqual({node: settings.nodes[1]});
+    expect(findTarget(settings, {kind: 'text', name: 'Apps', testId: 'android:id/title', parent: []})).toEqual({miss: 'target-not-found'});
+    expect(findTarget(settings, {kind: 'button', name: 'Done', testId: 'done-button', parent: []})).toEqual({node: settings.nodes[2]});
+  });
+
   it('is not found, or ambiguous, by the hand-off reasons', () => {
     expect(findTarget(screen, {kind: 'button', name: 'Cancel', testId: null, parent: []})).toEqual({miss: 'target-not-found'});
     expect(findTarget(screen, {kind: 'button', name: 'Delete', testId: null, parent: []})).toEqual({miss: 'target-ambiguous'});

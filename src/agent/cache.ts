@@ -213,7 +213,11 @@ export function sameRoute(recorded: string | null, current: string | null): bool
 
 /** The node a recorded target is now: by test id where one was recorded, else by kind and name, told apart by the parent. */
 export function findTarget(snapshot: Snapshot, target: RecordedTarget): {node: SnapshotNode} | {miss: 'target-not-found' | 'target-ambiguous'} {
-  let found = snapshot.nodes.filter(node => (target.testId ? node.testId === target.testId : kindOf(node) === target.kind && node.name === target.name));
+  const named = (node: SnapshotNode) => kindOf(node) === target.kind && node.name === target.name;
+  const byId = target.testId ? snapshot.nodes.filter(node => node.testId === target.testId) : [];
+  // A test id finds its control alone where one node has it. One a list's rows share, as Android's android:id/title is,
+  // needs the kind and name too, and where no node has it now, the kind and name are what is left.
+  let found = byId.length === 1 ? byId : byId.length > 1 ? byId.filter(named) : snapshot.nodes.filter(named);
   if (found.length > 1 && target.parent.length) found = found.filter(node => canonical(targetOf(node, snapshot).parent) === canonical(target.parent));
   if (found.length === 0) return {miss: 'target-not-found'};
   if (found.length > 1) return {miss: 'target-ambiguous'};
