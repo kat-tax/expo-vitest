@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 11 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 12 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -236,6 +236,11 @@ below, the build is what holds.
   - **Seen live:** a failing test left its screenshot, both trees and a
     trace on web, on a react-native-windows app and on an Android
     emulator.
+  - Vitest takes no annotation from a test that has finished, which it
+    has by `afterEach`. So the evidence is an artifact of type
+    `expo-vitest:evidence`, through `recordArtifact`, with the trace and
+    the screenshot attached, and its paths on `meta.evidence`. Found by the
+    fixture's device suite; Phase 4's reporter reads the artifact.
   - **Still to build from section 5:** the React tree.
 - **Item 11: headed web.** The browser search is
   `src/harness/platforms/web-browsers.ts`, in the gate. It looked for the
@@ -247,6 +252,15 @@ below, the build is what holds.
   a headed run slowed by 50 ms opened, pressed and read the page of
   controls, `doctor` said so, and with only a shell faked in its place,
   `doctor` gave the message.
+- **Item 12: the fixture's device suite.** `fixture/device/` drives a page
+  its `globalSetup` serves, with the packed package. Its six tests cover
+  the queries and actions, the matchers, waiting for a node to go, a
+  screenshot with no baseline, the traces the tests before it left, and
+  `expo-harness` run from the installed `dist`. It found that the web
+  collector never read a `ul`, an `ol`, an `img`, a `progress`, an
+  `output` or an `h5` or `h6`, though it knew their roles, and that
+  Vitest refuses an annotation after a test. Both are fixed in commits of
+  their own. CI installs the headless shell before the fixture.
 
 ## Purpose and the claims it proves
 

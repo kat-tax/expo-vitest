@@ -1,4 +1,6 @@
-// Runs the fixture's tests against the package as an app would have it.
+// Runs the fixture's tests against the package as an app would have it: the
+// component projects, then the device tests on web, which need a Chromium
+// that `playwright-core install chromium-headless-shell` puts in place.
 //
 //   node scripts/fixture.js
 //   node scripts/fixture.js --update-lockfile
@@ -76,6 +78,11 @@ try {
 
   console.log('==== The fixture, on it');
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
+
+  // A real Chromium over a page the run serves, with a trace kept for every
+  // test, so the last test can read the ones before it.
+  console.log('==== The device tests, on web');
+  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'], {env: {...process.env, HARNESS_PLATFORM: 'web', HARNESS_TRACE: 'on'}});
 } finally {
   fs.rmSync(scratch, {recursive: true, force: true});
 }

@@ -63,7 +63,14 @@ bun run test:fixture
 This copies the fixture to a folder outside the package, installs it there
 from `bun.lock`, packs the package as `npm publish` would, unpacks that into
 the copy's `node_modules`, names it in the copy's manifest, and runs the tests
-against it by name.
+against it by name. Then it runs `fixture/device/`, device tests on web
+against a page a `globalSetup` serves, with a Chromium, as an app's device
+tests run: the queries, the actions, the matchers, the evidence, a
+screenshot and the `expo-harness` command. They need a Chromium in place:
+
+```sh
+bunx playwright-core install chromium --only-shell
+```
 
 It is how the package is known to work installed, which its source cannot
 say. Three things differ for an installed package:
@@ -88,7 +95,7 @@ node scripts/fixture.js --update-lockfile
 
 | Workflow | When | What |
 | --- | --- | --- |
-| `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture. |
+| `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture with its device tests on web. |
 | `release.yml` | A `v*` tag matching `package.json` | Re-runs the checks, publishes to npm with provenance, creates a GitHub release. |
 
 ## Commits and writing

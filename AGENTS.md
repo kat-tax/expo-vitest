@@ -22,7 +22,7 @@ page per topic. A change to a feature changes its page.
 bun run lint            # oxlint, zero warnings
 bun run typecheck       # tsc
 bun run test:coverage   # the logic, in Node, 100% on the files named in vitest.config.mts
-bun run test:fixture    # the packed package, installed, on all four projects
+bun run test:fixture    # the packed package, installed, on all four projects and a device suite on web
 ```
 
 The unit tests cover what is logic and nothing else. A setup file, a Node
