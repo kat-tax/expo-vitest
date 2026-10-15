@@ -36,6 +36,7 @@ import {
   recordArgs,
   parseFailure,
   parsePayload,
+  selectionById,
   screenshotArgs,
   screenshotRequest,
   settingArgs,
@@ -99,7 +100,11 @@ export interface TransportOptions {
   /** Ours, for the errors. */
   harnessPlatform: Platform;
   root: string;
-  /** The device to drive, by name or id. */
+  /**
+   * The device to drive, by a name agent-device lists or by its id: an id is
+   * not one of its names, so the first call that finds no device by it asks
+   * for the list, and selects the device by its id from then on.
+   */
   device?: string;
   /** The session to drive it in, where not agent-device's default. */
   session?: string;
@@ -116,7 +121,7 @@ interface ClientModule {
 type Call = (options: Record<string, unknown>) => Promise<unknown>;
 
 interface Client {
-  devices: {capabilities: Call};
+  devices: {capabilities: Call; list: Call};
   apps: {open: Call; install: Call; reinstall: Call};
   command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call};
   settings: {update: Call};
@@ -202,13 +207,26 @@ function failure(options: TransportOptions, reason: AgentFailure, otherwise: Har
 
 function clientTransport(options: TransportOptions, module: ClientModule, version: string, cli: AgentDeviceTransport): AgentDeviceTransport {
   const client = module.createAgentDeviceClient({cwd: options.root, ...(options.session ? {session: options.session} : {})});
-  const select = {platform: options.platform, ...(options.device ? {device: options.device} : null)};
+  let select: Record<string, string> = {platform: options.platform, ...(options.device ? {device: options.device} : null)};
+  let looked = false;
+
+  /** Whether the device named is one agent-device lists by that id, which is then how it is selected. */
+  async function byId(): Promise<boolean> {
+    if (looked || !options.device) return false;
+    looked = true;
+    const listed = await client.devices.list({platform: options.platform, signal: AbortSignal.timeout(STEP_TIMEOUT)}).catch(() => null);
+    const chosen = selectionById(options.platform, options.device, listed);
+    if (chosen) select = {platform: options.platform, ...chosen};
+    return chosen !== null;
+  }
 
   async function call(work: (signal: AbortSignal) => Promise<unknown>, otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<unknown> {
     try {
       return await work(AbortSignal.timeout(timeout));
     } catch (error) {
-      throw failure(options, module.normalizeAgentDeviceError(error), otherwise, error);
+      const failed = module.normalizeAgentDeviceError(error);
+      if (failed.code === 'DEVICE_NOT_FOUND' && (await byId())) return call(work, otherwise, timeout);
+      throw failure(options, failed, otherwise, error);
     }
   }
 
@@ -289,16 +307,29 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
 }
 
 function cliTransport(options: TransportOptions, command: string, prefix: string[]): AgentDeviceTransport {
-  const select = ['--platform', options.platform, ...(options.device ? ['--device', options.device] : []), ...(options.session ? ['--session', options.session] : [])];
+  const session = options.session ? ['--session', options.session] : [];
+  let device = options.device ? ['--device', options.device] : [];
+  let looked = false;
+
+  /** Whether the device named is one agent-device lists by that id, which is then how it is selected. */
+  async function byId(): Promise<boolean> {
+    if (looked || !options.device) return false;
+    looked = true;
+    const listed = await runAsync(command, [...prefix, 'devices', '--json', '--platform', options.platform], {cwd: options.root, timeout: STEP_TIMEOUT});
+    const chosen = listed.ok ? selectionById(options.platform, options.device, parsePayload(listed.stdout)) : null;
+    if (chosen) device = 'udid' in chosen ? ['--udid', chosen.udid] : ['--serial', chosen.serial];
+    return chosen !== null;
+  }
 
   async function agent(args: string[], otherwise: HarnessCode, timeout = options.stepTimeout ?? STEP_TIMEOUT): Promise<string> {
-    const ran = await runAsync(command, [...prefix, ...args, ...select], {cwd: options.root, timeout});
+    const ran = await runAsync(command, [...prefix, ...args, '--platform', options.platform, ...device, ...session], {cwd: options.root, timeout});
     if (ran.ok) return ran.stdout;
     if (ran.missing) {
       throw new HarnessError('DRIVER_UNAVAILABLE', 'agent-device is not installed; `npm i -g agent-device` adds it', {platform: options.harnessPlatform});
     }
     const said = firstLine(ran.stderr) || firstLine(ran.stdout);
-    const reason = ran.timedOut ? {message: `agent-device gave no answer within ${timeout / 1000} s`} : parseFailure(said || 'agent-device failed with no message');
+    const reason: AgentFailure = ran.timedOut ? {message: `agent-device gave no answer within ${timeout / 1000} s`} : parseFailure(said || 'agent-device failed with no message');
+    if (reason.code === 'DEVICE_NOT_FOUND' && (await byId())) return agent(args, otherwise, timeout);
     throw failure(options, reason, otherwise);
   }
 

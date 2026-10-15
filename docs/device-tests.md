@@ -101,7 +101,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | --- | --- |
 | `HARNESS_PLATFORM` | `web`, `windows`, `android` or `ios`. `web` by default. |
 | `HARNESS_URL` | Where the app is served, for web. |
-| `HARNESS_TARGET` | The device, simulator, exe or process to drive. |
+| `HARNESS_TARGET` | The device, simulator, exe or process to drive. On Android and iOS, a name `agent-device devices` lists, or the id it lists beside it: the adb serial, as `emulator-5554`, or the UDID. |
 | `HARNESS_SCHEME` | The app's URI scheme, for deep links on a device. |
 | `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots, baselines and evidence are kept under it. |
 | `HARNESS_CONFIG` | The harness config, from the root, when it is not `harness.config.ts` there. |

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -154,6 +154,27 @@ describe('failures', () => {
     expect(codeFor({code: 'COMMAND_FAILED', message: 'Selector did not match: id="nothing"'}, 'ACTION_FAILED')).toBe('LOCATOR_NOT_FOUND');
     expect(codeFor({code: 'COMMAND_FAILED', message: 'request canceled'}, 'ACTION_FAILED')).toBe('ACTION_FAILED');
     expect(codeFor({message: 'agent-device gave no answer within 180 s'}, 'APP_UNREACHABLE')).toBe('APP_UNREACHABLE');
+  });
+});
+
+describe('selectionById', () => {
+  const devices = [
+    {platform: 'android', id: 'emulator-5554', name: 'Pixel 9 Pro XL'},
+    {platform: 'ios', id: '4B1E0A52-6F0C-4C8E-9C1D-2A7B3E5F6A10', name: 'iPhone 17'},
+  ];
+
+  it('selects a device by the serial or the UDID its id is, from the list or the payload that holds it', () => {
+    expect(selectionById('android', 'emulator-5554', devices)).toEqual({serial: 'emulator-5554'});
+    expect(selectionById('ios', '4B1E0A52-6F0C-4C8E-9C1D-2A7B3E5F6A10', {devices})).toEqual({udid: '4B1E0A52-6F0C-4C8E-9C1D-2A7B3E5F6A10'});
+    expect(selectionById('android', 'emulator-5554', {success: true, data: {devices}})).toEqual({serial: 'emulator-5554'});
+  });
+
+  it("is null for a name, another platform's id, or a list it cannot read", () => {
+    expect(selectionById('android', 'Pixel 9 Pro XL', devices)).toBeNull();
+    expect(selectionById('ios', 'emulator-5554', devices)).toBeNull();
+    expect(selectionById('android', 'emulator-5554', null)).toBeNull();
+    expect(selectionById('android', 'emulator-5554', {data: 'none'})).toBeNull();
+    expect(selectionById('android', 'emulator-5554', [null, 'emulator-5554'])).toBeNull();
   });
 });
 

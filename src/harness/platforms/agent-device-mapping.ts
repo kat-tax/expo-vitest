@@ -290,6 +290,20 @@ export function codeFor(failure: AgentFailure, otherwise: HarnessCode): HarnessC
   return otherwise;
 }
 
+/**
+ * How agent-device is to select a device a target names by the id it lists
+ * for it, rather than by a name: the adb serial on Android, the UDID on iOS.
+ * `--device` matches names alone, so a target that is an id needs the
+ * selector for ids. Null where no device of the platform has that id.
+ */
+export function selectionById(platform: string, target: string, devices: unknown): {serial: string} | {udid: string} | null {
+  const answer = devices && typeof devices === 'object' && 'data' in devices ? (devices as {data: unknown}).data : devices;
+  const list = answer && typeof answer === 'object' && 'devices' in answer ? (answer as {devices: unknown}).devices : answer;
+  const listed = Array.isArray(list) && list.some(each => each && typeof each === 'object' && each.platform === platform && each.id === target);
+  if (!listed) return null;
+  return platform === 'ios' ? {udid: target} : {serial: target};
+}
+
 /** What `devices.capabilities` answers, as far as `describeDevice` reads it. */
 export interface Capabilities {
   device: {name: string; platform: string; kind: string; target: string; model?: string; osVersion?: string; booted?: boolean};
