@@ -15,7 +15,7 @@ to a driver against, not a promise about any machine but the one named.
   percentiles, which are by nearest rank.
 - `press` presses something a press does nothing to, named with `--press`,
   and finds it afresh each time, as `element(…).press()` does in a test.
-  `fill` was not timed, since none of the three screens has a field.
+  `fill` was not timed.
 - One machine for all three: an Intel Core i9-14900K with 96 GB, Windows 11
   Pro 10.0.22631, Node 24.20.0. iOS needs a Mac, and is not on this page.
 
@@ -50,21 +50,37 @@ page, so web is cheap.
 ## Windows
 
 A react-native-windows 0.84 Release build made with expo-windows 0.25, at
-its first screen of 94 nodes. `--press` named the tab already selected.
+its first screen of 94 nodes.
+
+Through the host, one PowerShell process the harness keeps for the run:
 
 ```
   operation         cold      p50      p95      min      max
-  snapshot         712.8    680.7    702.2    648.7    728.8
-  snapshot -i      684.3    648.8    707.4    633.9    712.8
-  press           2204.2   2227.1   2269.0   2186.0   2272.2
-  screenshot       382.4    351.6    376.2    336.1    385.4
+  snapshot         330.4    242.0    357.3    105.8    366.8
+  snapshot -i      121.2    126.3    227.6    103.7    290.9
+  screenshot        43.0     34.7     38.3     31.7     39.4
 ```
 
-Every step starts a PowerShell 5.1 process, which loads UI Automation and
-compiles the C# it needs, and the tree is walked with a call across to the
-app for each element and each property. A press also raises the window,
-since synthetic input goes to whatever is in front, and finds its target in
-a fresh tree first.
+Through a PowerShell script per step, which `HARNESS_WINDOWS_HOST=0` picks,
+measured straight after on the same screen:
+
+```
+  operation         cold      p50      p95      min      max
+  snapshot        1422.0   1366.4   1746.8    946.8   1919.2
+  snapshot -i      868.3   1067.6   1534.6    822.3   1672.5
+  screenshot       353.8    354.4    398.2    341.3    427.2
+```
+
+Someone was using the machine for both, so the guard skipped the press and
+every number carries that load. With the desk left alone and `--force`, a
+press on the tab already selected took 2227 ms at p50 through the scripts.
+
+A script per step starts a PowerShell process, which loads UI Automation and
+compiles the C# it needs, and walks the tree with a call across to the app
+for each element and each property. The host starts and compiles once, in
+about half a second, and fetches the whole tree in one request. What is left
+of a snapshot is that request: the app's own provider answering for every
+element, which is most of the time here.
 
 ## Android
 

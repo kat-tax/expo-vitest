@@ -63,6 +63,13 @@ export interface SnapshotNode {
   dialog?: boolean | null;
   /** In the window's own pixels from its top left; absent when the platform did not say. */
   bounds?: Bounds | null;
+  /**
+   * The UI Automation patterns the control implements, which drive it without
+   * a pointer: `Invoke`, `Toggle`, `SelectionItem`, `Value`, `ScrollItem`,
+   * `ExpandCollapse`. Windows only, through the host, and absent where there
+   * are none.
+   */
+  patterns?: string[];
 }
 
 export interface Snapshot {

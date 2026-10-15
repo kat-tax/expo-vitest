@@ -408,6 +408,7 @@ describe('the types a consumer compiled against', () => {
       status?: string | null;
       dialog?: boolean | null;
       bounds?: {x: number; y: number; width: number; height: number} | null;
+      patterns?: string[];
     }>();
     expectTypeOf<Plain<Snapshot>>().toMatchObjectType<{platform: string; source?: string; nodes: SnapshotNode[]}>();
     expectTypeOf<Plain<DeviceConfig>>().toMatchObjectType<{platform: 'web' | 'windows' | 'android' | 'ios'; url?: string; scheme?: string; target?: string}>();

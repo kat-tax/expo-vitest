@@ -90,6 +90,7 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_ROOT` | The project under test, when the tests are run from somewhere else. Screenshots and baselines are kept under it. |
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
+| `HARNESS_WINDOWS_HOST` | `0` to drive Windows with a PowerShell script per step rather than the one process the harness keeps for the run. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
 starts agent-device's daemon passes it a handle to the run's own output, and
@@ -168,6 +169,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `status` | The item's status, such as "Busy" while something loads. |
 | `dialog` | Whether the platform treats this as a dialog. |
 | `bounds` | The rectangle, in the window's own pixels from its top left. |
+| `patterns` | The UI Automation patterns a Windows control implements, each a way to drive it without a pointer: `Invoke`, `Toggle`, `SelectionItem`, `Value`, `ScrollItem`, `ExpandCollapse`. Windows only. |
 
 The fields from `help` down are absent unless the platform reported them. A
 control that sets none reads differently in the tree from one that sets them.

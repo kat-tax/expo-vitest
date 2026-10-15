@@ -42,11 +42,15 @@ the app under test.
 
 ## Windows
 
-The PowerShell scripts in `src/harness/windows/` are the backend: the window
-manager, UI Automation, synthetic input, screen capture and the idle check.
-The tree walks the descendants of the app's main window, and a WinUI
-`MenuFlyout` opens in a separate top-level window, so a menu plainly open on
-screen leaves no trace in it. That is what screenshots are for.
+The backend is the host: `src/harness/windows/host.cs`, compiled once per
+driver by `host.ps1` and kept running for the driver's life, answering JSON
+lines. It reads the tree in one cached request over the window's subtree.
+The per-step scripts beside it are what `HARNESS_WINDOWS_HOST=0` runs, and
+must read the same tree; a change to the walk goes in both. Title bars are
+left out with everything in them, since a cached read hands back ones a walk
+never reached. The tree walks the descendants of the app's main window, and
+a WinUI `MenuFlyout` opens in a separate top-level window, so a menu plainly
+open on screen leaves no trace in it. That is what screenshots are for.
 
 ## Testing
 

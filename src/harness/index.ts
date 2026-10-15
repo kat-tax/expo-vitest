@@ -24,7 +24,7 @@ import type {Options} from './lib/cli.ts';
 import {USAGE, parse, screenshotPath, unmangleRoute} from './lib/cli.ts';
 import {driverFor} from './lib/drivers.ts';
 import {codeOf} from './lib/errors.ts';
-import {raiseWindows} from './platforms/windows.ts';
+import {isWindowsDriver} from './platforms/windows.ts';
 import {renderSnapshot} from './lib/snapshot.ts';
 import type {Driver, StepResult} from './lib/types.ts';
 import {PLATFORMS, elsewhere, failed, ok} from './lib/types.ts';
@@ -80,8 +80,8 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
     case 'screenshot':
       return driver.screenshot(path.resolve(ROOT, screenshotPath(args[0] ?? 'screen.png', options.out)));
     case 'raise':
-      if (driver.platform !== 'windows') return elsewhere('raising a window', driver.platform);
-      return raiseWindows(options.target && options.target.toLowerCase().endsWith('.exe') ? path.basename(options.target, '.exe') : (options.target ?? ''));
+      if (!isWindowsDriver(driver)) return elsewhere('raising a window', driver.platform);
+      return driver.raise();
     case 'wait':
       await new Promise(resolve => setTimeout(resolve, Number(args[0])));
       return ok(`waited ${args[0]} ms`);
