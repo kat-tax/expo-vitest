@@ -68,8 +68,9 @@ open on screen leaves no trace in it. That is what screenshots are for.
 
 A snapshot reads the page and writes nothing to it: the app may be watching
 its own DOM. An init script counts every change a snapshot could show, and
-while that count stands a snapshot is the last one read, for up to two
-seconds. Anything a snapshot wrote to the page would move the count and undo
+while that count stands and nothing animates, a snapshot is the last one
+read, for up to two seconds. A CSS transition moves boxes without a
+mutation, so a page that is animating is read afresh every time. Anything a snapshot wrote to the page would move the count and undo
 that. Refs live in the page, from element to number, so a node keeps its ref
 for as long as it stays. A press first asks the page where it would land,
 and refuses to press what is over the node.

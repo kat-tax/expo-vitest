@@ -66,7 +66,10 @@ const INIT = `(() => {
 const COLLECT = `((last) => {
   const state = window.__harness;
   const origin = performance.timeOrigin;
-  if (last && state && last.origin === origin && last.generation === state.generation) return {same: true};
+  // A CSS transition or animation moves boxes without a mutation, so while
+  // one runs, as when a sheet slides in, the page is read afresh every time.
+  const moving = () => document.getAnimations().some((animation) => animation.playState === 'running');
+  if (last && state && last.origin === origin && last.generation === state.generation && !moving()) return {same: true};
   // A ref lasts as long as its element does in this document, so a node keeps
   // its ref while the page changes around it, and a ref from an earlier
   // snapshot still names its element if that is still there. Nothing is
