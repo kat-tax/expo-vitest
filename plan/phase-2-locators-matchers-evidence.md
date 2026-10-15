@@ -528,6 +528,13 @@ see that "Email" is labelled "E-mail address".
 `on` for every test, `off` for none. The screenshot path and trace path are
 also set on `context.task.meta.evidence` for anything that reads task meta.
 
+**The React tree.** Phase 1 designed it (section 7 of
+`phase-1-faster-backends.md`), and it is built here: `device.react()`, a
+`component` on a native node, the console in the journal, and the component
+chain at a failed press, with file and line. It connects to a development
+build through Metro's inspector proxy, and only where the page allows a
+second debugger, unless `HARNESS_REACT=take`.
+
 ### 6. Headed web
 
 `HARNESS_HEADED=1` launches with `headless: false`, and `HARNESS_SLOWMO=<ms>`

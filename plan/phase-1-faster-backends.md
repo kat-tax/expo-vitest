@@ -1,6 +1,6 @@
 # Phase 1. Faster backends
 
-Status: in progress (items 1, 2, 4 and 8 done, item 3 dropped, item 5 parked; items 12 to 22 added after the driver research) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
+Status: built but for item 6, whose scripts stay until the host has run on a second Windows machine. Item 3 was dropped; items 5, 7, 9 and 10 were done as 17, 20, 21 and 19; item 16 moved to Phase 2 and the agent surfaces; item 22 is designed, for Phase 2; item 11's docs came with each item · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
 
 The index is [`README.md`](README.md). Section 5 there is the one-table
 summary of this phase; section 11 holds the agent-device, Playwright and
@@ -858,6 +858,88 @@ the CLI and per-step script paths, which remain selectable with
 `HARNESS_AGENT_DEVICE=cli` and `HARNESS_WINDOWS_HOST=0` for the comparison
 and for a machine where the host cannot start.
 
+### 7. The React tree over Metro (work item 22)
+
+Designed here, built in Phase 2 with failure evidence, which is where it
+first pays. Read for it: argent's `utils/debugger` (its reference walk is
+`scripts/component-tree.ts`), `@react-native/dev-middleware` 0.86's
+inspector proxy, and react-native-windows 0.84's host.
+
+**What it gives that the native tree cannot.**
+
+- The component behind each native node: its name, such as `SaveButton`, and
+  its `testID` and `accessibilityLabel` props as written. An iOS `accessible`
+  container folds those away from the native tree.
+- The component chain at a point, with source file and line, for the
+  evidence of a failed press.
+- The app's console and its uncaught errors, as they happen.
+
+**How it reaches the app.**
+
+- A development build's Hermes runtime registers with Metro's inspector
+  proxy, which lists it at `http://localhost:<port>/json/list` with a
+  `webSocketDebuggerUrl`.
+- react-native-windows 0.84 builds the same modern inspector into its host
+  (`ReactHost.cpp` includes `jsinspector-modern`), so this reaches iOS,
+  Android and Windows alike.
+- A release build has no Metro, and none of this.
+- Node's own `WebSocket` (Node 22) speaks to it, so nothing is added to
+  the package.
+- On web there is no Metro, since the page is the runtime. The web driver's
+  init script installs a minimal `__REACT_DEVTOOLS_GLOBAL_HOOK__` before
+  React loads, and the same walk runs in the page through `evaluate`.
+
+**What it sends.**
+
+- `Runtime.evaluate` with `returnByValue` and `awaitPromise`, of a script
+  that walks the fiber tree from `__REACT_DEVTOOLS_GLOBAL_HOOK__`:
+  - every renderer's roots, keeping the largest mounted one, since a second
+    reconciler such as react-native-skia can hold renderer 1;
+  - each host component, with the name of the nearest composite above it;
+  - its `testID` and `accessibilityLabel`, and its text;
+  - its rect in the window, measured with Fabric's `measureInWindow`.
+- `Runtime.enable`, only while a test reads the console, for
+  `Runtime.consoleAPICalled` and `Runtime.exceptionThrown`.
+- Nothing else: not `Debugger.enable`, not `Debugger.setPauseOnExceptions`,
+  and LogBox is left as it is. argent sets all three, and its own comment
+  notes they belong to the runtime, not the connection, so they reach into
+  a developer's own debugger.
+
+**The constraint that shapes it.** Metro's inspector proxy (`Device.js`)
+closes every other debugger connection to a page when a new one opens,
+unless the page advertises `supportsMultipleDebuggers`. react-native 0.84
+does not advertise it. Connecting would then close a developer's React
+Native DevTools, and their opening DevTools would close ours. So the harness
+connects only to a page that advertises the capability, says why it will
+not otherwise, and takes a page over only when `HARNESS_REACT=take` says to.
+
+**The surface, to settle when it is built.**
+
+- `device.react()`: the tree as nodes like a snapshot's, with `component`,
+  `testId`, `label`, `text`, `bounds` and `parent`.
+- `component` on a native node, where a React node's `testID`, or failing
+  that its bounds, match it.
+- The console since the test began, in the journal.
+- At a failed press, the component chain at its point, with file and line.
+
+**What is not known yet.**
+
+- Which react-native version first advertises `supportsMultipleDebuggers`.
+- Whether react-native-windows's debug builds register with Metro without
+  setting `UseDirectDebugger`.
+- How to reach file and line without the debugger domain. argent reads
+  source maps on `Debugger.scriptParsed`, which needs it. Metro's
+  `/symbolicate`, which takes a stack, may do instead.
+
+**Verified when built.**
+
+- The walk against the example app on web, in the page, and on Android and
+  Windows, from debug builds with Metro.
+- A page without the capability refused, with the reason given, and taken
+  over under `HARNESS_REACT=take`.
+- A developer's DevTools still connected afterwards, where the capability
+  is there.
+
 ## Compatibility
 
 - `Driver` gains optional `generation?(): Promise<number>` and the
@@ -1007,7 +1089,8 @@ stand as they were.
 21. **Item 9 with a wait that passes only after a number of matching
     reads** in a row.
 22. **The React tree over Metro's CDP,** designed on its own first, since
-    it reaches every platform that runs Hermes.
+    it reaches every platform that runs Hermes. The design is section 7 of
+    this document. It is built in Phase 2, with failure evidence.
 
 ## Verification
 
