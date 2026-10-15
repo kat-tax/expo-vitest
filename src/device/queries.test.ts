@@ -4,7 +4,7 @@ import {describe, expect, it} from 'vitest';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {nodesFrom, toSnapshotNodes} from '../harness/platforms/agent-device-mapping.ts';
 import type {LocatorQuery, Predicate, QueryOptions, Refinement, TextMatch} from './queries.ts';
-import {ambiguity, describeCandidate, describeQuery, inside, matches, nameOf, normalise, resolve, suggestions} from './queries.ts';
+import {ambiguity, describeCandidate, describeQuery, inside, matches, nameOf, normalise, queryFor, resolve, suggestions} from './queries.ts';
 
 const query = (predicate: Predicate, match: TextMatch, options: QueryOptions = {}, refinements: Refinement[] = [], cardinality: 'one' | 'many' = 'one'): LocatorQuery => ({predicate, match, options, refinements, cardinality});
 const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: false, ...extra});
@@ -280,5 +280,39 @@ describe('the messages', () => {
         '  @e7   button "Save" #save-draft  at 24,612\n' +
         '  @e12  Button "Save"',
     );
+  });
+});
+
+describe('the query for a node', () => {
+  const tree: Snapshot = {
+    platform: 'web',
+    nodes: [
+      node('@e1', 'button', 'Save', {kind: 'button', interactive: true, testId: 'save'}),
+      node('@e2', 'button', 'Save', {kind: 'button', interactive: true, testId: 'row'}),
+      node('@e3', 'button', 'Delete', {kind: 'button', interactive: true, testId: 'row'}),
+      node('@e4', 'text', 'Total', {kind: 'text'}),
+      node('@e5', 'text', 'Note', {kind: 'text'}),
+      node('@e6', 'text', 'Note', {kind: 'text'}),
+      node('@e7', 'img', '', {kind: 'image'}),
+      node('@e8', 'img', '', {kind: 'image'}),
+      node('@e9', 'button', 'Later', {kind: 'button', interactive: true, offscreen: true}),
+    ],
+  };
+  const written = (ref: string) => {
+    const query = queryFor(tree.nodes.find(each => each.ref === ref) as SnapshotNode, tree);
+    return query && describeQuery(query);
+  };
+
+  it('finds a node by a test id no other has, else by its role and name, and a text by its text', () => {
+    expect(written('@e1')).toBe('getByTestId("save")');
+    expect(written('@e3')).toBe('getByRole("button", {name: "Delete"})');
+    expect(written('@e4')).toBe('getByText("Total")');
+  });
+
+  it('finds one of several alike by its place, a nameless node among its role, and none off screen', () => {
+    expect(written('@e2')).toBe('getByRole("button", {name: "Save"}).nth(1)');
+    expect(written('@e6')).toBe('getByText("Note").nth(1)');
+    expect(written('@e8')).toBe('getByRole("image").nth(1)');
+    expect(written('@e9')).toBeNull();
   });
 });

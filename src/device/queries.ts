@@ -232,6 +232,32 @@ export function resolve(query: LocatorQuery, snapshot: Snapshot, within?: Snapsh
   return found;
 }
 
+/**
+ * The query a person would write for a node, one that finds it alone in the
+ * snapshot: by its test id where no other node has it, else by its role and
+ * name, or by its text, a text by its text first; else by its place among
+ * the nodes the first of those finds. Null for a node no query finds, as one
+ * off screen.
+ */
+export function queryFor(node: SnapshotNode, snapshot: Snapshot): LocatorQuery | null {
+  const one = (predicate: Predicate, match: string, options: QueryOptions = {}): LocatorQuery => ({predicate, match, options, refinements: [], cardinality: 'one'});
+  const name = nameOf(node, snapshot);
+  const role = one('role', node.kind ?? node.role, name ? {name} : {});
+  const byText = name ? [one('text', name)] : [];
+  const bases = node.kind === 'text' ? [...byText, role] : [role, ...byText];
+  const candidates = [...(node.testId ? [one('testId', node.testId)] : []), ...bases];
+  const alone = candidates.find(query => {
+    const found = resolve(query, snapshot);
+    return found.length === 1 && found[0] === node;
+  });
+  if (alone) return alone;
+  for (const base of bases) {
+    const index = resolve(base, snapshot).indexOf(node);
+    if (index >= 0) return {...base, refinements: [{nth: index}]};
+  }
+  return null;
+}
+
 /** A few values for a message, each once: `"a", "b" and 3 more`. */
 function few(values: string[], quoted = true): string {
   const unique = [...new Set(values)];
