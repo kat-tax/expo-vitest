@@ -1,6 +1,6 @@
 # Phase 0. Foundations
 
-Status: not started · Size: S · Depends on: nothing · Unblocks: every later phase
+Status: built apart from the baselines (work item 6) · Size: S · Depends on: nothing · Unblocks: every later phase
 
 Nothing in this phase is visible to a user of the package. It puts in place the
 four things every later phase leans on: a test that pins today's public
@@ -8,6 +8,45 @@ surface, a benchmark that makes "faster" a number, a process helper that a
 Vitest timeout can interrupt, and an error type with a code. The compatibility
 contract, the dependency policy and the feature map are in
 [README.md](README.md); this document does not restate them.
+
+## As built
+
+Work items 1 to 5 are on the `phase-0-foundations` branch, a commit each,
+with two small commits beside them: the web driver answers a page that will
+not load with `APP_UNREACHABLE` instead of throwing Playwright's error, which
+the docs needed before they could say a failed call rejects with a
+`HarnessError`; and `docs/device-tests.md` gained its section on the codes.
+Work item 6, the baselines, is open. Where the build differs from the design
+below, the build is what holds, for these reasons:
+
+- **Seven codes, not ten.** `HarnessCode` has the seven that something
+  produces today. `LOCATOR_AMBIGUOUS` and `ASSERTION_FAILED` join it in
+  Phase 2, with strict locators and polling matchers, and
+  `SCREENSHOT_MISMATCH` in Phase 3, with the screenshot result, so the type
+  never names a failure nothing can have. `errors.test.ts` pins the seven,
+  and the phase that adds a code edits that pin in the same commit.
+- **No driver factory on `Device`.** The contract test stubs the driver by
+  mocking `src/harness/lib/drivers.ts`, which pins the exported `device` and
+  `element` themselves and adds no API to do it. A phase that needs a second
+  device (pools, MCP sessions) adds the parameter then.
+- **`toMatchObjectType` is given `Plain<T>`.** Handed an interface it demands
+  equality, so the contract wraps interfaces in a mapped type: added fields
+  pass, renamed, removed and retyped ones fail. Each kind of pin was broken
+  once to see it fail.
+- **Each logic file joined the gate in the commit that tested it**, not all
+  in work item 3, which would have gated `run.ts` before its test existed.
+  The testing rule and the verify skill point at `coverage.include` rather
+  than repeating the list.
+- **`bench` skips input on a busy desk instead of refusing.** On Windows,
+  `press` and `fill` are skipped with the guard's reason while someone is
+  using the machine, and the rest is still timed. Every operation keeps a
+  `cold` first call, `press` included. The press lands on the first static
+  node that is not inside an interactive one, since a label inside a button
+  is the button. `BenchResult` has `source`, a `Sample` that failed says so
+  in `failed`, and the table's columns are nine wide.
+- **`runAsync` keeps its own timer** rather than `spawn`'s `timeout` option,
+  so a timeout is known rather than inferred from the signal, and `0` means
+  no limit, as it does for `spawnSync`.
 
 ## Purpose and the claims it proves
 

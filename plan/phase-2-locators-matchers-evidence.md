@@ -566,6 +566,11 @@ without --only-shell`. `expo-harness doctor` prints the same line when
 
 Each is one commit, in this order.
 
+`HarnessCode` gains `LOCATOR_AMBIGUOUS` in the work item that adds the
+strict `Locator`, and `ASSERTION_FAILED` in the one that adds the polling
+matchers, each with `errors.test.ts`'s pin of the union edited in the same
+commit. Phase 0 left them out until something could produce them.
+
 1. **State fields on the three backends.** `snapshot.ps1` reads `IsPassword`,
    `ToggleState`, `SelectionItem.IsSelected`, `ExpandCollapseState`, `Value`;
    `COLLECT` reads `checked`, `aria-checked`, `aria-selected`, `aria-expanded`,

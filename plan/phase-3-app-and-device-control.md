@@ -609,6 +609,8 @@ fixture green before it lands.
     stricter of `maxRatio` and `maxDiffPixels`, `threshold` to tolerance) and
     one pinning `snapshotState._updateSnapshot` under Vitest 4.1. The fixture
     gains the masked screenshot test (3.7 and the verification section).
+    `HarnessCode` gains `SCREENSHOT_MISMATCH` here, with `errors.test.ts`'s
+    pin of the union edited in the same commit.
 11. **Status bar normalisation in the warm-up.** The `simctl` and demo mode
     sequences behind a capability check; agent-device's flag when present.
     Proved on a simulator and an emulator by hand, recorded in the docs.
