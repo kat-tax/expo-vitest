@@ -164,7 +164,9 @@ describe("the step's actions", () => {
 describe('what a step did', () => {
   it('keeps the transcript with its secrets hidden, the turns, the screenshots, and the replay it took over from', () => {
     const replayedPrefix = {actions: [{tool: 'tap', input: {}}], reason: 'target-not-found' as const};
-    const {context, record} = contextOf({replayedPrefix, agentContext: 'A sign-in screen.', ledger: [{kind: 'act', instruction: 'open the app', status: 'passed', summary: 'Opened.'}]});
+    const {context, record, handOff, hands} = contextOf({agentContext: 'A sign-in screen.', ledger: [{kind: 'act', instruction: 'open the app', status: 'passed', summary: 'Opened.'}]});
+    expect([context.replayedPrefix, hands.seen]).toEqual([undefined, null]);
+    handOff(replayedPrefix);
     context.attachTranscript('typed correct horse battery');
     const turns: Message[] = [{role: 'user', content: [{type: 'text', text: 'go'}]}];
     context.attachTurns(turns);
@@ -172,7 +174,6 @@ describe('what a step did', () => {
     context.attachScreenshot('screenshot', image);
     expect(record()).toEqual({modelCalls: 0, actions: 0, usage: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0}, costUsd: 0, models: [], recorded: [], transcript: ['typed <secret:ADA_PASSWORD>'], turns, screenshots: [{label: 'screenshot', image}]});
     expect([context.replayedPrefix, context.agentContext, context.ledger.length, context.signal.aborted]).toEqual([replayedPrefix, 'A sign-in screen.', 1, false]);
-    expect('replayedPrefix' in contextOf().context).toBe(false);
     expect([contextOf().context.agentContext, contextOf().context.ledger]).toEqual(['', []]);
   });
 

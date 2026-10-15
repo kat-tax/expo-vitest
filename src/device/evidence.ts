@@ -119,6 +119,8 @@ export interface AgentNote {
   outcome: string;
   /** Its last turns, a line each, every secret hidden. */
   turns: string[];
+  /** A picture kept after its verdict, every secure field painted over, which the evidence writes as `name` beside the trace. */
+  picture?: {name: string; png: Buffer};
 }
 
 /** A line the app wrote to its console, or an error it did not catch, and when, in ms since the test began. */
@@ -417,5 +419,7 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
     trace,
     renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, agents: source.journal.agents, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})}),
   );
+  // The agent's pictures go beside the trace, where its errors said they would be.
+  for (const note of source.journal.agents) if (note.picture) fs.writeFileSync(path.join(folder, note.picture.name), note.picture.png);
   return {folder, trace, ...(screenshot ? {screenshot} : {})};
 }

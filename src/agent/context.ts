@@ -68,8 +68,8 @@ export interface StepContext {
   readonly signal: AbortSignal;
   /** When the step must end, in ms since 1970. */
   readonly deadline: number;
-  /** What a replay did before it handed the step over, and why it stopped. */
-  readonly replayedPrefix?: {actions: readonly RecordedAction[]; reason: ReplayHandOffReason};
+  /** What a replay did before it handed the step over, and why it stopped; undefined where none ran. */
+  readonly replayedPrefix: {actions: readonly RecordedAction[]; reason: ReplayHandOffReason} | undefined;
   attachTranscript(text: string): void;
   attachTurns(turns: readonly Message[]): void;
   attachScreenshot(label: string, image: ImagePart): void;
@@ -101,11 +101,13 @@ export interface ContextOptions {
   ledger?: readonly CompletedStep[];
   limits: {modelCalls: number; actions: number};
   deadline: number;
-  replayedPrefix?: StepContext['replayedPrefix'];
 }
 
-/** A step's context, and what it did so far. */
-export function createStepContext(options: ContextOptions): {context: StepContext; record(): StepRecord} {
+/**
+ * A step's context, what it did so far, and its hands, which a replay acts
+ * through before the step is handed on with what it did.
+ */
+export function createStepContext(options: ContextOptions): {context: StepContext; record(): StepRecord; hands: Hands; handOff(prefix: NonNullable<StepContext['replayedPrefix']>): void} {
   const {at, signal} = options.hands;
   const modelCalls = {limit: options.limits.modelCalls, used: 0};
   const actions = {limit: options.limits.actions, used: 0};
@@ -122,6 +124,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
   const transcript: string[] = [];
   let turns: readonly Message[] = [];
   const screenshots: {label: string; image: ImagePart}[] = [];
+  let replayedPrefix: StepContext['replayedPrefix'];
 
   // What leaves for the model is redacted as it is first sent, and kept, so a turn reads the same in every request after it.
   const cleaned = new WeakMap<Message, Message>();
@@ -197,7 +200,9 @@ export function createStepContext(options: ContextOptions): {context: StepContex
     },
     signal,
     deadline: options.deadline,
-    ...(options.replayedPrefix ? {replayedPrefix: options.replayedPrefix} : {}),
+    get replayedPrefix() {
+      return replayedPrefix;
+    },
     attachTranscript: text => void transcript.push(hands.hide(text)),
     attachTurns: given => void (turns = given),
     attachScreenshot: (label, image) => void screenshots.push({label, image}),
@@ -205,6 +210,8 @@ export function createStepContext(options: ContextOptions): {context: StepContex
 
   return {
     context,
+    hands,
+    handOff: prefix => void (replayedPrefix = prefix),
     record: () => ({
       modelCalls: modelCalls.used,
       actions: actions.used,

@@ -78,9 +78,14 @@ const messageOf = (error: unknown) => {
   return `the tool failed: ${error instanceof Error ? error.message : String(error)}`;
 };
 
+/** Whether an error ends the step, rather than going back to the model as what the call did. */
+export function endsTheStep(error: unknown): error is HarnessError {
+  return isHarnessError(error) && ENDS_STEP.has(error.code);
+}
+
 /** An error that ends the step, as the step's own, or null for one that goes back to the model. */
 function ending(error: unknown, at: StepOf): Error | null {
-  if (!isHarnessError(error) || !ENDS_STEP.has(error.code)) return null;
+  if (!endsTheStep(error)) return null;
   if (isAgentError(error) || !isAgentCode(error.code)) return error;
   return new AgentError(error.code, error.message, {...at, blocked: isBlockedCode(error.code), cause: error});
 }

@@ -66,8 +66,8 @@ function stepOf(replies: Reply[], options: StepSetUp = {}) {
     limits: options.limits ?? {modelCalls: 25, actions: 25},
     deadline: options.deadline ?? Date.now() + 120_000,
     ...(options.ledger ? {ledger: options.ledger} : {}),
-    ...(options.replayedPrefix ? {replayedPrefix: options.replayedPrefix} : {}),
   });
+  if (options.replayedPrefix) made.handOff(options.replayedPrefix);
   return {...made, model, device};
 }
 

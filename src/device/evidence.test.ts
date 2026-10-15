@@ -288,6 +288,16 @@ describe('writeEvidence', () => {
     fs.rmSync(root, {recursive: true, force: true});
   });
 
+  it("writes the pictures the agent kept beside the trace, by the names its errors gave", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
+    const kept = source();
+    kept.journal.agents.push({kind: 'assert', instruction: 'the welcome shows', agent: 'default', outcome: 'fail', turns: [], picture: {name: 'agent-1.png', png: Buffer.from('png')}});
+    kept.journal.agents.push({kind: 'act', instruction: 'sign in', agent: 'default', outcome: 'passed', turns: []});
+    const written = await writeEvidence(kept, input(root));
+    expect(fs.readFileSync(path.join(written.folder, 'agent-1.png'), 'utf8')).toBe('png');
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
   it('says why there is no picture, and falls back to the last tree the journal kept', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
     const closed = await writeEvidence(source({open: false}), input(root));
