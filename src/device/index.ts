@@ -29,11 +29,12 @@ import type {LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {DEFAULT_POLLING, invalidating, snapshotFeed} from './polling.ts';
 import type {QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
+import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
 
 export {by, HarnessError, isHarnessError, Locator};
-export type {FindOptions, HarnessCode, Kind, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
+export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());

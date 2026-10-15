@@ -220,6 +220,9 @@ own trees carry.
 
 ## Matchers
 
+These take a snapshot or the device. [Matchers](matchers.md) has the ones on
+a locator, which wait for the tree.
+
 | Matcher | Takes | What it asserts |
 | --- | --- | --- |
 | `toHaveElement(selector)` | A snapshot | The tree contains something the selector names. |

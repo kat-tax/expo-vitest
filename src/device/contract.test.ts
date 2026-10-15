@@ -361,6 +361,21 @@ describe('the matchers', () => {
     for (const name of ['toHaveElement', 'toBeFullyLabelled', 'toSupportArrowNavigation', 'toMatchScreenshot']) expect(typeof assertion[name], name).toBe('function');
   });
 
+  it('on a locator are all registered by the setup file too', () => {
+    const assertion = expect(screen.getByText('Saved')) as unknown as Record<string, unknown>;
+    const names = ['toBeVisible', 'toBeHidden', 'toBeAttached', 'toBeDetached', 'toBeEnabled', 'toBeDisabled', 'toBeChecked', 'toBeSelected', 'toBeExpanded', 'toBePressed', 'toBeFocused'];
+    names.push('toHaveText', 'toContainText', 'toHaveValue', 'toHaveAccessibleName', 'toHaveRole', 'toHaveCount', 'toHaveAttribute');
+    for (const name of names) expect(typeof assertion[name], name).toBe('function');
+  });
+
+  it('on a locator wait for the tree, and say what they read', async () => {
+    const saved: SnapshotNode = {ref: '@e3', role: 'span', name: 'Saved', depth: 1, interactive: false};
+    let reads = 0;
+    drive(stub({snapshot: async () => ({platform: 'web', nodes: reads++ > 1 ? [saved] : []})}));
+    await expect(screen.getByText('Saved')).toBeVisible();
+    await expect(expect(screen.getByText('Gone')).toBeVisible({timeout: 0})).rejects.toThrow('expected getByText("Gone") to be visible within 0 ms\n  read once; it was gone');
+  });
+
   it('toHaveElement passes on a match, and says what the tree held on a miss', () => {
     expect(tree).toHaveElement(by.label('Save'));
     expect(() => expect(tree).toHaveElement(by.label('X'))).toThrow('expected an element matching label="X"; the tree has 2 nodes:\n  button "Save"\n  h1 "Settings"');
@@ -524,6 +539,13 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf<Parameters<Assertion['toSupportArrowNavigation']>>().toEqualTypeOf<[key?: string]>();
     expectTypeOf<Parameters<Assertion['toMatchScreenshot']>[0]>().toEqualTypeOf<string>();
     expectTypeOf<NonNullable<Parameters<Assertion['toMatchScreenshot']>[1]>>().toMatchObjectType<{maxRatio?: number}>();
+
+    const locator = screen.getByText('Saved');
+    expectTypeOf(expect(locator).toBeVisible).toBeCallableWith({timeout: 1});
+    expectTypeOf(expect(locator).toBeChecked).toBeCallableWith('mixed', {timeout: 1});
+    expectTypeOf(expect(locator).toHaveText).toBeCallableWith(['a', /b/], {timeout: 1, exact: false});
+    expectTypeOf(expect(locator).toHaveCount).toBeCallableWith(2, {timeout: 1});
+    expectTypeOf(expect(locator).toHaveAttribute).toBeCallableWith('heading', '2', {timeout: 1});
 
     expectTypeOf(deviceConfig).returns.toEqualTypeOf<ViteUserConfig>();
     expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{

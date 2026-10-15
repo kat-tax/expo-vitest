@@ -146,6 +146,7 @@ platform's project.
 | Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
 | Device tests | `device`, `element`, `by` and four matchers, over a real app on web, Windows, Android or iOS, each step waiting for the screen to hold still. | [Device tests](docs/device-tests.md) |
 | Locators | `screen` and `within` with React Native Testing Library's queries, giving strict locators that wait for their node, the same on all four platforms. | [Locators](docs/locators.md) |
+| Matchers that wait | `toBeVisible`, `toHaveText`, `toBeChecked`, `toHaveCount` and fourteen more on a locator, reading the tree until it agrees, and holding a wait for something to be gone. | [Matchers](docs/matchers.md) |
 | The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand and for timing what each platform's driver costs. | [The harness](docs/harness.md) |
 | The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |
 
@@ -159,6 +160,7 @@ platform's project.
 | [Helpers](docs/helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
 | [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables, errors. |
 | [Locators](docs/locators.md) | `screen`, `within` and the locator: RNTL's queries over a running app, strictness, waiting. |
+| [Matchers](docs/matchers.md) | The matchers on a locator, how they wait, what a failure says. |
 | [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](docs/performance.md) | What each driver costs on a real app, and how that was measured. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |

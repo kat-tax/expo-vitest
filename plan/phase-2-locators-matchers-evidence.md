@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 7 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 8 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -186,6 +186,37 @@ below, the build is what holds.
     - Android, on the emulator: a swipe both ways, a long press, and a
       Settings row swiped out of the tree brought back by its text in
       6.5 s.
+  - **Not seen:** iOS.
+- **Item 8: the matchers, `src/device/expectations.ts`.**
+  - There are eighteen, since the design's table names eighteen. The
+    logic is a module of its own, in the coverage gate, and
+    `src/device/matchers.ts` registers it.
+  - Their types are declared there too, and `expo-vitest/device`
+    re-exports a type from it, so a program that imports the device
+    layer has them. Before, the four tree matchers' types reached only a
+    program that included the setup file.
+  - React Native Testing Library (through vitest-native's types) and
+    jest-dom declare eleven of the names on `Assertion`, with no
+    timeout, and theirs won over these on `Matchers`. Those eleven are
+    declared on `Assertion` itself, theirs first, so a component test
+    types as it did and a device call with options takes these. The
+    implementations take what their forms pass: any attribute name, any
+    value, a name left out.
+  - Vitest leaves `isNot` unset without `.not`, which at first read as
+    negated and held every positive matcher a second.
+  - A locator carries its device under a `Symbol.for` key. A module-level
+    map broke the contract test, which loads a second copy of the module
+    after `vi.resetModules()`.
+  - A not-found message says first when what a query names is off
+    screen, and that `{hidden: true}` takes it.
+  - **Seen live:**
+    - Web: every matcher on the page of controls, a failure's message,
+      and a `.not` held for a second.
+    - Windows: tabs selected, a count, the tabs' texts, a field's value
+      and role, and a node off screen hidden.
+    - Android: a row visible and holding its text, the Dark theme switch
+      checked both ways around a check and an uncheck, and a node in the
+      tree.
   - **Not seen:** iOS.
 
 ## Purpose and the claims it proves

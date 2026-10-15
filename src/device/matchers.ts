@@ -13,6 +13,7 @@ import {expect} from 'vitest';
 import {comparePng} from '../harness/lib/png.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {describeTarget, findNode} from '../harness/lib/snapshot.ts';
+import {LOCATOR_MATCHERS} from './expectations.ts';
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -171,14 +172,7 @@ expect.extend({
   },
 });
 
-// Vitest 4 re-exports `Matchers` from `@vitest/expect`, and an augmentation of
-// the re-exporting module does not merge: the interface is extended at its
-// origin, with the type parameter it is declared with there.
-declare module '@vitest/expect' {
-  interface Matchers<T = any> {
-    toHaveElement(selector: Selector): T;
-    toBeFullyLabelled(): T;
-    toSupportArrowNavigation(key?: string): Promise<T>;
-    toMatchScreenshot(name: string, options?: {maxRatio?: number}): Promise<T>;
-  }
-}
+// The matchers on a locator, which wait for the tree: `src/device/expectations.ts`.
+expect.extend(LOCATOR_MATCHERS);
+
+// Their types are declared beside the locator matchers, in expectations.ts.

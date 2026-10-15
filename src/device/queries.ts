@@ -257,13 +257,18 @@ function like(name: string, wanted: string): boolean {
 }
 
 /**
- * What the tree held instead, for a query that matched nothing: the names of
- * the nodes with the role it asked for, the names like the one it asked for,
- * or the values the field it reads has, a few of each.
+ * What the tree held instead, for a query that matched nothing: that what
+ * it names is off screen, where it is; else the names of the nodes with the
+ * role it asked for, the names like the one it asked for, or the values the
+ * field it reads has, a few of each.
  */
 export function suggestions(query: LocatorQuery, snapshot: Snapshot): string {
   const {match, predicate} = query;
   const {nodes} = snapshot;
+  if (!(query.options.hidden ?? query.options.includeHiddenElements ?? false)) {
+    const off = resolve({...query, options: {...query.options, hidden: true}}, snapshot).length;
+    if (off > 0) return `${off === 1 ? 'a node off screen matches' : `${off} nodes off screen match`}; {hidden: true} takes ${off === 1 ? 'it' : 'them'}`;
+  }
   if (predicate === 'role') {
     const named = nodes.filter(node => fits(node, {...query, options: {}}, snapshot));
     if (named.length > 0) return `${named.length} ${named.length === 1 ? 'node has' : 'nodes have'} role ${String(match)}: ${few(named.map(node => nameOf(node, snapshot)))}`;

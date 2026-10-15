@@ -1,6 +1,6 @@
 # Locators
 
-[Docs home](README.md) · [Device tests](device-tests.md)
+[Docs home](README.md) · [Device tests](device-tests.md) · [Matchers](matchers.md)
 
 `screen` finds nodes in a running app's accessibility tree with React Native
 Testing Library's queries, so a device test reads like a component test. A

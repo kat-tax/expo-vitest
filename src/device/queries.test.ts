@@ -241,6 +241,14 @@ describe('suggestions', () => {
     expect(suggestions(query('text', 'Z'), {platform: 'web', nodes: [node('@e1', 'Custom', '')]})).toBe('no node has a name');
   });
 
+  it('say first that what a query names is off screen, where it is, and that {hidden: true} takes it', () => {
+    const below: Snapshot = {platform: 'web', nodes: [node('@e1', 'slider', 'Volume', {kind: 'slider', offscreen: true}), node('@e2', 'slider', 'Balance', {kind: 'slider', offscreen: true})]};
+    expect(suggestions(query('role', 'slider', {name: 'Volume'}), below)).toBe('a node off screen matches; {hidden: true} takes it');
+    expect(suggestions(query('role', 'slider'), below)).toBe('2 nodes off screen match; {hidden: true} takes them');
+    expect(suggestions(query('role', 'slider', {name: 'Treble', hidden: true}), below)).toBe('2 nodes have role slider: "Volume", "Balance"');
+    expect(suggestions(query('role', 'slider', {name: 'Treble', includeHiddenElements: true}), below)).toBe('2 nodes have role slider: "Volume", "Balance"');
+  });
+
   it('name the values of the field a query reads', () => {
     expect(suggestions(query('testId', 'save'), screen)).toBe('the testIDs there: "save-draft"');
     expect(suggestions(query('placeholder', 'Name'), screen)).toBe('the placeholders there: "you@example.com"');

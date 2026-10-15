@@ -105,6 +105,19 @@ function stateOf(checked: SnapshotNode['checked']): string {
   return checked === 'mixed' ? 'mixed' : checked ? 'checked' : 'unchecked';
 }
 
+/**
+ * Where a locator keeps the device it was made on, for the matchers, which
+ * wait on its snapshots and its config's times. A registered symbol, so a
+ * second copy of this module, as after `vi.resetModules()` or in a project
+ * that loads the package twice, reads the same key.
+ */
+const HOST = Symbol.for('expo-vitest.locator-host');
+
+/** The device a locator was made on, or undefined for anything that is not a locator. */
+export function hostOf(value: unknown): LocatorHost | undefined {
+  return typeof value === 'object' && value !== null ? (value as Record<symbol, LocatorHost | undefined>)[HOST] : undefined;
+}
+
 export class Locator {
   readonly query: LocatorQuery;
   private readonly host: LocatorHost;
@@ -112,6 +125,8 @@ export class Locator {
   constructor(host: LocatorHost, query: LocatorQuery) {
     this.host = host;
     this.query = query;
+    // Not enumerable, so a locator printed in a failed assertion shows its query, not the device.
+    Object.defineProperty(this, HOST, {value: host});
   }
 
   /** The query as it was written, as a message names it. */
