@@ -178,6 +178,12 @@ export class McpServer {
     if (sharing) return refused('CONFIG_IN_USE', `the open sessions use ${sharing.config ?? 'no harness config'}; close them to open one on ${config ?? 'no harness config'}`);
     const opened = await this.sessions.open(() => this.options.open(args));
     const {catalog, platform, source} = opened.value;
+    // Synthetic input on Windows goes to whatever window is in front, so two sessions there would act on each other's.
+    const windows = platform === 'windows' ? this.sessions.ids.find(id => id !== opened.id && this.sessions.get(id).value.platform === 'windows') : undefined;
+    if (windows) {
+      await this.sessions.close(opened.id);
+      return refused('SESSION_OPEN', `${windows} is open on Windows, which is one desktop that one session drives at a time: close it first`);
+    }
     const first = await catalog.observe();
     const tools = catalog.list().map(each => each.name);
     const header = `session ${opened.id} on ${platform}${source ? ` (${source}, ${first.tree.nodes.length} nodes)` : ` (${first.tree.nodes.length} nodes)`}`;
