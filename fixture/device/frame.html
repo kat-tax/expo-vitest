@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Card</title></head>
+<body>
+  <label>Card number <input data-testid="number"></label>
+  <button data-testid="pay">Pay</button>
+  <p data-testid="paid">Not paid</p>
+  <script>
+    document.querySelector('[data-testid=pay]').onclick = () => {
+      document.querySelector('[data-testid=paid]').textContent = `Paid with ${document.querySelector('[data-testid=number]').value}`;
+    };
+  </script>
+</body>
+</html>

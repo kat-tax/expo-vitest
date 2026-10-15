@@ -7,7 +7,7 @@ import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapsho
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DialogAnswer, Driver, DriverOptions, LongPressOptions, OptionChoice, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
 import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, noClipboard} from './web-browsers.ts';
@@ -259,6 +259,22 @@ const ON_ELEMENT = `(([id, what]) => {
   return {there: true, scrolled: outside, box: {x: now.x, y: now.y, width: now.width, height: now.height}};
 })`;
 
+/**
+ * Runs in the page: where the content of the frame a CSS selector names
+ * starts, inside its border and padding, which is where the frame's own
+ * coordinates start. Null where nothing matches.
+ */
+const FRAME_BOX = `((selector) => {
+  const element = document.querySelector(selector);
+  if (!element) return null;
+  const box = element.getBoundingClientRect();
+  const style = getComputedStyle(element);
+  return {x: box.x + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft), y: box.y + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)};
+})`;
+
+/** Runs in the page, or a frame: the element a ref's number names, while it is there. */
+const ELEMENT = (id: number) => `(() => { const refs = window.__harnessRefs; const held = refs && refs.elements.get(${id}); return held ? held.deref() : null; })()`;
+
 /** How long a long press is held when a test does not say, in ms: what a person holds for a context menu. */
 const HOLD_MS = 800;
 
@@ -295,6 +311,11 @@ export function webDriver(options: DriverOptions): Driver {
   interface Context {
     newPage(): Promise<Page>;
     close(): Promise<void>;
+    route(pattern: string, handler: (route: Route) => unknown): Promise<void>;
+    unroute(pattern: string, handler?: (route: Route) => unknown): Promise<void>;
+    cookies(): Promise<WebCookie[]>;
+    addCookies(cookies: WebCookie[]): Promise<void>;
+    clearCookies(): Promise<void>;
     setOffline(offline: boolean): Promise<void>;
     grantPermissions(permissions: string[]): Promise<void>;
     clearPermissions(): Promise<void>;
@@ -303,9 +324,41 @@ export function webDriver(options: DriverOptions): Driver {
   interface Dialog {
     accept(): Promise<void>;
     dismiss(): Promise<void>;
+    type(): string;
+    message(): string;
   }
-  /** What the next dialog the page opens is answered with; Playwright decides one as it opens. */
-  let nextDialog: 'accept' | 'dismiss' = 'dismiss';
+  interface Route {
+    request(): {url(): string; method(): string; headers(): Record<string, string>; postData(): string | null};
+    fulfill(response: unknown): Promise<void>;
+    continue(): Promise<void>;
+    abort(): Promise<void>;
+  }
+  interface ElementHandle {
+    contentFrame(): Promise<Frame | null>;
+    selectOption(values: {label?: string; value?: string; index?: number}): Promise<string[]>;
+    setInputFiles(files: string[]): Promise<void>;
+    dispose(): Promise<void>;
+  }
+  interface JSHandle {
+    asElement(): ElementHandle | null;
+    dispose(): Promise<void>;
+  }
+  interface Frame {
+    evaluate<T>(fn: string): Promise<T>;
+    evaluateHandle(fn: string): Promise<JSHandle>;
+  }
+  interface Download {
+    suggestedFilename(): string;
+    saveAs(path: string): Promise<void>;
+  }
+  /** What the next dialog the page opens is answered with, where a test said; Playwright decides one as it opens. */
+  let nextDialog: 'accept' | 'dismiss' | null = null;
+  /** How every dialog is answered, where a test said, until it says otherwise. */
+  let dialogs: DialogAnswer | null = null;
+  /** The routes a test made, which each new context is given too, until they are taken off. */
+  const routes: {pattern: string; handler: (route: Route) => unknown}[] = [];
+  /** The frames a test asked for, by selector: the refs of frame n are `@f<n>e…`. */
+  const frames: string[] = [];
 
   interface Locator {
     click(o?: unknown): Promise<void>;
@@ -316,7 +369,10 @@ export function webDriver(options: DriverOptions): Driver {
     addInitScript(script: string): Promise<void>;
     goto(url: string, o?: unknown): Promise<unknown>;
     screenshot(o: {path: string; fullPage?: boolean; animations?: 'disabled'; caret?: 'hide'}): Promise<unknown>;
-    mouse: {click(x: number, y: number): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
+    mouse: {click(x: number, y: number, o?: {button?: 'left' | 'right'}): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
+    $(selector: string): Promise<ElementHandle | null>;
+    evaluateHandle(fn: string): Promise<JSHandle>;
+    waitForEvent(event: 'download', o?: {timeout?: number}): Promise<Download>;
     keyboard: {type(text: string): Promise<void>; press(key: string): Promise<void>};
     locator(selector: string): Locator;
     evaluate<T>(fn: string): Promise<T>;
@@ -435,10 +491,16 @@ export function webDriver(options: DriverOptions): Driver {
       for (const listener of listeners) listener('uncaught', error.message);
     });
     fresh.on('dialog', dialog => {
-      const answer = nextDialog;
-      nextDialog = 'dismiss';
-      void (answer === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
+      // A test's word for the next dialog wins over its answer for every one, and with neither a dialog is dismissed.
+      const once = nextDialog;
+      nextDialog = null;
+      const always = dialogs;
+      void (async () => {
+        const answer = once ?? (typeof always === 'function' ? await always({type: dialog.type(), message: dialog.message()}) : always) ?? 'dismiss';
+        await (answer === 'accept' ? dialog.accept() : dialog.dismiss());
+      })().catch(() => {});
     });
+    for (const route of routes) await context.route(route.pattern, route.handler);
     return fresh;
   }
 
@@ -466,6 +528,9 @@ export function webDriver(options: DriverOptions): Driver {
     return ok(`a new browser context, at ${base}`);
   }
 
+  /** A node as the page's script answers it, with what the kind is worked out from. */
+  type Collected = SnapshotNode & {ariaRole?: string; leaf?: boolean};
+
   /** The last tree read, with the page's counter when it was read; it stands while the counter does, for up to KEEP_MS. */
   let lastRead: {origin: number; generation: number; at: number; nodes: SnapshotNode[]} | null = null;
 
@@ -473,7 +538,6 @@ export function webDriver(options: DriverOptions): Driver {
   async function collect(): Promise<SnapshotNode[]> {
     const current = await open();
     const last = lastRead && Date.now() - lastRead.at < KEEP_MS ? {origin: lastRead.origin, generation: lastRead.generation} : null;
-    type Collected = SnapshotNode & {ariaRole?: string; leaf?: boolean};
     type Read = {same: true} | {same?: undefined; origin: number; generation: number; nodes: Collected[]};
     const read = (): Promise<Read> => current.evaluate<Read>(`(${COLLECT})(${JSON.stringify(last)})`);
     let answer: Read;
@@ -502,6 +566,12 @@ export function webDriver(options: DriverOptions): Driver {
     return /^[a-z]+:\/\//i.test(to) ? to : new URL(to.startsWith('/') ? to : `/${to}`, base).toString();
   }
 
+  async function frameSnapshot(frame: number): Promise<Snapshot> {
+    const nodes = await collectFrame(frame);
+    const viewport = (await open()).viewportSize();
+    return {platform: 'web', source: `${base} ${frames[frame - 1] ?? ''}`, nodes, ...(viewport ? {viewport} : {})};
+  }
+
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     const nodes = await collect();
     const viewport = (await open()).viewportSize();
@@ -523,7 +593,9 @@ export function webDriver(options: DriverOptions): Driver {
   /** The node a selector names in a fresh read, and the tree it is in, or the error that there is none. */
   async function nodeFor(what: Target): Promise<{node: SnapshotNode; tree: Snapshot}> {
     const selector = asSelector(what);
-    const tree = await snapshot();
+    // A ref in a frame is found in the frame's tree.
+    const frame = !isPoint(selector) && selector.ref ? refOf(selector.ref).frame : 0;
+    const tree = frame ? await frameSnapshot(frame) : await snapshot();
     const node = isPoint(selector) ? undefined : findNode(tree, selector);
     if (!node) {
       const instead = isPoint(selector) ? '' : seenInstead(tree, selector);
@@ -532,12 +604,56 @@ export function webDriver(options: DriverOptions): Driver {
     return {node, tree};
   }
 
-  /** Does something in the page to the element a node is, or says the node has gone. */
-  async function onElement(node: SnapshotNode, what: 'focus' | 'scroll'): Promise<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}> {
+  /** Which frame a ref is in, 0 for the page itself, and the element's number there. */
+  function refOf(ref: string): {frame: number; id: number} {
+    const match = /^@(?:f(\d+))?e(\d+)$/.exec(ref);
+    return {frame: match?.[1] ? Number(match[1]) : 0, id: match ? Number(match[2]) : -1};
+  }
+
+  /** Where the refs of a frame live, the page's own for frame 0, and where the frame's coordinates start on the page. */
+  async function realm(frame: number): Promise<{evaluate<T>(source: string): Promise<T>; evaluateHandle(source: string): Promise<JSHandle>; offset: Point}> {
     const current = await open();
+    if (frame === 0) return {evaluate: source => current.evaluate(source), evaluateHandle: source => current.evaluateHandle(source), offset: {x: 0, y: 0}};
+    const selector = frames[frame - 1] ?? '';
+    const element = await current.$(selector);
+    const content = await element?.contentFrame();
+    const offset = await current.evaluate<Point | null>(`(${FRAME_BOX})(${JSON.stringify(selector)})`);
+    if (!content || !offset) throw new HarnessError('LOCATOR_NOT_FOUND', `no frame on the page matches ${selector}`, {platform: 'web'});
+    return {evaluate: source => content.evaluate(source), evaluateHandle: source => content.evaluateHandle(source), offset};
+  }
+
+  /** A frame's tree, read afresh each time, its refs naming the frame and its boxes moved to where the frame is on the page. */
+  async function collectFrame(frame: number): Promise<SnapshotNode[]> {
+    const {evaluate, offset} = await realm(frame);
+    const answer = await evaluate<{nodes: Collected[]}>(`(${COLLECT})(null)`);
+    const named = (ref: string) => ref.replace(/^@e/, `@f${frame}e`);
+    return answer.nodes.map(({ariaRole, leaf, ...node}) => {
+      const kind = kindOnWeb(ariaRole, Boolean(leaf));
+      const moved: SnapshotNode = {
+        ...node,
+        ref: named(node.ref),
+        ...(node.parent ? {parent: named(node.parent)} : {}),
+        ...(node.bounds ? {bounds: {...node.bounds, x: node.bounds.x + offset.x, y: node.bounds.y + offset.y}} : {}),
+      };
+      return kind ? {...moved, kind} : moved;
+    });
+  }
+
+  /** The element a node is, as Playwright holds it, for what only Playwright does to one; null where it has gone. */
+  async function handleOf(node: SnapshotNode): Promise<ElementHandle | null> {
+    const {frame, id} = refOf(node.ref);
+    const held = await (await realm(frame)).evaluateHandle(ELEMENT(id));
+    return held.asElement();
+  }
+
+  /** Does something in the page, or the frame, to the element a node is, or says the node has gone. Its box is the page's. */
+  async function onElement(node: SnapshotNode, what: 'focus' | 'scroll'): Promise<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}> {
+    const {frame, id} = refOf(node.ref);
+    const {evaluate, offset} = await realm(frame);
     // A scroll moves boxes without a mutation, so the next read starts again.
     lastRead = null;
-    return current.evaluate<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}>(`(${ON_ELEMENT})(${JSON.stringify([Number(node.ref.slice(2)), what])})`);
+    const done = await evaluate<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}>(`(${ON_ELEMENT})(${JSON.stringify([id, what])})`);
+    return done.box ? {...done, box: {...done.box, x: done.box.x + offset.x, y: done.box.y + offset.y}} : done;
   }
 
   async function pointFor(what: Target): Promise<{point: Point; note: string}> {
@@ -552,10 +668,13 @@ export function webDriver(options: DriverOptions): Driver {
     if (!shown.there) throw new HarnessError('LOCATOR_NOT_FOUND', `${note} has gone from the page`, {platform: 'web'});
     const box = shown.box ?? node.bounds;
     const point = {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2)};
-    const current = await open();
-    const lands = await current.evaluate<{ref?: string; tag?: string} | null>(`(${LANDS})(${JSON.stringify([Number(node.ref.slice(2)), point.x, point.y])})`);
+    // Where the press lands is asked of the frame the node is in, at the frame's own coordinates.
+    const {frame, id} = refOf(node.ref);
+    const {evaluate, offset} = await realm(frame);
+    const lands = await evaluate<{ref?: string; tag?: string} | null>(`(${LANDS})(${JSON.stringify([id, point.x - offset.x, point.y - offset.y])})`);
     if (lands) {
-      const other = tree.nodes.find(each => each.ref === lands.ref);
+      const landed = lands.ref && frame ? lands.ref.replace(/^@e/, `@f${frame}e`) : lands.ref;
+      const other = tree.nodes.find(each => each.ref === landed);
       const what = other ? `${other.ref} ${other.role} ${JSON.stringify(other.name)}` : `a <${lands.tag}>`;
       throw new HarnessError('NOT_ACTIONABLE', `${note} is covered: a press at ${point.x},${point.y} would land on ${what}`, {platform: 'web'});
     }
@@ -834,6 +953,130 @@ export function webDriver(options: DriverOptions): Driver {
       } catch (error) {
         return failed((error as Error).message.split('\n')[0] ?? 'scrolling failed', codeOf(error));
       }
+    },
+
+    web: {
+      async route(pattern: string, handler: (route: WebRoute) => unknown): Promise<() => Promise<void>> {
+        const listener = async (route: Route) => {
+          const request = route.request();
+          let answered = false;
+          const once = (answer: () => Promise<void>) => () => {
+            answered = true;
+            return answer();
+          };
+          const given: WebRoute = {
+            request: {url: request.url(), method: request.method(), headers: request.headers(), body: request.postData()},
+            fulfill: response => once(() => route.fulfill(response))(),
+            continue: once(() => route.continue()),
+            abort: once(() => route.abort()),
+          };
+          try {
+            await handler(given);
+            if (!answered) await route.continue();
+          } catch (error) {
+            // A handler that throws leaves the request with no answer, so it fails, and the console says why.
+            for (const each of listeners) each('error', `the route for ${pattern} threw: ${firstLine((error as Error).message)}`);
+            if (!answered) await route.abort().catch(() => {});
+          }
+        };
+        const entry = {pattern, handler: listener};
+        routes.push(entry);
+        await (await open()).context().route(pattern, listener);
+        return async () => {
+          const at = routes.indexOf(entry);
+          if (at >= 0) routes.splice(at, 1);
+          await page?.context().unroute(pattern, listener).catch(() => {});
+        };
+      },
+
+      onDialog(answer: DialogAnswer): () => void {
+        dialogs = answer;
+        return () => {
+          if (dialogs === answer) dialogs = null;
+        };
+      },
+
+      async evaluate<T>(expression: string): Promise<T> {
+        lastRead = null;
+        return (await open()).evaluate<T>(expression);
+      },
+
+      async setViewport(size: {width: number; height: number}): Promise<void> {
+        lastRead = null;
+        await (await open()).setViewportSize(size);
+      },
+
+      async cookies(): Promise<WebCookie[]> {
+        return (await open()).context().cookies();
+      },
+
+      async setCookies(cookies: WebCookie[]): Promise<void> {
+        await (await open()).context().addCookies(cookies);
+      },
+
+      async clearCookies(): Promise<void> {
+        await (await open()).context().clearCookies();
+      },
+
+      async download(trigger: () => Promise<unknown>, file: (suggested: string) => string): Promise<string> {
+        const current = await open();
+        const [download] = await Promise.all([current.waitForEvent('download', {timeout: navigation}), trigger()]);
+        const kept = prepare(file(download.suggestedFilename()));
+        await download.saveAs(kept);
+        return kept;
+      },
+
+      async selectOption(what: Target, option: OptionChoice): Promise<StepResult> {
+        try {
+          const {node} = await nodeFor(what);
+          const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
+          const element = await handleOf(node);
+          if (!element) return failed(`${note} has gone from the page`, 'LOCATOR_NOT_FOUND');
+          lastRead = null;
+          const chosen = await element.selectOption(typeof option === 'string' ? {label: option} : option);
+          await element.dispose();
+          if (chosen.length === 0) return failed(`${note} has no option ${JSON.stringify(option)}`, 'ACTION_FAILED');
+          return ok(`chose ${JSON.stringify(chosen[0])} in ${note}`);
+        } catch (error) {
+          return failed(firstLine((error as Error).message), codeOf(error));
+        }
+      },
+
+      async setInputFiles(what: Target, files: string[]): Promise<StepResult> {
+        try {
+          const {node} = await nodeFor(what);
+          const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
+          const element = await handleOf(node);
+          if (!element) return failed(`${note} has gone from the page`, 'LOCATOR_NOT_FOUND');
+          lastRead = null;
+          await element.setInputFiles(files);
+          await element.dispose();
+          return ok(`gave ${note} ${files.length === 1 ? '1 file' : `${files.length} files`}`);
+        } catch (error) {
+          return failed(firstLine((error as Error).message), codeOf(error));
+        }
+      },
+
+      async secondaryTap(what: Target): Promise<StepResult> {
+        try {
+          const {point, note} = await pointFor(what);
+          const current = await open();
+          lastRead = null;
+          await current.mouse.click(point.x, point.y, {button: 'right'});
+          return ok(`pressed ${note} with the secondary button`);
+        } catch (error) {
+          return failed(firstLine((error as Error).message), codeOf(error));
+        }
+      },
+
+      frame(selector: string): number {
+        const known = frames.indexOf(selector);
+        if (known >= 0) return known + 1;
+        frames.push(selector);
+        return frames.length;
+      },
+
+      frameSnapshot,
     },
 
     onConsole(listener: (level: string, text: string) => void): () => void {

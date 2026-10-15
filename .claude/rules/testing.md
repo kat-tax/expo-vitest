@@ -33,14 +33,15 @@ that tests with this package has installed.
 `scripts/fixture.js` copies it outside the package, installs it there from
 `bun.lock`, packs this package as `npm publish` would, unpacks that into the
 copy's `node_modules`, names it in the copy's manifest, and runs the tests by
-name, then `fixture/device/`: on web, against a page its harness config's
-command serves, which needs a Chromium (`bunx playwright-core install
-chromium --only-shell`), and on a platform the machine cannot drive, whose
-tests are skipped. It runs the web video test once more with
+name, then `fixture/device/`: on web, against the pages its harness
+config's command serves, one of them for `device.web` with a frame in it,
+which needs a Chromium (`bunx playwright-core install chromium
+--only-shell`), and on a platform the machine cannot drive, whose tests are
+skipped. It runs the web video test once more with
 `HARNESS_VIDEO=retain-on-failure`, and checks that only the test that fails
 on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
-own version names, so the copy's playwright-core fetches its own first. It is the only thing that can catch what differs when
-installed:
+own version names, so the copy's playwright-core fetches its own first. It
+is the only thing that can catch what differs when installed:
 
 - Node will not strip types under `node_modules`.
 - Vitest leaves what is there out of its module graph unless told otherwise.

@@ -5,7 +5,7 @@ const pixel = {name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'};
 
 describe('the capabilities', () => {
   it('are the steps first, then every control, each once', () => {
-    expect(CAPABILITIES.slice(0, 12)).toEqual(ACTIONS.web);
+    expect(CAPABILITIES.slice(0, 13)).toEqual(ACTIONS.web);
     expect(CAPABILITIES).toContain('restart');
     expect(CAPABILITIES).toContain('alert');
     expect(new Set(CAPABILITIES).size).toBe(CAPABILITIES.length);
@@ -17,6 +17,8 @@ describe('the capabilities', () => {
     expect(absentBecause('swipe', 'windows')).toBe('the windows harness has no swipe');
     expect(absentBecause('swipe', 'web')).toBeNull();
     expect(absentBecause('video', 'windows')).toBe('the windows harness has no video');
+    expect(absentBecause('web', 'web')).toBeNull();
+    expect(absentBecause('web', 'ios')).toBe('the ios harness has no web');
     expect([absentBecause('video', 'web'), absentBecause('video', 'android'), absentBecause('video', 'ios')]).toEqual([null, null, null]);
   });
 

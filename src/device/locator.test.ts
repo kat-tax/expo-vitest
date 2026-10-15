@@ -419,3 +419,35 @@ describe('the journal', () => {
     expect(journal.steps.at(-1)?.verifies).toBe(1);
   });
 });
+
+describe("device.web's actions on a locator's node", () => {
+  const web = (selectOption = vi.fn(async (): Promise<StepResult> => ok('chose'))) => ({selectOption}) as unknown as NonNullable<Driver['web']>;
+
+  it('run on the one node, recorded as a step that says what it did, and the screen is read afresh after', async () => {
+    const controls = web();
+    const {host} = rig(() => [save], {web: controls});
+    const invalidate = vi.fn();
+    const journal = new Journal(host.clock?.now);
+    const located = new Locator({...host, journal, feed: {...host.feed, invalidate}}, query('testId', 'save'));
+    expect(await located.web('choose "Blue" in', (each, target) => each.selectOption(target, 'Blue'))).toBe('done');
+    expect(controls.selectOption).toHaveBeenCalledExactlyOnceWith({ref: '@e2'}, 'Blue');
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(journal.steps.map(step => [step.event, step.what, step.result])).toEqual([['web', 'choose "Blue" in getByTestId("save")', 'ok']]);
+  });
+
+  it('answer skipped off web, and where the driver has no web controls', async () => {
+    const {locate} = rig(() => [save], {web: web()}, 'android');
+    expect(await locate(query('testId', 'save')).web('choose', (each, target) => each.selectOption(target, 'x'))).toBe('skipped');
+    const bare = rig(() => [save]);
+    expect(await bare.locate(query('testId', 'save')).web('choose', (each, target) => each.selectOption(target, 'x'))).toBe('skipped');
+  });
+
+  it("fail with the driver's code and message", async () => {
+    const {locate} = rig(() => [save], {web: web(vi.fn(async () => failed('the select has no option "Mauve"', 'ACTION_FAILED')))});
+    await expect(locate(query('testId', 'save')).web('choose', (each, target) => each.selectOption(target, 'Mauve'), {timeout: 10})).rejects.toEqual(
+      failure('ACTION_FAILED', 'the select has no option "Mauve"'),
+    );
+    const {locate: plain} = rig(() => [save], {web: web(vi.fn(async (): Promise<StepResult> => ({ok: false, message: 'refused'})))});
+    await expect(plain(query('testId', 'save')).web('choose', (each, target) => each.selectOption(target, 'x'))).rejects.toEqual(failure('ACTION_FAILED', 'refused'));
+  });
+});

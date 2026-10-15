@@ -24,7 +24,7 @@ import type {Driver, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
-import type {AppConfig, Capability, DeviceConfig, HarnessCode, HarnessConfig, HostedDevice, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
+import type {AppConfig, Capability, DeviceConfig, DialogAnswer, HarnessCode, HarnessConfig, HostedDevice, Kind, OptionChoice, Queries, Selector, Snapshot, SnapshotNode, WebCookie, WebRoute} from './index.ts';
 import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, requires, screen, skipOn, withComponents, within} from './index.ts';
 import './matchers.ts';
 
@@ -454,6 +454,23 @@ describe('deviceConfig', () => {
   it('takes a device by name, or one a provider hosts, with the flags its connect takes', () => {
     expectTypeOf<HostedDevice>().toEqualTypeOf<{provider: string; options?: Record<string, string | boolean>}>();
     expectTypeOf<AppConfig['device']>().toEqualTypeOf<string | HostedDevice | undefined>();
+  });
+
+  it('reaches the browser on web through device.web, and answers skipped elsewhere', () => {
+    expectTypeOf(device.web.route).toEqualTypeOf<(pattern: string, handler: (route: WebRoute) => unknown) => Promise<(() => Promise<void>) | 'skipped'>>();
+    expectTypeOf(device.web.onDialog).toEqualTypeOf<(answer: DialogAnswer) => Promise<(() => void) | 'skipped'>>();
+    expectTypeOf(device.web.evaluate).toBeFunction();
+    expectTypeOf(device.web.setViewport).toEqualTypeOf<(size: {width: number; height: number}) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.cookies).toEqualTypeOf<() => Promise<WebCookie[] | 'skipped'>>();
+    expectTypeOf(device.web.setCookies).toEqualTypeOf<(cookies: WebCookie[]) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.clearCookies).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.waitForDownload).toEqualTypeOf<(trigger: () => Promise<unknown>, file?: string) => Promise<string | 'skipped'>>();
+    expectTypeOf(device.web.selectOption).toEqualTypeOf<(locator: Locator, option: OptionChoice) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.setInputFiles).toEqualTypeOf<(locator: Locator, files: string | string[]) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.secondaryTap).toEqualTypeOf<(locator: Locator) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.frame).toEqualTypeOf<(selector: string) => Queries | 'skipped'>();
+    expectTypeOf<OptionChoice>().toEqualTypeOf<string | {value: string} | {index: number}>();
+    expectTypeOf<'web'>().toExtend<Capability>();
   });
 
   it('takes a pool of devices, or of browsers on web, and how long a file waits for one', () => {

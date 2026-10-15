@@ -237,8 +237,42 @@ runs one file at a time.
 | `device.close()` | Closes the driver, which the device does by itself when its file ends. A device of a [pool](#pools) goes back then. |
 | `device.react()` | The [React tree](#the-react-tree) behind the native one. |
 | `device.journal` | The record of the current test's steps and the app's console, which [evidence](evidence.md) is written from. |
+| `device.web` | What a browser has and a device does not, [below](#deviceweb). |
 
 The driver is made on first use and kept for the file's tests.
+
+### device.web
+
+The browser's own controls, on every platform. On web each call reaches
+the page or the context the driver holds; anywhere else each answers
+`'skipped'` and opens nothing, so a file shared with a device still runs and
+says what it could not do. `device.can('web')` is the gate a test checks
+before relying on one. Each is a step in the [trace](evidence.md), after
+which the screen is read afresh.
+
+| Call | What it does |
+| --- | --- |
+| `route(pattern, handler)` | Answers the requests a glob matches, as `**/api/**`, until the function it answers is called. The handler has the `request`, and `fulfill({status, json, body, headers})`, `continue()` or `abort()`; one that calls none lets the request through, and one that throws fails it. A restart's new context keeps the route. |
+| `onDialog(answer)` | Answers every dialog the page opens with `'accept'`, `'dismiss'`, or a function of `{type, message}` that says which, until the function it answers is called. [`device.alert`](controls.md) still answers the next one. |
+| `evaluate(fn, arg)`, `evaluate(expression)` | Runs a function in the page with `arg`, or an expression, and answers the value, which must be JSON. A function goes by its source alone, so it can use nothing of the test's but `arg`. |
+| `setViewport({width, height})` | The page's size. |
+| `cookies()`, `setCookies(list)`, `clearCookies()` | The context's cookies. One set needs a `url`, or a `domain` and a `path`. |
+| `waitForDownload(trigger, file?)` | Runs `trigger`, waits for the download it starts, and keeps the file at `file`, from the root, or in `.harness/downloads/` by the name the page gave it. Answers where. |
+| `selectOption(locator, option)` | Chooses an option of a select by its label, `{value}` or `{index}`. |
+| `setInputFiles(locator, files)` | Gives a file input files from the project, which may not be outside it, hidden, or in a hidden folder. |
+| `secondaryTap(locator)` | Presses with the secondary button, as a right click does. |
+| `frame(selector)` | A [screen](locators.md) of the frame a CSS selector names. Its queries read the frame's tree and its locators act in the frame, of any origin; the page's own screen does not reach into it. |
+
+```ts
+const unroute = await device.web.route('**/api/profile', route => route.fulfill({json: {name: 'Ada'}}));
+await device.web.selectOption(screen.getByRole('combobox', {name: 'Colour'}), 'Blue');
+
+const card = device.web.frame('iframe[title="Card"]');
+if (card !== 'skipped') await card.getByRole('textbox', {name: 'Card number'}).fill('4242');
+```
+
+The locator calls wait for their node as a press does. A frame's refs name
+the frame, as `@f1e3`, so a node read through it is acted on there.
 
 ## Waiting for the screen
 

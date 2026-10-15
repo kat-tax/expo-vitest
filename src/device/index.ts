@@ -25,7 +25,7 @@ import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts'
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import {describeControl} from '../harness/lib/controls.ts';
-import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, Driver, DriverOptions, FillOptions, HostedDevice, Orientation, PermissionState, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {AppOptions, ControlRequest, ControlResult, DeviceFacts, DialogAnswer, Driver, DriverOptions, FillOptions, HostedDevice, OptionChoice, Orientation, PermissionState, Platform, PressOptions, StepResult, WebControls, WebCookie, WebRequest, WebRoute} from '../harness/lib/types.ts';
 import {elsewhere, ok} from '../harness/lib/types.ts';
 import type {Capability, Circumstances} from './capabilities.ts';
 import {cannotSentence, capabilitiesOf, knownFacts} from './capabilities.ts';
@@ -38,19 +38,20 @@ import {Journal} from './evidence.ts';
 import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
 import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
 import {Locator} from './locator.ts';
-import type {LocatorState, WaitOptions} from './locator.ts';
+import type {LocatorHost, LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {DEFAULT_POLLING, invalidating, snapshotFeed} from './polling.ts';
 import type {QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
 import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
+import {describeOption, downloadFile, expressionOf, inputFiles} from './web.ts';
 import {modeFrom} from '../harness/platforms/web-browsers.ts';
 import type {VideoMode} from './video.ts';
 import {videoModeOf} from './video.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
-export type {AppConfig, Capability, CommandConfig, HarnessConfig, HostedDevice, Orientation, Permission};
+export type {AppConfig, Capability, CommandConfig, DialogAnswer, HarnessConfig, HostedDevice, OptionChoice, Orientation, Permission, WebCookie, WebRequest, WebRoute};
 export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
@@ -138,9 +139,33 @@ class Device {
   private recordWhenReady = false;
   private videoWarned = false;
 
+  /** The feeds of the frames a test has a screen of, told whenever the device's is. */
+  private readonly frameFeeds = new Set<SnapshotFeed>();
+  /** What web alone has: the browser's own controls. Off web each answers `'skipped'`. */
+  readonly web: WebSide = new WebSide(this);
+
   constructor(resolve: () => DeviceConfig) {
     this.resolve = resolve;
-    this.feed = snapshotFeed(() => this.read({interactive: false}));
+    const own = snapshotFeed(() => this.read({interactive: false}));
+    // A frame's screen reads a tree of its own, which an action changes as much as the page's.
+    this.feed = {
+      next: () => own.next(),
+      invalidate: () => {
+        own.invalidate();
+        for (const each of this.frameFeeds) each.invalidate();
+      },
+    };
+  }
+
+  /** The host of a frame's screen, for `device.web.frame`: its tree read from the frame, its steps the device's. */
+  frameHost(selector: string): LocatorHost {
+    const feed = snapshotFeed(async () => {
+      const web = (await this.ready()).web;
+      if (!web) throw new HarnessError('UNSUPPORTED_CAPABILITY', `${this.platform} has no frames`, {platform: this.platform});
+      return web.frameSnapshot(web.frame(selector));
+    });
+    this.frameFeeds.add(feed);
+    return {platform: this.platform, ready: () => this.ready(), feed, polling: this.polling, journal: this.journal};
   }
 
   /** How the device under test is named, worked out when first asked for, which is after a project's setup file has resolved the run. */
@@ -536,6 +561,124 @@ class Device {
     this.recording = false;
     this.recordWhenReady = false;
     this.feed.invalidate();
+  }
+}
+
+/**
+ * What web alone has, on every platform. Off web each method answers
+ * `'skipped'` and opens nothing, so a test file shared with a device still
+ * runs and says what it could not do; `device.can('web')` is the gate a test
+ * checks before relying on one. Each is a step in the trace, after which the
+ * screen is read afresh.
+ */
+class WebSide {
+  private readonly device: Device;
+
+  constructor(device: Device) {
+    this.device = device;
+  }
+
+  /** The browser's controls, on web; null elsewhere. */
+  private async controls(): Promise<WebControls | null> {
+    if (this.device.platform !== 'web') return null;
+    return (await this.device.ready()).web ?? null;
+  }
+
+  private async step<T>(what: string, work: (web: WebControls) => Promise<T>): Promise<T | 'skipped'> {
+    const web = await this.controls();
+    if (!web) return 'skipped';
+    try {
+      return await this.device.journal.run({event: 'web', what}, () => work(web));
+    } finally {
+      this.device.feed.invalidate();
+    }
+  }
+
+  /**
+   * Answers the page's requests that match `pattern`, a glob such as
+   * `**\/api/**`, until the function it answers is called. A restart's new
+   * context has it too. A handler that answers nothing lets the request
+   * through.
+   */
+  route(pattern: string, handler: (route: WebRoute) => unknown): Promise<(() => Promise<void>) | 'skipped'> {
+    return this.step(`route ${pattern}`, web => web.route(pattern, handler));
+  }
+
+  /** Answers every dialog the page opens, one way or as a function decides, until the function it answers is called. `device.alert` still answers the next one. */
+  onDialog(answer: DialogAnswer): Promise<(() => void) | 'skipped'> {
+    return this.step(`answer dialogs: ${typeof answer === 'function' ? 'as a function decides' : answer}`, async web => web.onDialog(answer));
+  }
+
+  /**
+   * An expression evaluated in the page, or a function called there with
+   * `arg`, and its value, which must be JSON. A function goes by its source,
+   * so it can use nothing of the test's but `arg`.
+   */
+  async evaluate<T, A = undefined>(source: string | ((arg: A) => T | Promise<T>), arg?: A): Promise<T | 'skipped'> {
+    const expression = expressionOf(source as string | ((arg: never) => unknown), arg);
+    return this.step(`evaluate ${typeof source === 'string' ? source.slice(0, 80) : 'a function'}`, web => web.evaluate<T>(expression));
+  }
+
+  setViewport(size: {width: number; height: number}): Promise<'done' | 'skipped'> {
+    return this.step(`set the viewport to ${size.width} by ${size.height}`, async web => {
+      await web.setViewport(size);
+      return 'done' as const;
+    });
+  }
+
+  /** The cookies the page's context holds. */
+  cookies(): Promise<WebCookie[] | 'skipped'> {
+    return this.step('read the cookies', web => web.cookies());
+  }
+
+  /** Sets cookies, each with a `url`, or a `domain` and a `path`. */
+  setCookies(cookies: WebCookie[]): Promise<'done' | 'skipped'> {
+    return this.step(`set ${cookies.length === 1 ? 'a cookie' : `${cookies.length} cookies`}`, async web => {
+      await web.setCookies(cookies);
+      return 'done' as const;
+    });
+  }
+
+  clearCookies(): Promise<'done' | 'skipped'> {
+    return this.step('clear the cookies', async web => {
+      await web.clearCookies();
+      return 'done' as const;
+    });
+  }
+
+  /**
+   * Runs `trigger`, waits for the download it starts, and keeps the file: at
+   * `file`, from the project root, or in `.harness/downloads/` by the name the
+   * page gave it. Answers where.
+   */
+  waitForDownload(trigger: () => Promise<unknown>, file?: string): Promise<string | 'skipped'> {
+    return this.step('wait for a download', web => web.download(trigger, suggested => downloadFile(ROOT, suggested, file)));
+  }
+
+  /** Chooses an option of the select a locator names: by its label, `{value}` or `{index}`. */
+  selectOption(locator: Locator, option: OptionChoice): Promise<'done' | 'skipped'> {
+    return locator.web(`choose ${describeOption(option)} in`, (web, target) => web.selectOption(target, option));
+  }
+
+  /** Gives the file input a locator names files from the project, none of them hidden, as a person choosing them would. */
+  async setInputFiles(locator: Locator, files: string | string[]): Promise<'done' | 'skipped'> {
+    if (this.device.platform !== 'web') return 'skipped';
+    const chosen = inputFiles(ROOT, Array.isArray(files) ? files : [files]);
+    return locator.web(`give ${chosen.length === 1 ? 'a file' : `${chosen.length} files`} to`, (web, target) => web.setInputFiles(target, chosen));
+  }
+
+  /** Presses what a locator names with the secondary button, as a right click does. */
+  secondaryTap(locator: Locator): Promise<'done' | 'skipped'> {
+    return locator.web('press with the secondary button', (web, target) => web.secondaryTap(target));
+  }
+
+  /**
+   * A screen of the frame a CSS selector names: its queries read the frame's
+   * tree, and its locators act in the frame, whichever origin it is from.
+   */
+  frame(selector: string): Queries | 'skipped' {
+    if (this.device.platform !== 'web') return 'skipped';
+    return queriesOn(this.device.frameHost(selector));
   }
 }
 

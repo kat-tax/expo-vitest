@@ -8,8 +8,8 @@
 import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
-import type {Bounds, Point, Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
-import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from '../harness/lib/snapshot.ts';
+import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult, WebControls} from '../harness/lib/types.ts';
 import type {Journal, StepEvent} from './evidence.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {describeReadings, duration, poll} from './polling.ts';
@@ -219,12 +219,36 @@ export class Locator {
     return 'skipped';
   }
 
-  /** A step in the device's journal, where it keeps one: this locator as written, the node it came to, and how the step ended. */
-  private record<T>(event: StepEvent, node: SnapshotNode | undefined, work: () => Promise<T>): Promise<T> {
+  /** A step in the device's journal, where it keeps one: what it did, this locator as written, the node it came to, and how the step ended. */
+  private record<T>(event: StepEvent, node: SnapshotNode | undefined, work: () => Promise<T>, doing?: string): Promise<T> {
     const journal = this.host.journal;
     if (!journal) return work();
     const judged = (value: T) => (value === 'skipped' ? {result: 'skipped' as const, message: 'the platform has no counterpart'} : {result: 'ok' as const, message: ''});
-    return journal.run({event, what: describeQuery(this.query), ...(node ? {resolved: describeCandidate(node)} : {})}, work, judged);
+    const what = doing ? `${doing} ${describeQuery(this.query)}` : describeQuery(this.query);
+    return journal.run({event, what, ...(node ? {resolved: describeCandidate(node)} : {})}, work, judged);
+  }
+
+  /**
+   * One of `device.web`'s actions, on this locator's one node, waited for
+   * as a press waits, and recorded as a step that says `doing`. A test calls
+   * it through `device.web`; off web it answers `'skipped'`.
+   */
+  async web(doing: string, run: (web: WebControls, target: Target) => Promise<StepResult>, options: WaitOptions = {}): Promise<'done' | 'skipped'> {
+    if (this.host.platform !== 'web') return 'skipped';
+    const {node} = await this.one(options.timeout);
+    return this.record(
+      'web',
+      node,
+      async () => {
+        const driver = await this.host.ready();
+        if (!driver.web) return 'skipped' as const;
+        const result = await run(driver.web, {ref: node.ref});
+        if (!result.ok) throw this.error(result.code ?? 'ACTION_FAILED', result.message);
+        this.host.feed.invalidate();
+        return 'done' as const;
+      },
+      doing,
+    );
   }
 
   /** A step through the driver, as the error a test sees when it did not work. */

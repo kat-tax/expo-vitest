@@ -77,6 +77,12 @@ the rest. Each answers `'skipped'` where a platform has no counterpart, and
 `device.lastSkip` says why. A setting stays until it is changed back: put it
 back in `afterEach`.
 
+On web, `device.web` has what a browser has and a device does not:
+`route(pattern, handler)` to answer requests, `onDialog`, `evaluate`,
+`setViewport`, the cookies, `waitForDownload`, `selectOption`,
+`setInputFiles`, `secondaryTap`, and `frame(selector)`, a screen of an
+iframe. Off web each answers `'skipped'`; gate on `device.can('web')`.
+
 ## Gating
 
 ```ts

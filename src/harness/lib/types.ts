@@ -97,6 +97,66 @@ export interface ControlResult extends StepResult {
 }
 
 /** What a driver knows of the app for a fresh launch, from the harness config. */
+/** A request a route of a test's answers, as its handler sees it. */
+export interface WebRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  /** The body, as text, where there is one. */
+  body: string | null;
+}
+
+/** What a route's handler does with a request: answers it, lets it through, or fails it. A handler that does none of them lets it through. */
+export interface WebRoute {
+  readonly request: WebRequest;
+  fulfill(response: {status?: number; json?: unknown; body?: string; headers?: Record<string, string>; contentType?: string}): Promise<void>;
+  continue(): Promise<void>;
+  abort(): Promise<void>;
+}
+
+/** How the page's dialogs are answered: always one way, or as a function decides for each. */
+export type DialogAnswer = 'accept' | 'dismiss' | ((dialog: {type: string; message: string}) => 'accept' | 'dismiss' | Promise<'accept' | 'dismiss'>);
+
+/** A cookie, as a browser context holds it. A cookie set needs a `url`, or a `domain` and a `path`. */
+export interface WebCookie {
+  name: string;
+  value: string;
+  url?: string;
+  domain?: string;
+  path?: string;
+  /** When it ends, in seconds since 1970; -1 for the session. */
+  expires?: number;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'Strict' | 'Lax' | 'None';
+}
+
+/** The option a select is set to: by its label, its value, or its place. */
+export type OptionChoice = string | {value: string} | {index: number};
+
+/** What web alone has: the browser's own controls, which a test reaches through `device.web`. */
+export interface WebControls {
+  /** Answers the requests that match `pattern`, a glob, until the function it answers is called. */
+  route(pattern: string, handler: (route: WebRoute) => unknown): Promise<() => Promise<void>>;
+  /** Answers every dialog the page opens, until the function it answers is called. */
+  onDialog(answer: DialogAnswer): () => void;
+  /** An expression evaluated in the page, and its value, which must be JSON. */
+  evaluate<T>(expression: string): Promise<T>;
+  setViewport(size: {width: number; height: number}): Promise<void>;
+  cookies(): Promise<WebCookie[]>;
+  setCookies(cookies: WebCookie[]): Promise<void>;
+  clearCookies(): Promise<void>;
+  /** Runs `trigger`, waits for the download it starts, and keeps the file where `file` says, given the name the page suggested. */
+  download(trigger: () => Promise<unknown>, file: (suggested: string) => string): Promise<string>;
+  selectOption(target: Target, option: OptionChoice): Promise<StepResult>;
+  setInputFiles(target: Target, files: string[]): Promise<StepResult>;
+  secondaryTap(target: Target): Promise<StepResult>;
+  /** A frame of the page, by a CSS selector for its element: the number its refs carry, as `@f1e3`. */
+  frame(selector: string): number;
+  /** A frame's tree, with refs that name the frame, and boxes where they are on the page. */
+  frameSnapshot(frame: number): Promise<Snapshot>;
+}
+
 /** A device a provider hosts, which agent-device connects to before a run and releases after it. */
 export interface HostedDevice {
   /** agent-device's name for the provider: `limrun`, `browserstack`, `aws-device-farm` or `testmu`. */
@@ -237,6 +297,8 @@ export interface Driver {
   attach?(): Promise<StepResult>;
   /** Clears the claims agent-device holds for owners that are gone, after a run. */
   releaseStale?(): Promise<StepResult>;
+  /** The browser's own controls, on web alone. */
+  readonly web?: WebControls;
   /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
   onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */

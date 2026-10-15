@@ -9,11 +9,11 @@ import type {AppOptions, ControlName, DeviceFacts, Platform} from '../harness/li
 import type {BrowserName} from '../harness/platforms/web-browsers.ts';
 import {noClipboard} from '../harness/platforms/web-browsers.ts';
 
-export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'video' | ControlName;
+export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'video' | 'web' | ControlName;
 
 /** The steps each platform's driver has, whatever the device. */
 export const ACTIONS: Record<Platform, Capability[]> = {
-  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'video'],
+  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'video', 'web'],
   // Windows has no screen recorder without a dependency.
   windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView'],
   android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'video'],
