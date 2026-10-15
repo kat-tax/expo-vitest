@@ -67,7 +67,8 @@ export function toAgentTarget(what: Target): string {
   const selector = asSelector(what);
   if (isPoint(selector)) return `${selector.x} ${selector.y}`;
   if (selector.ref) return selector.ref;
-  if (selector.testId) return `identifier="${selector.testId}"`;
+  // The node field is `identifier`, but the selector key that matches it is `id`.
+  if (selector.testId) return `id="${selector.testId}"`;
   if (selector.label) return `label="${selector.label}"`;
   if (selector.role) return `role="${selector.role}"`;
   if (selector.contains) return `label="${selector.contains}"`;
