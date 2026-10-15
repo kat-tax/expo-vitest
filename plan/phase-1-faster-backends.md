@@ -1,6 +1,6 @@
 # Phase 1. Faster backends
 
-Status: paused for the driver research (items 1, 2, 4 and 8 of 11 done, item 3 dropped, item 5 parked) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
+Status: in progress (items 1, 2, 4 and 8 done, item 3 dropped, item 5 parked; items 12 to 22 added after the driver research) · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
 
 The index is [`README.md`](README.md). Section 5 there is the one-table
 summary of this phase; section 11 holds the agent-device, Playwright and
@@ -97,11 +97,12 @@ below, the build is what holds:
   so `@e3` of `snapshot -i` is not `@e3` of the full tree that a press
   resolves it against. Web numbers every node before it narrows, so its
   refs agree. Not fixed, for the reason below.
-- **The Windows backend waits on a decision.** The owner would rather
-  adopt a maintained driver than keep this one. What maintained drivers
-  were read, what they do with a react-native-windows app, and what to
-  take from them is in [`external-drivers.md`](external-drivers.md).
-  Items 5, 6 and 10, and item 7 on web, wait on the owner's decision.
+- **Our drivers stay, and borrow.** The owner would rather adopt a
+  maintained driver than keep this one, so five were read. What they do
+  with a react-native-windows app, and what to take from them, is in
+  [`external-drivers.md`](external-drivers.md). None could take over our
+  apps. The owner kept our drivers and took the list of features, which
+  items 12 to 22 below carry out.
 
 ## Purpose and the claims it proves
 
@@ -844,6 +845,51 @@ Each is one commit with a message that says what was verified.
     paragraphs; the README feature row for settle and transition;
     `docs/device-tests.md` for the new options and switches;
     `docs/harness.md` for the pattern presses.
+
+### What is left, in order
+
+The driver research ([`external-drivers.md`](external-drivers.md)) changed
+what is left. On 2026-10-15 the owner kept our drivers and took its list of
+features to borrow. Each item is one commit, as before, and items 6 and 11
+stand as they were.
+
+12. **The idle guard inside the Windows driver.**
+    - The check moves from the command into the driver, ahead of every
+      synthetic press, fill, type and key, so a device test is held to it
+      as the command is.
+    - `force` is a driver option. The command passes `--force`, and a
+      device test sets `HARNESS_FORCE`, brought forward from Phase 3.
+    - Windows counts the harness's own input as use, which would refuse a
+      test's second press. So the driver remembers when it sent input, and
+      an idle time that ends inside that input is not counted as a
+      person's.
+    - `bench` drops its own check.
+13. **Windows refs numbered before narrowing**, in the host and in the
+    scripts, so a ref from an interactive snapshot names the same node in a
+    full one.
+14. **Window screenshots through `PrintWindow`**, falling back to the
+    screen. A covered window is then captured as itself, and is still not
+    raised.
+15. **Whether an action was seen to work:** an optional field on
+    `StepResult`.
+16. **A press's expectation**, and a diff of the tree before and after
+    when none is named.
+17. **Item 5 on items 15 and 16.** A pattern press is kept only when its
+    effect shows, and falls back to the pointer otherwise.
+18. **Before a pointer click:**
+    - a hit test;
+    - a check that the app's window is the one in front;
+    - the focus and the caret put back after.
+19. **Item 10 as one experiment:** the cached read through the COM client,
+    which may not have the managed reader's exception.
+20. **Item 7 on web, with three additions:**
+    - durable refs;
+    - role-less Pressables found by `tabindex` or a pointer cursor;
+    - errors that name what covered a press.
+21. **Item 9 with a wait that passes only after a number of matching
+    reads** in a row.
+22. **The React tree over Metro's CDP,** designed on its own first, since
+    it reaches every platform that runs Hermes.
 
 ## Verification
 

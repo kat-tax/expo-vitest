@@ -1,6 +1,6 @@
 # Drivers to adopt, or to take from
 
-Status: read on 2026-10-15, nothing installed or run · Decision: the owner's
+Status: read on 2026-10-15, nothing installed or run · Decision: the owner took the recommendation on 2026-10-15; Phase 1's items 12 to 22 carry it out
 
 The owner would rather not maintain our own Windows driver, and asked
 whether maintained projects could replace our drivers or lend them
@@ -300,7 +300,10 @@ In order of value:
    from their text, for react-native-web's role-less Pressables. Errors
    that name what covered a press and the names that were seen.
 9. **On Android:** adb's server protocol over its socket instead of a
-   process per call, and the status bar pinned before a screenshot.
+   process per call, and the status bar pinned before a screenshot. The
+   harness runs no adb of its own, so this is agent-device's to take, and
+   its screenshot already pins the status bar with
+   `--normalize-status-bar`.
 10. **One experiment for our host:** read the cache through the COM client
     (`IUIAutomation`) instead of the managed one. Terminator and Cua's
     driver read a cached subtree that way, and it may not have the
@@ -328,9 +331,9 @@ In order of value:
   no longer worked on.
 - **Web: keep ours.** Take points 3 and 8 into item 7, and point 2 where
   it applies.
-- **Mobile: keep agent-device.** Take point 4 as a feature of its own,
-  and point 9. Try argent as a second backend once its Windows console
-  windows are fixed.
+- **Mobile: keep agent-device.** Take point 4 as a feature of its own.
+  Try argent as a second backend once its Windows console windows are
+  fixed.
 - **Everywhere:** point 7 goes into item 9's settle.
 
 ## What a live trial would need
