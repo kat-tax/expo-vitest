@@ -69,7 +69,8 @@ node scripts/fixture.js --update-lockfile
 ## Writing a test here
 
 - `vi.*` only; jest compatibility is off.
-- `src/device/contract.test.ts` is the public surface. A change that fails it
+- `src/device/contract.test.ts` is the public surface, and
+  `src/agent/contract.test.ts` the agent's. A change that fails one
   breaks a consumer; edit it only on purpose, in the commit that makes the
   change.
 - A test that asserts on a config asserts on what a consumer would see: the
