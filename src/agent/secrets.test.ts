@@ -68,6 +68,11 @@ describe("the run's secrets", () => {
     ]);
   });
 
+  it("name every secret with a value to be had, a function's among them before it is called, and none without one", () => {
+    const store = new SecretStore({ZED_TOKEN: () => 'zed-token-value', ADA_PASSWORD: 'correct-horse', UNSET: undefined}, env({HARNESS_SECRET_API_TOKEN: 'tok_123456'}));
+    expect(store.names()).toEqual(['ADA_PASSWORD', 'API_TOKEN', 'ZED_TOKEN']);
+  });
+
   it('call a function once, when its value is first needed, and hide what it answered', async () => {
     const fetchToken = vi.fn(async () => 'fetched-token');
     const store = new SecretStore({TOKEN: fetchToken, UNSET: undefined}, env());

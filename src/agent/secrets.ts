@@ -82,6 +82,12 @@ export class SecretStore {
     return value;
   }
 
+  /** The name of every secret with a value to be had, in order: from the environment, the config, or a function of the config's. */
+  names(): string[] {
+    const sourced = Object.entries(this.configured).filter(([, value]) => typeof value === 'function').map(([name]) => name);
+    return [...new Set([...this.resolved.keys(), ...sourced])].sort();
+  }
+
   /** Every value the redactor must hide, by the secret it belongs to. */
   known(): readonly {name: string; value: string}[] {
     return [...this.resolved].map(([name, value]) => ({name, value}));
