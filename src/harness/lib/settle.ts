@@ -91,7 +91,8 @@ export interface Clock {
   sleep(ms: number): Promise<void>;
 }
 
-const realClock: Clock = {now: () => Date.now(), sleep: ms => new Promise(resolve => setTimeout(resolve, ms))};
+/** The time as it passes, which a test swaps for one it moves itself. */
+export const realClock: Clock = {now: () => Date.now(), sleep: ms => new Promise(resolve => setTimeout(resolve, ms))};
 
 /** Reads until `samples` reads in a row agree, `settle` ms apart, or `settleTimeout` passes. */
 export async function settled(read: () => Promise<Snapshot>, timing: Timing, clock: Clock = realClock): Promise<{settled: boolean; last: Snapshot}> {
