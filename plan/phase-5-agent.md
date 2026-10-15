@@ -1,6 +1,6 @@
 # Phase 5. The agent
 
-Status: not started · Size: L · Depends on: Phase 2, Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs a live model, which is billed and runs by hand: the smoke on web, Android and Windows, and the cache share it shows. The agent ran on web in the fixture and on the Android emulator with models of rules, and has not run on Windows or iOS · Size: L · Depends on: Phase 2, Phase 3 · Unblocks: Phase 6
 
 `expo-vitest/agent` is a subpath a test imports. A model is required only
 then. The four calls, their options and their budgets match e2e's, so a test
@@ -9,6 +9,86 @@ the model is an interface, the tree is what the model reads, the same rules
 hold on Windows, and nothing leaves the machine except to the model and the
 app. The shared facts this document builds on are in
 [`README.md`](README.md#11-shared-facts-the-phases-build-on), section 11.
+
+## As built
+
+On the `e2e` branch, after Phase 4, one commit an item or more. Where the
+build differs from the design below, the build is what holds.
+
+- **Items 1 to 8: the logic.** `types.ts`, `secrets.ts`, `redact.ts`,
+  `view.ts`, `policy.ts`, `tools.ts`, `cost.ts` and `cache.ts`, each
+  under the gate as it landed. `jsonSchemaOf` takes a function carrying a
+  Standard Schema, as ArkType's types are. `findTarget` finds a control by
+  its test id alone only where one node has it: on Android a list's rows
+  share `android:id/title`, which the replay on the emulator found, so a
+  shared id is narrowed by the kind and name, and a vanished one falls back
+  to them.
+- **Item 9: the judgments.** `judge.ts`, with `step.ts` beside it for what
+  the act loop shares: a step's signal, whose abort reason is the step's own
+  `STEP_TIMEOUT` or `CANCELLED`, the model call and the assistant turn.
+  `extract` asks inside an envelope that says whether the screen shows the
+  value, so a value it does not show is `ASSERTION_INCONCLUSIVE`; a
+  Standard Schema that cannot express itself, as Zod's transforms throw, is
+  asked for as JSON in text. `waitFor` looks an interval after each look
+  began.
+- **Item 10: the loop.** `loop.ts`, over a step context (`context.ts`)
+  every executor shares, and the hands (`hands.ts`), which every action,
+  the model's and the replay's, goes through. The two-image window is not
+  built: dropping an image from a turn already sent is an edit of the
+  history, which the thinking blocks of these models refuse with a 400, so
+  every image stays and later turns read it from the provider's cache. A
+  step's refs are its own (`RefBook` in `view.ts`): a node keeps the ref
+  it was first shown with, by its identity, since iOS and Android number
+  refs afresh and a diff names only what changed. The replay finds its
+  controls through the hands and the cache's `findTarget`, not through a
+  `Locator`. A pass called beside other calls in its turn is refused until
+  the model has seen what they did. Every message that leaves for the model
+  is redacted once, as it is first sent, so the history stays byte for byte
+  the same.
+- **Item 11: the executors.** As designed. `prepareMessages` transforms
+  what is sent, and cannot end the loop.
+- **Item 12: the adapter.** As designed, and: an SDK error is told apart by
+  its HTTP status, as the SDK's classes are; the system-role and the
+  fallback retries are remembered per model for the run; `strict` is sent
+  for a strict tool alone, and a strict schema and the extract format are
+  closed all the way down and stripped of the constraints structured
+  outputs do not take. `anthropic()` makes the judge too, a model whose
+  judgments run at low effort. No live call was made.
+- **Item 13: `resizeImage`**, a box filter, in `image.ts` with the rest of
+  the pure pixel geometry, under the gate, in place of `resizePng` in
+  `png.ts`.
+- **Item 14: the runtime and the public module.** `runtime.ts` holds all of
+  it over a host, under the gate, and `index.ts` binds it to the device.
+  `agents`, `secrets` and `cache` are checked when the file loads (the
+  agent's `config.ts`), and the setup file keeps its load for the agent;
+  `tools` at the root is an unknown key. The config's hash names an
+  instance of a class rather than walking it, since a client or a Zod
+  schema can hold a key, or itself. The journal gained `note()`, for an act
+  recorded around the steps it took, the agent's notes for the trace's Agent
+  section, and a privacy hook, through which the evidence redacts its trace
+  and its tree and keeps no picture or recording after a secret was filled:
+  the design redacted the trace but not the tree, and said nothing of the
+  evidence's own pictures. An assert's picture rides on the journal's note
+  and the evidence writes it, since a test's folder is replaced when its
+  evidence is written. The AI trace is `.harness/ai-trace.jsonl`, a JSON
+  line a call, appended so the workers of a run share it without a lock.
+- **Item 15: the subpaths**, the optional peer, and a contract test of the
+  agent's own, `src/agent/contract.test.ts`.
+- **Item 16: `expo-harness cache`.** As designed; the fixture runs the
+  packed command.
+- **Item 17: the fixture.** A model of rules in its harness config signs in
+  on a page with a password and a generic secret, asserts, waits and reads;
+  a second run replays the sign-in with the model refusing to act; the grep
+  finds neither value under `.harness/`; and the tree of a test that typed
+  the generic secret into a field that shows it hides it. The live smoke is
+  `fixture/device/agent.smoke.test.ts`, written and not run.
+- **Item 18: the docs.** `agent.md`, and the configuration, evidence,
+  harness and migrating pages, and the README's rows.
+
+Run by hand on the Android emulator, with a model of rules that taps a node
+by its name: an act on Settings, an assert on the screen it led to, and a
+second run that replayed the act with no model call. Not run: Windows, where
+the agent would press controls in the apps on this machine's desk, and iOS.
 
 ## Purpose and the claims it proves
 

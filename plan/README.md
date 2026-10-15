@@ -356,7 +356,7 @@ phase cannot drift from them without amending this list.
 | Phase 2 | the evidence journal with `verified` events and `onStep`; an `expo-vitest:evidence` artifact carrying the trace and screenshot, and their paths on `meta.evidence`; `assertionTimeout` and `stable` reaching the worker through the environment (`HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE`); the setup file staying `src/device/matchers.ts` | Phase 4's reporter reads the artifact; Phase 5's cache records an `act` only after a `verified` event names it |
 | Phase 3 | `harness.config.ts` with `actionTimeout` and the reserved `agents`, `tools`, `secrets`, `cache` keys; `device.can` over one capability table that includes the step verbs; `app.<platform>.device` as a name, a list or a hosted provider object; `globalSetup` providing the run id | Phase 4's pools, hosted devices and video; Phase 5's tool list; Phase 6's catalog |
 | Phase 4 | `src/cli/init.ts`, `src/cli/guide.ts`, `src/cli/detect.ts`, `src/cli/templates.ts`; the skill under `skills/expo-vitest/` in the package and `.claude/skills/expo-vitest/` in a project; `device.web` | Phase 6's `.mcp.json` entry and skill topics |
-| Phase 5 | the replay resolver that finds a recorded control by `kind`, name, test id and parent; the agent loop with a step kind; `resizePng` | Phase 6's MCP node ids, `explore` and `bug-bash` |
+| Phase 5 | the replay resolver that finds a recorded control by `kind`, name, test id and parent (`findTarget`); the hands every action goes through, with a step's refs (`RefBook`); the step context every executor shares; `resizeImage` | Phase 6's MCP node ids, `explore` and `bug-bash` |
 
 ## Appendix: e2e references used
 
