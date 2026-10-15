@@ -581,7 +581,16 @@ describe('the types a consumer compiled against', () => {
       transition?: number;
       assertionTimeout?: number;
       stable?: number;
+      app?: {bundleId?: string; appPath?: string; launchArguments?: string[]; permissions?: Record<string, 'grant' | 'deny' | 'reset'>; stateDir?: string};
     }>();
+    expectTypeOf(device.restart).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.clearState).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.back).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.home).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.installApp).toEqualTypeOf<(path?: string, options?: {reinstall?: boolean}) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.openLink).toEqualTypeOf<(url: string) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.foregroundApp).toEqualTypeOf<() => Promise<string | null>>();
+    expectTypeOf(device.lastSkip).toEqualTypeOf<string | null>();
 
     expectTypeOf<Parameters<Assertion['toHaveElement']>>().toEqualTypeOf<[selector: Selector]>();
     expectTypeOf<Parameters<Assertion['toBeFullyLabelled']>>().toEqualTypeOf<[]>();

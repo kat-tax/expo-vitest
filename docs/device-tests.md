@@ -23,6 +23,7 @@ The app under test needs no SDK and no rebuild. Nothing is installed in it.
 | --- | --- |
 | [Locators](locators.md) | `screen` and `within`: React Native Testing Library's queries over the running app, the locator they give, its actions on each platform, and `element` with `by`. |
 | [Matchers](matchers.md) | The matchers that wait for the tree, and the four that take a snapshot or the device. |
+| [Controls](controls.md) | The app's life: restart, clear its state, back, home, install a build, open a link, and the app in front. |
 | [Evidence](evidence.md) | The screenshot, tree and trace a failing test leaves. |
 | [The harness](harness.md) | The same drivers as a command, for looking at a screen by hand. |
 

@@ -2,26 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {
-  clientEntry,
-  clientTarget,
-  cliScript,
-  codeFor,
-  describeDevice,
-  describeFailure,
-  nodesFrom,
-  openTarget,
-  packageFolders,
-  parseFailure,
-  parsePayload,
-  settleArgs,
-  settleRequest,
-  targetArgs,
-  toAgentTarget,
-  toSnapshotNode,
-  toSnapshotNodes,
-  waitFrom,
-} from './agent-device-mapping.ts';
+import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -317,5 +298,40 @@ describe('real snapshots', () => {
     const nodes = fixture('android-display.json');
     expect(nodes.find(node => node.role === 'android.widget.Switch')).toMatchObject({name: 'Dark theme', checked: false});
     expect(nodes.filter(node => 'selected' in node)).toEqual([]);
+  });
+});
+
+describe("the app's life through agent-device", () => {
+  it('opens an app relaunched, with each launch argument, on the command line', () => {
+    expect(launchArgs('com.example.app', true, ['--initialUrl', 'http://localhost:8081'])).toEqual(['open', 'com.example.app', '--relaunch', '--launch-args', '--initialUrl', '--launch-args', 'http://localhost:8081']);
+    expect(launchArgs('com.example.app', false, [])).toEqual(['open', 'com.example.app']);
+  });
+
+  it('installs a build, naming the app where it has one, and needs it to reinstall', () => {
+    expect(installArgs(undefined, '/builds/app.apk', false)).toEqual(['install', '/builds/app.apk']);
+    expect(installArgs('com.example.app', '/builds/app.apk', false)).toEqual(['install', 'com.example.app', '/builds/app.apk']);
+    expect(installArgs('com.example.app', '/builds/app.apk', true)).toEqual(['reinstall', 'com.example.app', '/builds/app.apk']);
+    expect(installArgs(undefined, '/builds/app.apk', true)).toEqual(['reinstall', '', '/builds/app.apk']);
+  });
+
+  it("spells a permission and an app's state cleared for the command line and the client", () => {
+    const permission = {setting: 'permission', state: 'grant', permission: 'camera', app: 'com.example.app'} as const;
+    expect(settingArgs(permission)).toEqual(['settings', 'permission', 'grant', 'camera', '--app', 'com.example.app']);
+    expect(settingRequest(permission)).toEqual({setting: 'permission', state: 'grant', permission: 'camera', app: 'com.example.app'});
+    expect(settingArgs({setting: 'clear-app-state', app: 'com.example.app'})).toEqual(['settings', 'clear-app-state', 'com.example.app']);
+    expect(settingRequest({setting: 'clear-app-state', app: 'com.example.app'})).toEqual({setting: 'clear-app-state', state: 'clear', app: 'com.example.app'});
+  });
+
+  it('reads the app in front from what the command line and the client answer', () => {
+    expect(foregroundOf({success: true, data: {platform: 'android', package: 'com.android.settings', activity: 'com.android.settings.SubSettings'}})).toEqual({
+      app: 'com.android.settings',
+      said: 'com.android.settings, on com.android.settings.SubSettings',
+    });
+    expect(foregroundOf({platform: 'ios', appName: 'Example', appBundleId: 'com.example.app', source: 'runner'})).toEqual({app: 'com.example.app', said: 'com.example.app'});
+    expect(foregroundOf({platform: 'ios', appName: 'Example', source: 'session'})).toEqual({app: 'Example', said: 'Example'});
+    expect(foregroundOf({platform: 'android', package: ''})).toBeNull();
+    expect(foregroundOf({data: null})).toBeNull();
+    expect(foregroundOf('nothing')).toBeNull();
+    expect(foregroundOf(null)).toBeNull();
   });
 });

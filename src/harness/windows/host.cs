@@ -118,6 +118,7 @@ public static class HarnessHost {
       case "keys": return Keys(Text(request, "process"), Text(request, "keys"));
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
       case "idle": return Idle();
+      case "foreground": return Json(ProcessName(ForegroundProcess()));
       case "raise": return Raise(Text(request, "process"));
       case "invoke": return Act(Text(request, "ref"), "Invoke");
       case "toggle": return Act(Text(request, "ref"), "Toggle");
@@ -542,6 +543,13 @@ public static class HarnessHost {
   /** A process by its name, which says whose window was in the way without reading anything it shows. */
   static string ProcessName(uint pid) {
     try { return Process.GetProcessById((int)pid).ProcessName; } catch { return "another process"; }
+  }
+
+  // The process whose window is in front, which keys and a raise go by.
+  static uint ForegroundProcess() {
+    uint owner;
+    GetWindowThreadProcessId(GetForegroundWindow(), out owner);
+    return owner;
   }
 
   static object[] Pair(object point) {

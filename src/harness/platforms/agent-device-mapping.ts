@@ -324,3 +324,40 @@ export function cliScript(manifest: Manifest): string | null {
   if (typeof manifest.bin === 'string') return manifest.bin;
   return manifest.bin?.['agent-device'] ?? null;
 }
+
+/** Opening an app by its id on the command line: relaunched where asked, with each argument a fresh launch is given. */
+export function launchArgs(app: string, relaunch: boolean, launchArguments: string[]): string[] {
+  return ['open', app, ...(relaunch ? ['--relaunch'] : []), ...launchArguments.flatMap(argument => ['--launch-args', argument])];
+}
+
+/** Installing a build on the command line: in place of the installed app where asked, which needs its id. */
+export function installArgs(app: string | undefined, appPath: string, reinstall: boolean): string[] {
+  return reinstall ? ['reinstall', app ?? '', appPath] : ['install', ...(app ? [app] : []), appPath];
+}
+
+/** An operating-system setting the harness changes through agent-device. */
+export type SettingUpdate = {setting: 'permission'; state: 'grant' | 'deny' | 'reset'; permission: string; app: string} | {setting: 'clear-app-state'; app: string};
+
+/** A setting as the command line spells it. */
+export function settingArgs(update: SettingUpdate): string[] {
+  if (update.setting === 'clear-app-state') return ['settings', 'clear-app-state', update.app];
+  return ['settings', 'permission', update.state, update.permission, '--app', update.app];
+}
+
+/** A setting as the Node client takes it. */
+export function settingRequest(update: SettingUpdate): Record<string, unknown> {
+  if (update.setting === 'clear-app-state') return {setting: 'clear-app-state', state: 'clear', app: update.app};
+  return {setting: 'permission', state: update.state, permission: update.permission, app: update.app};
+}
+
+/** The app in front, from agent-device's `appstate`: the package on Android, the bundle id or else the name on iOS, and in a phrase. */
+export function foregroundOf(payload: unknown): {app: string; said: string} | null {
+  const answer = payload && typeof payload === 'object' && 'data' in payload ? (payload as {data: unknown}).data : payload;
+  if (!answer || typeof answer !== 'object') return null;
+  const state = answer as Record<string, unknown>;
+  const text = (key: string) => (typeof state[key] === 'string' && state[key] ? (state[key] as string) : undefined);
+  const app = text('package') ?? text('appBundleId') ?? text('appName');
+  if (!app) return null;
+  const activity = text('activity');
+  return {app, said: activity ? `${app}, on ${activity}` : app};
+}

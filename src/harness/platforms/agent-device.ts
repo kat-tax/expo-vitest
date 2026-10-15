@@ -3,11 +3,12 @@ import {HarnessError, codeOf} from '../lib/errors.ts';
 import {prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import {describeControl, needsApp} from '../lib/controls.ts';
+import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -151,6 +152,49 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     async screenshot(file: string): Promise<StepResult> {
       const out = prepare(file);
       return step(`saved ${path.relative(options.root, out)}`, 'screenshot failed', current => current.screenshot(out));
+    },
+
+    async control(request: ControlRequest): Promise<ControlResult> {
+      const app = options.app ?? {};
+      try {
+        const current = await transport();
+        switch (request.name) {
+          case 'restart':
+          case 'clearState': {
+            if (!app.bundleId) return failed(needsApp(request.name, platform, 'bundleId'), 'INVALID_ARGUMENT');
+            // Cleared first, since clearing an app's state takes its permissions too, then set before it starts, so no prompt asks.
+            if (request.name === 'clearState') await current.setting({setting: 'clear-app-state', app: app.bundleId});
+            const permissions = Object.entries(app.permissions ?? {});
+            for (const [permission, state] of permissions) await current.setting({setting: 'permission', state, permission, app: app.bundleId});
+            const launchArguments = app.launchArguments ?? [];
+            await current.launch(app.bundleId, true, launchArguments);
+            const given = [launchArguments.length ? `${launchArguments.length} launch arguments` : '', permissions.length ? `${permissions.length} permissions set` : ''].filter(Boolean);
+            return ok(`${request.name === 'clearState' ? 'cleared and restarted' : 'restarted'} ${app.bundleId}${given.length ? `, with ${given.join(' and ')}` : ''}`);
+          }
+          case 'back':
+            await current.back();
+            return ok('went back');
+          case 'home':
+            await current.home();
+            return ok('went to the home screen');
+          case 'installApp': {
+            const appPath = request.path ? path.resolve(options.root, request.path) : app.appPath;
+            if (!appPath) return failed(needsApp('installApp', platform, 'appPath'), 'INVALID_ARGUMENT');
+            if (request.reinstall && !app.bundleId) return failed(needsApp('installApp', platform, 'bundleId'), 'INVALID_ARGUMENT');
+            await current.install(app.bundleId, appPath, Boolean(request.reinstall));
+            return ok(`${request.reinstall ? 'reinstalled' : 'installed'} ${path.relative(options.root, appPath)}`);
+          }
+          case 'openLink':
+            await current.open({url: request.url});
+            return ok(`opened ${request.url}`);
+          case 'foregroundApp': {
+            const front = foregroundOf(await current.appState());
+            return front ? {...ok(`${front.said} is in front`), value: front.app} : failed('agent-device did not say which app is in front');
+          }
+        }
+      } catch (error) {
+        return failed(`${describeControl(request)} failed: ${(error as Error).message}`, codeOf(error));
+      }
     },
 
     async idleSeconds(): Promise<number | null> {

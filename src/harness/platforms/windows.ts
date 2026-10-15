@@ -11,7 +11,8 @@ import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/controls.ts';
+import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {elsewhere, failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
@@ -88,6 +89,8 @@ interface Backend {
   focus(ref: string): Promise<PatternAnswer | null>;
   /** Text set through a field's Value pattern, with what it reads back after; null as for `act`. */
   setValue(ref: string, text: string): Promise<PatternAnswer | null>;
+  /** The name of the process whose window is in front; null where the means cannot tell. */
+  foreground(): Promise<string | null>;
   close(): Promise<void>;
 }
 
@@ -131,6 +134,7 @@ function hostBackend(processName: string): Backend {
     setValue: (ref, text) => host.request<PatternAnswer>('setValue', {ref, text}).catch(() => null),
     // A control that cannot take the focus throws, and says so.
     focus: ref => host.request<PatternAnswer>('focus', {ref}),
+    foreground: () => host.request<string>('foreground'),
     close: () => host.close(),
   };
 }
@@ -177,9 +181,10 @@ function scriptBackend(processName: string): Backend {
     act: async () => null,
     setValue: async () => null,
     focus: async () => null,
-    // Nor does input.ps1 hold a press or move the pointer alone.
+    // Nor does input.ps1 hold a press or move the pointer alone, or any script read which window is in front.
     hold: async () => null,
     move: async () => null,
+    foreground: async () => null,
     async close() {},
   };
 }
@@ -289,6 +294,52 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     }
   }
 
+  /** Whether the app shows a window within `timeout` ms, as after it was started. */
+  async function windowWithin(timeout: number): Promise<boolean> {
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      if (await backend.hasWindow().catch(() => false)) return true;
+      if (Date.now() >= deadline) return false;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+
+  /** The exe started with these arguments, as a launch or as a link handed to the window already open. */
+  function startExe(args: string[]): void {
+    const child = spawn(exe, args, {cwd: path.dirname(exe), detached: true, stdio: 'ignore'});
+    // What a failed start would say is said by the window that does not come.
+    child.on('error', () => {});
+    child.unref();
+  }
+
+  /** Ends the app and everything it started, and waits for its window to go. */
+  async function stopApp(): Promise<void> {
+    run('taskkill', ['/IM', `${processName}.exe`, '/T', '/F']);
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline && (await backend.hasWindow().catch(() => false))) await new Promise(resolve => setTimeout(resolve, 250));
+  }
+
+  /**
+   * Opens a route or a link. With the app running it is a second launch with
+   * the link as its argument, which the app's single-instance check hands to
+   * the window already open, as React Native's `url` event. With the app not
+   * running it is a fresh launch: the link, then the launch arguments, and
+   * the step waits for the window.
+   */
+  async function openRoute(to: string): Promise<StepResult> {
+    const url = /^[a-z]+:/i.test(to) ? to : `${options.scheme ?? processName.toLowerCase()}://${to.replace(/^\//, '')}`;
+    if (!exe) return failed(`cannot open ${url}: no exe to launch (pass --target <exe>)`, 'APP_UNREACHABLE');
+    if (!fs.existsSync(exe)) return failed(`cannot open ${url}: there is no ${path.relative(options.root, exe)} to start`, 'APP_UNREACHABLE');
+    if (await backend.hasWindow().catch(() => false)) {
+      startExe([url]);
+      return ok(`sent ${url} to ${processName}`);
+    }
+    const launchArguments = options.app?.launchArguments ?? [];
+    startExe([url, ...launchArguments]);
+    if (!(await windowWithin(60_000))) return failed(`${processName} showed no window within 60 s of being started with ${url}`, 'APP_UNREACHABLE');
+    return ok(`started ${processName} with ${url}${launchArguments.length ? `, and ${launchArguments.length} launch arguments` : ''}`);
+  }
+
   async function keys(sent: string): Promise<string | Error> {
     try {
       return await sending(() => backend.keys(sent));
@@ -311,19 +362,53 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
       }
       if (!running) {
         const where = exe ? path.relative(options.root, exe) : processName;
+        // An exe the first open or restart can start is an app this machine can drive; a process name alone is not.
+        if (exe && fs.existsSync(exe)) return {ready: true, found: `${where}, not running yet: the first open or restart starts it, driven through ${backend.description}`};
         return {ready: false, found: where, reason: `${processName} is not running${exe ? `; start ${where}` : ''}`};
       }
       return {ready: true, found: `${processName} is running, driven through ${backend.description}`};
     },
 
-    async open(to: string): Promise<StepResult> {
-      // A second launch with the link as its argument: the app's single-instance
-      // check redirects it to the window already open, as React Native's `url` event.
-      const url = /^[a-z]+:/i.test(to) ? to : `${options.scheme ?? processName.toLowerCase()}://${to.replace(/^\//, '')}`;
-      if (!exe) return failed(`cannot open ${url}: no exe to launch (pass --target <exe>)`, 'APP_UNREACHABLE');
-      const child = spawn(exe, [url], {cwd: path.dirname(exe), detached: true, stdio: 'ignore'});
-      child.unref();
-      return ok(`sent ${url} to ${processName}`);
+    open: openRoute,
+
+    async control(request: ControlRequest): Promise<ControlResult> {
+      const lacks = lacking(request, 'windows');
+      if (lacks) return lacks;
+      const app = options.app ?? {};
+      try {
+        switch (request.name) {
+          case 'restart':
+          case 'clearState': {
+            if (!exe) return failed(needsApp(request.name, 'windows', 'target'), 'INVALID_ARGUMENT');
+            if (request.name === 'clearState' && !app.stateDir) return cannot(request, 'windows', CANNOT.windowsState);
+            await stopApp();
+            if (app.stateDir && request.name === 'clearState') fs.rmSync(app.stateDir, {recursive: true, force: true});
+            const started = await openRoute('/');
+            if (!started.ok) return started;
+            return ok(`${request.name === 'clearState' ? `deleted ${path.relative(options.root, app.stateDir as string)}, then ` : ''}${started.message}`);
+          }
+          case 'installApp': {
+            const package_ = request.path ? path.resolve(options.root, request.path) : app.appPath;
+            if (!package_) return failed(needsApp('installApp', 'windows', 'appPath'), 'INVALID_ARGUMENT');
+            const lower = package_.toLowerCase();
+            if (!lower.endsWith('.msix') && !lower.endsWith('.msixbundle')) return cannot(request, 'windows', CANNOT.windowsInstall);
+            const quoted = `'${package_.replaceAll("'", "''")}'`;
+            const ran = run('powershell', ['-NoProfile', '-NonInteractive', '-Command', `Add-AppxPackage -Path ${quoted}${request.reinstall ? ' -ForceApplicationShutdown -ForceUpdateFromAnyVersion' : ''}`]);
+            return ran.ok ? ok(`installed ${path.relative(options.root, package_)}`) : failed(`could not install ${package_}: ${firstLine(ran.stderr) || firstLine(ran.stdout)}`);
+          }
+          case 'openLink':
+            return await openRoute(request.url);
+          case 'foregroundApp': {
+            const name = await backend.foreground();
+            if (!name) return cannot(request, 'windows', 'a PowerShell script per step cannot tell which window is in front; the host can');
+            return {...ok(`${name} is in front`), value: name};
+          }
+          default:
+            return failed(`${request.name} is not a control the windows harness knows`, 'INVALID_ARGUMENT');
+        }
+      } catch (error) {
+        return failed(`${describeControl(request)} failed: ${(error as Error).message}`, codeOf(error));
+      }
     },
 
     snapshot,

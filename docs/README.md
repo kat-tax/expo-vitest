@@ -25,6 +25,7 @@ with one project per platform. New here? Start with
 | [Device tests](device-tests.md) | Drive a running app from Vitest: setup, running, `device`, waiting for the screen, the tree, errors. |
 | [Locators](locators.md) | `screen` and `within`: RNTL's queries over the running app, the locator they give, how it waits. |
 | [Matchers](matchers.md) | The eighteen matchers on a locator, which wait for the tree, what a failure says, and the four on a snapshot or the device, screenshots among them. |
+| [Controls](controls.md) | The app's life from a test: restart, clear its state, back, home, install, open a link, the app in front, on each platform. |
 | [Evidence](evidence.md) | The screenshot, tree and trace a failing device test leaves, and `HARNESS_TRACE`. |
 | [The harness](harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do, timing a platform. |
 | [Performance](performance.md) | What each driver costs on a real app on web, Windows and Android, and how that was measured. |
@@ -44,7 +45,7 @@ with one project per platform. New here? Start with
 | `expo-vitest/native` | `nodes`, `host`, `modifier`, `byComposeTestID`, `stackHeaders` |
 | `expo-vitest/windows` | `island`, `islands`, `fireIsland` |
 | `expo-vitest/router` | `renderApp` |
-| `expo-vitest/device` | `device`, `element`, `by`, `screen`, `within`, `Locator`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
+| `expo-vitest/device` | `device`, `element`, `by`, `screen`, `within`, `Locator`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `defineHarness`, `HarnessError`, `isHarnessError` |
 | `expo-vitest/device/matchers` | A setup file that registers the device matchers. |
 | `expo-vitest/metro-compat` | `metroCompat`, `EXPO_WEB_PACKAGES` |
 | `expo-vitest/types` | Types for `tsconfig.json`: the jest-dom matchers on `expect`. |

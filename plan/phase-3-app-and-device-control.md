@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 5 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: in progress (items 1 to 6 done, and the start of 12 and 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -119,6 +119,48 @@ below, the build is what holds.
     - web on the file's url and timeout, served by the file's command;
     - iOS skipped with "Apple tools are only available on macOS";
     - under `HARNESS_REQUIRE=1`, iOS failed with `DRIVER_UNAVAILABLE`.
+- **Item 6: the app's life.**
+  - **One driver member,** `control(request)`, for the lifecycle now and
+    the device controls next, rather than a member per verb. A request is a
+    tagged object. What the drivers say about a control is in
+    `src/harness/lib/controls.ts`: the design's `src/device/controls.ts`,
+    moved under the harness, since the drivers are its code.
+  - `device.restart`, `clearState`, `back`, `home`, `installApp` and
+    `openLink` answer `'done'` or `'skipped'`, `foregroundApp` a string or
+    null, and `device.lastSkip` holds the reason. Each is a `control` step
+    in the journal, and the timing wrapper waits after the ones that change
+    the screen.
+  - **agent-device** 0.21.27 has `--launch-args`, repeatable, and its client
+    takes `launchArgs`, so no `simctl` or `am start` fallback was needed.
+    Back is agent-device's default back, not `--in-app`.
+  - **Web:** a page lives in a context of its own, which a restart closes.
+    The granted permissions, mapped from agent-device's names to Chromium's,
+    go to every context.
+  - **Windows:**
+    - `open` and the lifecycle share one start. When the app was not
+      running it waits up to 60 s for the window, and with no exe it fails
+      rather than crashes.
+    - An exe that is not running is ready, since the first open starts it.
+    - The host gains `foreground`; the per-step scripts answer skipped.
+    - `installApp` runs `Add-AppxPackage` for an `.msix`.
+  - **Seen live:**
+    - Web, in a scratch consumer:
+      - restart and clearState gave a fresh context, with no storage and
+        the location permission granted;
+      - back, openLink and foregroundApp worked;
+      - home, installApp and a `mailto:` link were skipped, each with its
+        reason.
+    - The Android emulator's Settings app, through the client and through
+      the command line: restart with a permission and launch arguments,
+      home, back, clearState, and the install's missing build.
+    - Windows, on Entz:
+      - restart ended it and started it again, with its tree whole after;
+      - back, home, clearState without a `stateDir`, and a `.zip` install
+        were skipped, each with its reason;
+      - `foregroundApp` named the editor in front, since a process in the
+        background cannot take the foreground.
+  - **Not seen:** iOS; `installApp` on a device and on Windows; `openLink`
+    on a device and on Windows.
 - **Item 12, its start.** The fixture's device suite runs a project per
   platform from `fixture/harness.config.ts`, whose command,
   `fixture/device/serve.mjs`, serves the page on a fixed port, 41731,

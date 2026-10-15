@@ -14,7 +14,8 @@
  */
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from './snapshot.ts';
 import {asSelector, findNode, isPoint} from './snapshot.ts';
-import type {Driver, FillOptions, LongPressOptions, PressOptions, ScrollIntoViewOptions, StepResult, StepTiming} from './types.ts';
+import {CHANGES_SCREEN} from './controls.ts';
+import type {ControlRequest, ControlResult, Driver, FillOptions, LongPressOptions, PressOptions, ScrollIntoViewOptions, StepResult, StepTiming} from './types.ts';
 
 export interface Timing {
   /** The gap between the reads that must agree after a step, in ms. 0 turns the wait off. */
@@ -191,6 +192,15 @@ export function withTiming(driver: Driver, timing: Timing, clock: Clock = realCl
           async swipe(from: Point, to: Point, options: StepTiming = {}): Promise<StepResult> {
             const own = timingFor(timing, options);
             return afterStep(await (driver.swipe as NonNullable<Driver['swipe']>)(from, to, {...options, ...handed(own)}), own);
+          },
+        }
+      : {}),
+    ...(driver.control
+      ? {
+          // A control that changes the screen waits for it as an action does; one that only reads, or did nothing, does not.
+          async control(request: ControlRequest): Promise<ControlResult> {
+            const result = await (driver.control as NonNullable<Driver['control']>)(request);
+            return CHANGES_SCREEN[request.name] && !result.skipped ? afterStep(result, timing) : result;
           },
         }
       : {}),

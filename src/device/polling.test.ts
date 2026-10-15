@@ -103,6 +103,9 @@ describe('invalidating', () => {
     await told.type('x');
     await told.screenshot('x.png');
     expect(invalidate).toHaveBeenCalledTimes(4);
+    const controlled = invalidating({...driver, control: async () => ok('restarted')}, feed);
+    expect(await controlled.control?.({name: 'restart'})).toEqual(ok('restarted'));
+    expect(invalidate).toHaveBeenCalledTimes(5);
   });
 });
 

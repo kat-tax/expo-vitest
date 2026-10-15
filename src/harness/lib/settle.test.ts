@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import type {Clock, Timing} from './settle.ts';
 import {DEFAULT_TIMING, agree, appeared, settled, timingFor, withTiming} from './settle.ts';
 import type {Snapshot, SnapshotNode} from './snapshot.ts';
-import type {Driver, StepResult} from './types.ts';
+import type {ControlRequest, ControlResult, Driver, StepResult} from './types.ts';
 import {failed, ok} from './types.ts';
 
 const node = (ref: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({
@@ -231,6 +231,18 @@ describe('withTiming', () => {
     expect(swipe).toHaveBeenCalledWith({x: 50, y: 500}, {x: 50, y: 100}, {settle: false});
     const bare = withTiming(stub([home]), timing, fakeClock());
     for (const name of ['longPress', 'hover', 'focus', 'scrollIntoView', 'swipe']) expect(name in bare, name).toBe(false);
+  });
+
+  it('waits after a control that changes the screen, and not after one that reads or was skipped', async () => {
+    const control = vi.fn(async (request: ControlRequest): Promise<ControlResult> => (request.name === 'home' ? {ok: true, skipped: true, message: 'no home'} : {...ok(`did ${request.name}`), value: 'the app'}));
+    const driver = stub([home, sheet, sheet], {control});
+    const timed = withTiming(driver, timing, fakeClock());
+    expect(await timed.control?.({name: 'restart'})).toEqual({...ok('did restart'), value: 'the app'});
+    expect(driver.snapshot).toHaveBeenCalledTimes(3);
+    expect(await timed.control?.({name: 'foregroundApp'})).toEqual({...ok('did foregroundApp'), value: 'the app'});
+    expect(await timed.control?.({name: 'home'})).toEqual({ok: true, skipped: true, message: 'no home'});
+    expect(driver.snapshot).toHaveBeenCalledTimes(3);
+    expect('control' in withTiming(stub([home]), timing, fakeClock())).toBe(false);
   });
 
   it('hands a driver that waits by itself the times for a long press, a scroll and a swipe', async () => {

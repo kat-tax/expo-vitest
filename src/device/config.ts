@@ -357,7 +357,20 @@ export function configFromRun(run: ResolvedRun, environment: NodeJS.ProcessEnv):
     transition: run.transition,
     assertionTimeout: run.assertionTimeout,
     stable: run.stable,
+    ...appOf(run),
   };
+}
+
+/** What the device's driver needs of the app for a fresh launch: only what the run has. */
+function appOf(run: ResolvedRun): {app?: NonNullable<DeviceConfig['app']>} {
+  const app = {
+    ...(run.bundleId ? {bundleId: run.bundleId} : {}),
+    ...(run.appPath ? {appPath: run.appPath} : {}),
+    ...(run.launchArguments.length ? {launchArguments: run.launchArguments} : {}),
+    ...(Object.keys(run.permissions).length ? {permissions: run.permissions} : {}),
+    ...(run.stateDir ? {stateDir: run.stateDir} : {}),
+  };
+  return Object.keys(app).length ? {app} : {};
 }
 
 /** A value with its keys in order and its functions left out, so the same config always hashes the same. */

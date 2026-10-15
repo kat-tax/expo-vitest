@@ -342,4 +342,15 @@ describe('the run a worker hands the device', () => {
     });
     expect(configFromRun(resolveRun('ios', null, env(), root), env({HARNESS_FORCE: '0'}))).toEqual({platform: 'ios', settle: 150, transition: 500, assertionTimeout: 5000, stable: 1000});
   });
+
+  it("carries the app, for its fresh launches and its state, and only what the file gave of it", () => {
+    expect(configFromRun(resolveRun('android', full, env(), root), env()).app).toEqual({
+      bundleId: 'com.example.app',
+      appPath: at('android', 'app-release.apk'),
+      permissions: {camera: 'grant', notifications: 'deny', location: 'reset'},
+    });
+    expect(configFromRun(resolveRun('ios', full, env(), root), env()).app).toEqual({bundleId: 'com.example.app', launchArguments: ['--initialUrl', 'http://localhost:8081']});
+    expect(configFromRun(resolveRun('windows', full, env(), root), env()).app).toEqual({stateDir: at('windows', 'state')});
+    expect(configFromRun(resolveRun('web', full, env(), root), env())).not.toHaveProperty('app');
+  });
 });

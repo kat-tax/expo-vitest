@@ -6,7 +6,8 @@ import {firstLine, prepare} from '../lib/run.ts';
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
+import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {HEADED_NEEDS_FULL, browserRoots, candidates, isShell, launchOptions, modeFrom} from './web-browsers.ts';
 import type {ReactTree} from '../lib/react.ts';
@@ -279,8 +280,17 @@ export function webDriver(options: DriverOptions): Driver {
   const listeners = new Set<(level: string, text: string) => void>();
   const require = createRequire(path.join(options.root, 'package.json'));
   const base = options.url ?? DEFAULT_URL;
-  let browser: {newPage(o?: unknown): Promise<Page>; close(): Promise<void>} | null = null;
+  let browser: Browser | null = null;
   let page: Page | null = null;
+
+  interface Browser {
+    newContext(o?: unknown): Promise<Context>;
+    close(): Promise<void>;
+  }
+  interface Context {
+    newPage(): Promise<Page>;
+    close(): Promise<void>;
+  }
 
   interface Locator {
     click(o?: unknown): Promise<void>;
@@ -297,21 +307,24 @@ export function webDriver(options: DriverOptions): Driver {
     evaluate<T>(fn: string): Promise<T>;
     on(event: 'console', listener: (message: {type(): string; text(): string}) => void): void;
     on(event: 'pageerror', listener: (error: Error) => void): void;
+    goBack(o?: unknown): Promise<unknown>;
+    url(): string;
+    title(): Promise<string>;
+    context(): Context;
   }
 
   function playwright() {
     try {
-      return require('playwright-core') as {chromium: {launch(o?: unknown): Promise<typeof browser>}};
+      return require('playwright-core') as {chromium: {launch(o?: unknown): Promise<Browser>}};
     } catch {
       return null;
     }
   }
 
-  async function open(): Promise<Page> {
-    if (page) return page;
+  async function launch(): Promise<Browser> {
     const driver = playwright();
     if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core is not installed in this project', {platform: 'web'});
-    let launched: typeof browser = null;
+    let launched: Browser | null = null;
     const reasons: string[] = [];
     for (const executablePath of [undefined, ...browsers(mode.headed)]) {
       try {
@@ -322,16 +335,44 @@ export function webDriver(options: DriverOptions): Driver {
       }
     }
     if (!launched) throw new HarnessError('DRIVER_UNAVAILABLE', `no Chromium to drive (${reasons[0] ?? 'unknown reason'}); run \`bunx playwright install chromium\``, {platform: 'web'});
-    browser = launched;
-    page = await launched.newPage({viewport: {width: 1280, height: 900}});
-    await page.addInitScript(INIT);
-    page.on('console', message => {
+    return launched;
+  }
+
+  /** A page in a context of its own, which keeps nothing from before: no cookies, no storage, only the permissions the app is granted. */
+  async function freshPage(launched: Browser): Promise<Page> {
+    const granted = webGrants(options.app?.permissions);
+    const context = await launched.newContext({viewport: {width: 1280, height: 900}, ...(granted.length ? {permissions: granted} : {})});
+    const fresh = await context.newPage();
+    await fresh.addInitScript(INIT);
+    fresh.on('console', message => {
       for (const listener of listeners) listener(message.type(), message.text());
     });
-    page.on('pageerror', error => {
+    fresh.on('pageerror', error => {
       for (const listener of listeners) listener('uncaught', error.message);
     });
+    return fresh;
+  }
+
+  async function open(): Promise<Page> {
+    if (page) return page;
+    browser ??= await launch();
+    page = await freshPage(browser);
     return page;
+  }
+
+  /** The page thrown away with its context, and a fresh one at the app's base. */
+  async function relaunch(): Promise<StepResult> {
+    const old = page;
+    page = null;
+    lastRead = null;
+    await old?.context().close();
+    const current = await open();
+    try {
+      await current.goto(base, {waitUntil: 'load', timeout: 30_000});
+    } catch (error) {
+      return failed(`could not open ${base}: ${firstLine((error as Error).message)}`, 'APP_UNREACHABLE');
+    }
+    return ok(`a new browser context, at ${base}`);
   }
 
   /** The last tree read, with the page's counter when it was read; it stands while the counter does, for up to KEEP_MS. */
@@ -456,6 +497,43 @@ export function webDriver(options: DriverOptions): Driver {
     },
 
     snapshot,
+
+    async control(request: ControlRequest): Promise<ControlResult> {
+      const lacks = lacking(request, 'web');
+      if (lacks) return lacks;
+      try {
+        switch (request.name) {
+          case 'restart':
+            return await relaunch();
+          case 'clearState': {
+            const result = await relaunch();
+            return result.ok ? ok(`cleared: ${result.message}, with no cookies or storage kept`) : result;
+          }
+          case 'back': {
+            const current = await open();
+            lastRead = null;
+            const went = await current.goBack({waitUntil: 'load', timeout: 30_000});
+            return ok(went ? `went back to ${current.url()}` : 'there was no page to go back to');
+          }
+          case 'openLink': {
+            if (!/^https?:/i.test(request.url)) return cannot(request, 'web', CANNOT.webLink);
+            const current = await open();
+            lastRead = null;
+            await current.goto(request.url, {waitUntil: 'load', timeout: 30_000});
+            return ok(`opened ${request.url}`);
+          }
+          case 'foregroundApp': {
+            const current = await open();
+            const url = current.url();
+            return {...ok(`${JSON.stringify(await current.title())} at ${url}`), value: url};
+          }
+          default:
+            return failed(`${request.name} is not a control the web harness knows`, 'INVALID_ARGUMENT');
+        }
+      } catch (error) {
+        return failed(`${describeControl(request)} failed: ${firstLine((error as Error).message)}`, codeOf(error));
+      }
+    },
 
     async press(what: Target): Promise<StepResult> {
       try {

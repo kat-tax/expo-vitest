@@ -43,6 +43,37 @@ export function elsewhere(what: string, platform: Platform, note = ''): StepResu
   return {ok: true, skipped: true, message: `${what} is not something the ${platform} harness can do${note ? `: ${note}` : ''}`};
 }
 
+/** A step in the app's life, by name, with what it takes. */
+export type ControlRequest =
+  | {name: 'restart'}
+  | {name: 'clearState'}
+  | {name: 'back'}
+  | {name: 'home'}
+  | {name: 'installApp'; path?: string; reinstall?: boolean}
+  | {name: 'openLink'; url: string}
+  | {name: 'foregroundApp'};
+
+export type ControlName = ControlRequest['name'];
+
+/** What a control did, and for one that reads something, such as the app in front, what it read. */
+export interface ControlResult extends StepResult {
+  value?: string;
+}
+
+/** What a driver knows of the app for a fresh launch, from the harness config. */
+export interface AppOptions {
+  /** iOS and Android: the installed app. */
+  bundleId?: string;
+  /** iOS and Android: a build to install; Windows: an `.msix`. */
+  appPath?: string;
+  /** What every fresh launch is given: process arguments on iOS, extras on Android, the exe's arguments on Windows. */
+  launchArguments?: string[];
+  /** Set before each fresh launch on iOS and Android, and granted on web. */
+  permissions?: Record<string, 'grant' | 'deny' | 'reset'>;
+  /** Windows: the folder `clearState` deletes. */
+  stateDir?: string;
+}
+
 export interface SnapshotOptions {
   /** Only what a person can act on, which is what a test usually wants. */
   interactive?: boolean;
@@ -138,6 +169,12 @@ export interface Driver {
   swipe?(from: Point, to: Point, options?: StepTiming): Promise<StepResult>;
   /** The React tree behind the native one, or why it cannot be read here. */
   react?(): Promise<ReactTree | {unavailable: string}>;
+  /**
+   * The app's life by name: a fresh launch, its state cleared, back, home, a
+   * link, the app in front. A platform with no counterpart for one answers
+   * `skipped`, with the reason.
+   */
+  control?(request: ControlRequest): Promise<ControlResult>;
   /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
   onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */
@@ -164,4 +201,6 @@ export interface DriverOptions {
    * the desk has been quiet for three minutes.
    */
   force?: boolean;
+  /** The app, for its fresh launches and its state. */
+  app?: AppOptions;
 }

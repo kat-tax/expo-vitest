@@ -18,8 +18,25 @@ import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
 import type {Point, Target} from '../lib/snapshot.ts';
 import type {Platform} from '../lib/types.ts';
-import type {AgentFailure, Capabilities, Manifest, Wait} from './agent-device-mapping.ts';
-import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, settleArgs, settleRequest, targetArgs} from './agent-device-mapping.ts';
+import type {AgentFailure, Capabilities, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
+import {
+  clientEntry,
+  clientTarget,
+  cliScript,
+  codeFor,
+  describeDevice,
+  describeFailure,
+  installArgs,
+  launchArgs,
+  packageFolders,
+  parseFailure,
+  parsePayload,
+  settingArgs,
+  settingRequest,
+  settleArgs,
+  settleRequest,
+  targetArgs,
+} from './agent-device-mapping.ts';
 
 /** How long one step may take before it is given up on. */
 const STEP_TIMEOUT = 30_000;
@@ -47,6 +64,16 @@ export interface AgentDeviceTransport {
   swipe(from: Point, to: Point): Promise<void>;
   type(text: string): Promise<void>;
   screenshot(file: string): Promise<void>;
+  /** Opens an app by its id, relaunched where asked, with the arguments a fresh launch is given. */
+  launch(app: string, relaunch: boolean, launchArguments: string[]): Promise<void>;
+  /** Installs a build, in place of the installed app where asked. */
+  install(app: string | undefined, appPath: string, reinstall: boolean): Promise<void>;
+  /** Changes an operating-system setting: an app's permission, or its state cleared. */
+  setting(update: SettingUpdate): Promise<void>;
+  back(): Promise<void>;
+  home(): Promise<void>;
+  /** What agent-device says of the app in front; `foregroundOf` reads it. */
+  appState(): Promise<unknown>;
   close(): Promise<void>;
 }
 
@@ -70,7 +97,9 @@ type Call = (options: Record<string, unknown>) => Promise<unknown>;
 
 interface Client {
   devices: {capabilities: Call};
-  apps: {open: Call};
+  apps: {open: Call; install: Call; reinstall: Call};
+  command: {back: Call; home: Call; appState: Call};
+  settings: {update: Call};
   capture: {snapshot: Call; screenshot: Call};
   interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call};
   sessions: {close: Call};
@@ -191,6 +220,24 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async screenshot(file) {
       await call(signal => client.capture.screenshot({path: file, signal}), 'ACTION_FAILED');
     },
+    async launch(app, relaunch, launchArguments) {
+      await call(signal => client.apps.open({...select, app, relaunch, ...(launchArguments.length ? {launchArgs: launchArguments} : {}), signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
+    },
+    async install(app, appPath, reinstall) {
+      await call(signal => (reinstall ? client.apps.reinstall({...select, app, appPath, signal}) : client.apps.install({...select, ...(app ? {app} : {}), appPath, signal})), 'ACTION_FAILED', OPEN_TIMEOUT);
+    },
+    async setting(update) {
+      await call(signal => client.settings.update({...select, ...settingRequest(update), signal}), 'ACTION_FAILED');
+    },
+    async back() {
+      await call(signal => client.command.back({...select, signal}), 'ACTION_FAILED');
+    },
+    async home() {
+      await call(signal => client.command.home({...select, signal}), 'ACTION_FAILED');
+    },
+    appState() {
+      return call(signal => client.command.appState({...select, signal}), 'ACTION_FAILED');
+    },
     async close() {
       await call(signal => client.sessions.close({signal}), 'ACTION_FAILED', 10_000).catch(() => {});
     },
@@ -246,6 +293,24 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async screenshot(file) {
       await agent(['screenshot', file], 'ACTION_FAILED');
+    },
+    async launch(app, relaunch, launchArguments) {
+      await agent(launchArgs(app, relaunch, launchArguments), 'APP_UNREACHABLE', OPEN_TIMEOUT);
+    },
+    async install(app, appPath, reinstall) {
+      await agent(installArgs(app, appPath, reinstall), 'ACTION_FAILED', OPEN_TIMEOUT);
+    },
+    async setting(update) {
+      await agent(settingArgs(update), 'ACTION_FAILED');
+    },
+    async back() {
+      await agent(['back'], 'ACTION_FAILED');
+    },
+    async home() {
+      await agent(['home'], 'ACTION_FAILED');
+    },
+    async appState() {
+      return parsePayload(await agent(['appstate', '--json'], 'ACTION_FAILED'));
     },
     async close() {
       await agent(['close'], 'ACTION_FAILED', 60_000).catch(() => {});

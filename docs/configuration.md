@@ -218,6 +218,11 @@ parameter properties.
 | `app.<platform>.target` | The exe or process on Windows; the simulator, emulator or phone on a device. | the driver's own choice |
 | `app.<platform>.device` | The same as `target`, the word for it on a device. | |
 | `app.<platform>.scheme` | The app's URI scheme, for deep links. | |
+| `app.<platform>.bundleId` | iOS and Android: the installed app, which a [restart](controls.md) relaunches. | |
+| `app.<platform>.appPath` | iOS and Android: a build `installApp` installs; Windows: an `.msix`. From the root. | |
+| `app.<platform>.launchArguments` | What each [fresh launch](controls.md#a-fresh-launch) is given. | none |
+| `app.<platform>.permissions` | `grant`, `deny` or `reset` by permission, set before each fresh launch. | none |
+| `app.<platform>.stateDir` | Windows: the folder `clearState` deletes, from the root. | |
 | `app.<platform>.command` | What serves the app, started for the run. See [the command](#the-command). | none |
 | `app.<platform>.readyUrl` | Where the run looks until the command answers. | the `url` |
 | `assertionTimeout` | How long an action looks for its node and a matcher waits, in ms. | 5000 |

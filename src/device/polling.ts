@@ -71,7 +71,7 @@ export function snapshotFeed(read: () => Promise<Snapshot>, {minSpacing = 50, cl
 }
 
 /** The steps that can change the screen, which a driver may or may not have. */
-const ACTIONS = ['open', 'press', 'fill', 'type', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe'];
+const ACTIONS = ['open', 'press', 'fill', 'type', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'control'];
 
 /** A driver whose every action tells the feed when it is done, so no wait answers with a tree from before it. */
 export function invalidating(driver: Driver, feed: SnapshotFeed): Driver {

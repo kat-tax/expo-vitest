@@ -23,7 +23,9 @@ import type {Kind} from '../harness/lib/roles.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {by, describeTarget, findNode} from '../harness/lib/snapshot.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
-import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import {describeControl} from '../harness/lib/controls.ts';
+import type {AppOptions, ControlRequest, ControlResult, Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import {elsewhere} from '../harness/lib/types.ts';
 import type {AppConfig, CommandConfig, HarnessConfig, Permission} from './config.ts';
 import {configFromRun, currentRun, defineHarness} from './config.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
@@ -62,6 +64,8 @@ export interface DeviceConfig {
   assertionTimeout?: number;
   /** How long something must stay gone before a wait for it to go passes, in ms, where the run did not keep the default. */
   stable?: number;
+  /** The app, for its fresh launches and its state, from the harness config. */
+  app?: AppOptions;
 }
 
 /** A count of milliseconds from the environment, with `false` as 0, as e2e spells it; undefined when it is not one. */
@@ -106,6 +110,8 @@ class Device {
   private driver: Driver | null = null;
   private readonly resolve: () => DeviceConfig;
   private settled: DeviceConfig | null = null;
+  /** Why the last control that was skipped was, for a test or a report that says so; null after one that was done. */
+  lastSkip: string | null = null;
 
   constructor(resolve: () => DeviceConfig) {
     this.resolve = resolve;
@@ -161,7 +167,8 @@ class Device {
   /** The driver, made on first use and kept for the file's tests; its steps wait for the screen to hold still. */
   async ready(): Promise<Driver> {
     if (this.driver) return this.driver;
-    const driver = driverFor(this.config.platform, {root: ROOT, url: this.config.url, scheme: this.config.scheme, target: this.config.target, force: this.config.force});
+    const {platform, url, scheme, target, force, app} = this.config;
+    const driver = driverFor(platform, {root: ROOT, url, scheme, target, force, ...(app ? {app} : {})});
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
     this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
@@ -258,11 +265,71 @@ class Device {
     return node;
   }
 
+  /** A control of the app's life, journalled, with the reason kept where the platform has no counterpart. */
+  private async control(request: ControlRequest): Promise<ControlResult> {
+    const result = await this.journal.run(
+      {event: 'control', what: describeControl(request)},
+      async (): Promise<ControlResult> => {
+        const driver = await this.ready();
+        const answer = driver.control ? await driver.control(request) : elsewhere(request.name, this.platform);
+        if (!answer.ok) throw failure(answer, this.platform, 'ACTION_FAILED');
+        return answer;
+      },
+      answer => ({result: answer.skipped ? 'skipped' : 'ok', message: answer.message}),
+    );
+    this.lastSkip = result.skipped ? result.message : null;
+    return result;
+  }
+
+  /**
+   * A fresh launch of the app, with its launch arguments and permissions. On
+   * web, a new browser context at the base url; on Windows, the exe ended and
+   * started again; on a device, the app relaunched.
+   */
+  async restart(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'restart'}));
+  }
+
+  /** The app's state cleared, then a fresh launch: its data on a device, its folder on Windows, its cookies and storage on web. */
+  async clearState(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'clearState'}));
+  }
+
+  /** Back, as the platform goes back: the history on web, the back button on a device. */
+  async back(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'back'}));
+  }
+
+  /** The device's home screen, leaving the app running behind it. */
+  async home(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'home'}));
+  }
+
+  /** A build installed: the one given, from the root, or the harness config's `appPath`; in place of the one there with `reinstall`. */
+  async installApp(path?: string, options: {reinstall?: boolean} = {}): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'installApp', ...(path ? {path} : {}), ...(options.reinstall ? {reinstall: true} : {})}));
+  }
+
+  /** A link opened as the platform opens one, which on a device can be another app's. */
+  async openLink(url: string): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'openLink', url}));
+  }
+
+  /** The app in front: its package or bundle id on a device, its process on Windows, the page's url on web. Null where that cannot be told. */
+  async foregroundApp(): Promise<string | null> {
+    const result = await this.control({name: 'foregroundApp'});
+    return result.skipped ? null : (result.value ?? null);
+  }
+
   async close(): Promise<void> {
     await this.driver?.close();
     this.driver = null;
     this.feed.invalidate();
   }
+}
+
+function doneOrSkipped(result: ControlResult): 'done' | 'skipped' {
+  return result.skipped ? 'skipped' : 'done';
 }
 
 /** The device: on the run a project's setup file resolved from the harness config, or on the environment alone. */
