@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -264,6 +264,31 @@ describe('toSnapshotNodes', () => {
 
   it('names no parent from a list that does not carry the indexes', () => {
     expect(toSnapshotNodes([{ref: 'e1'}, {ref: 'e2', depth: 1}]).map(node => node.parent)).toEqual([undefined, undefined]);
+  });
+});
+
+describe('middleToPress', () => {
+  const at = (x: number, y: number) => ({x, y, width: 280, height: 144});
+  const tree = {
+    platform: 'android' as const,
+    nodes: [
+      {ref: '@e1', role: 'android.view.View', name: 'Sign in', depth: 0, interactive: true, bounds: at(96, 1023)},
+      {ref: '@e2', parent: '@e1', role: 'android.widget.TextView', name: 'Sign in', depth: 1, interactive: false},
+      {ref: '@e3', parent: '@e1', role: 'android.widget.Button', name: '', depth: 1, interactive: false},
+      {ref: '@e4', role: 'android.view.View', name: 'Wi-Fi', depth: 0, interactive: true, bounds: at(0, 0)},
+      {ref: '@e5', parent: '@e4', role: 'android.view.View', name: '', depth: 1, interactive: false},
+      {ref: '@e6', parent: '@e5', role: 'android.widget.Switch', name: '', depth: 2, interactive: true},
+    ],
+  };
+
+  it("is the node's middle where nothing inside it can be pressed, and agent-device's refusal names when to ask", () => {
+    expect(middleToPress(tree, tree.nodes[0]!)).toEqual({x: 236, y: 1095});
+    expect(NO_TOUCH_POINT.test('Error (COMMAND_FAILED): Ref @e34 has no parent-owned touch point outside its interactive descendants')).toBe(true);
+  });
+
+  it('is null where something inside can be pressed, however deep, or the node has no bounds', () => {
+    expect(middleToPress(tree, tree.nodes[3]!)).toBeNull();
+    expect(middleToPress(tree, {...tree.nodes[0]!, bounds: null})).toBeNull();
   });
 });
 

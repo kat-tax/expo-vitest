@@ -9,7 +9,7 @@ import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions,
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, connectArgs, foregroundOf, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -72,6 +72,25 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     return node;
   }
 
+  /**
+   * A press or a hold, given at the node's middle where agent-device finds no
+   * point of the node's own to press its ref at (`middleToPress`).
+   */
+  async function pressing(what: Target, done: string, failing: string, work: (current: AgentDeviceTransport, at: Target) => Promise<void>): Promise<StepResult> {
+    const first = await step(done, failing, current => work(current, what));
+    if (first.ok || !NO_TOUCH_POINT.test(first.message)) return first;
+    const selector = asSelector(what);
+    if (isPoint(selector)) return first;
+    try {
+      const tree = await snapshot({interactive: false});
+      const node = findNode(tree, selector);
+      const middle = node ? middleToPress(tree, node) : null;
+      return middle ? await step(`${done} at its middle`, failing, current => work(current, middle)) : first;
+    } catch {
+      return first;
+    }
+  }
+
   /** The file the recording in progress is written to, until it is stopped. */
   let recordingTo: string | null = null;
 
@@ -109,7 +128,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     snapshot,
 
     press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
-      return step(`pressed ${describeTarget(what)}`, 'press failed', current => current.press(what, waitFrom(pressOptions)));
+      return pressing(what, `pressed ${describeTarget(what)}`, 'press failed', (current, at) => current.press(at, waitFrom(pressOptions)));
     },
 
     fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
@@ -117,7 +136,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     },
 
     longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
-      return step(`held ${describeTarget(what)}`, 'long press failed', current => current.longPress(what, pressOptions.duration, waitFrom(pressOptions)));
+      return pressing(what, `held ${describeTarget(what)}`, 'long press failed', (current, at) => current.longPress(at, pressOptions.duration, waitFrom(pressOptions)));
     },
 
     async focus(what: Target): Promise<StepResult> {

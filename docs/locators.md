@@ -156,6 +156,12 @@ same node in every snapshot of a screen. A press then works as
 [`element`'s does](#by-and-element): through a control's UI Automation
 pattern on Windows where it has one, and as a person would elsewhere.
 
+On Android and iOS, agent-device presses a ref only at a point of the node
+that none of the node's controls covers. Where there is none, as on a
+Compose button, whose role fills its touch target, a press or a long press
+goes to the node's middle, so long as nothing inside the node can be
+pressed in the tree.
+
 A press on a Windows text goes to the control it sits in when that control
 has the Invoke pattern, so it needs no quiet desk. A press on a text
 anywhere else lands on its middle, which is inside the control it belongs to.

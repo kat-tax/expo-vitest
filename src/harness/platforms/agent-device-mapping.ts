@@ -24,8 +24,8 @@
  */
 import path from 'node:path';
 import type {HarnessCode} from '../lib/errors.ts';
-import type {SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
+import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
+import {asSelector, centreOf, describeTarget, isPoint} from '../lib/snapshot.ts';
 import type {Kind} from '../lib/roles.ts';
 import {kindOnAndroid, kindOnIos} from '../lib/roles.ts';
 import {DEFAULT_TIMING} from '../lib/settle.ts';
@@ -151,6 +151,21 @@ function readAsTalkBack(mapped: SnapshotNode[], nodes: AgentNode[]): SnapshotNod
   });
 }
 
+
+/** agent-device's refusal of a ref every point of which lies in a descendant it counts as one to press. */
+export const NO_TOUCH_POINT = /no parent-owned touch point/;
+
+/**
+ * Where a press goes when agent-device refuses a node's ref because every
+ * point of the node lies in a descendant it counts as one to press, as a
+ * button Compose draws does, its role on a node that fills its touch target:
+ * the node's middle, where a finger goes. Null where something inside it can
+ * be pressed in the tree, which a press at the middle could reach instead.
+ */
+export function middleToPress(tree: Snapshot, node: SnapshotNode): Point | null {
+  const holds = (ref: string): boolean => tree.nodes.some(each => each.parent === ref && (each.interactive || holds(each.ref)));
+  return holds(node.ref) ? null : centreOf(node);
+}
 
 /** The nodes inside whatever shape an answer came in. */
 export function nodesFrom(payload: unknown): AgentNode[] {
