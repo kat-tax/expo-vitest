@@ -9,13 +9,14 @@ import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from
 import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {HEADED_NEEDS_FULL, browserRoots, candidates, isShell, launchOptions, modeFrom} from './web-browsers.ts';
+import type {BrowserName} from './web-browsers.ts';
+import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, noClipboard} from './web-browsers.ts';
 import type {ReactTree} from '../lib/react.ts';
 import {walkExpression} from '../lib/react.ts';
 
 const DEFAULT_URL = 'http://localhost:8081';
 
-/** The browsers a launch can fall back on, of those `playwright install` left, newest first. */
+/** The builds of Chromium a launch can fall back on, of those `playwright-core install` left, newest first. */
 function browsers(headed: boolean): string[] {
   const found: string[] = [];
   for (const root of browserRoots(process.env)) {
@@ -274,8 +275,8 @@ const KEEP_MS = 2000;
  * element by that ref rather than by a coordinate.
  */
 export function webDriver(options: DriverOptions): Driver {
-  // HARNESS_HEADED opens a window to watch, and HARNESS_SLOWMO slows each operation.
-  const mode = modeFrom(process.env);
+  // Which browser, or a Chromium at an endpoint; HARNESS_HEADED opens a window to watch, and HARNESS_SLOWMO slows each operation.
+  const mode = modeFrom(process.env, {browser: options.browser, cdp: options.cdp});
   /** Who hears the page's console, from the page's first open. */
   const listeners = new Set<(level: string, text: string) => void>();
   const require = createRequire(path.join(options.root, 'package.json'));
@@ -334,9 +335,15 @@ export function webDriver(options: DriverOptions): Driver {
     setViewportSize(size: {width: number; height: number}): Promise<void>;
   }
 
+  interface BrowserType {
+    launch(o?: unknown): Promise<Browser>;
+    connectOverCDP(endpoint: string, o?: unknown): Promise<Browser>;
+    executablePath(): string;
+  }
+
   function playwright() {
     try {
-      return require('playwright-core') as {chromium: {launch(o?: unknown): Promise<Browser>}};
+      return require('playwright-core') as Record<BrowserName, BrowserType>;
     } catch {
       return null;
     }
@@ -345,18 +352,42 @@ export function webDriver(options: DriverOptions): Driver {
   async function launch(): Promise<Browser> {
     const driver = playwright();
     if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core is not installed in this project', {platform: 'web'});
-    let launched: Browser | null = null;
-    const reasons: string[] = [];
-    for (const executablePath of [undefined, ...browsers(mode.headed)]) {
+    if (mode.invalid) throw new HarnessError('INVALID_ARGUMENT', mode.invalid, {platform: 'web'});
+    if (mode.cdp) {
+      // The browser is someone else's. The run opens contexts of its own in it, and closing them leaves the browser and its own tabs as they were.
       try {
-        launched = await driver.chromium.launch(launchOptions(mode, executablePath));
-        break;
+        return await driver.chromium.connectOverCDP(mode.cdp, {timeout: navigation, ...(mode.slowMo ? {slowMo: mode.slowMo} : {})});
       } catch (error) {
-        reasons.push((error as Error).message.split('\n')[0] ?? '');
+        throw new HarnessError('DRIVER_UNAVAILABLE', `no Chromium answered over CDP at ${mode.cdp}: ${firstLine((error as Error).message)}`, {platform: 'web'});
       }
     }
-    if (!launched) throw new HarnessError('DRIVER_UNAVAILABLE', `no Chromium to drive (${reasons[0] ?? 'unknown reason'}); run \`bunx playwright install chromium\``, {platform: 'web'});
-    return launched;
+    const reasons: string[] = [];
+    // Only Chromium has other builds to fall back on: Firefox and WebKit work with the version that installed them alone.
+    for (const executablePath of [undefined, ...(mode.browser === 'chromium' ? browsers(mode.headed) : [])]) {
+      try {
+        return await driver[mode.browser].launch(launchOptions(mode, executablePath));
+      } catch (error) {
+        reasons.push(firstLine((error as Error).message));
+      }
+    }
+    throw new HarnessError('DRIVER_UNAVAILABLE', `no ${TITLES[mode.browser]} to drive (${reasons[0] ?? 'unknown reason'}); ${installHint(mode.browser)}`, {platform: 'web'});
+  }
+
+  /** The build of each browser that is installed, where one is: the one playwright-core expects, or for Chromium any it can fall back on. */
+  function installed(driver: Record<BrowserName, BrowserType>): Partial<Record<BrowserName, string>> {
+    const builds: Partial<Record<BrowserName, string>> = {};
+    for (const name of BROWSERS) {
+      let file = '';
+      try {
+        file = driver[name].executablePath();
+      } catch {
+        // A browser type that cannot say where its build would be has none.
+      }
+      if (file && fs.existsSync(file)) builds[name] = buildOf(file);
+    }
+    const fallback = browsers(false)[0];
+    if (!builds.chromium && fallback) builds.chromium = buildOf(fallback);
+    return builds;
   }
 
   /** The recording in progress: the page it is on, the file each page it has been on is written to, in order, and why it stopped short. */
@@ -379,7 +410,7 @@ export function webDriver(options: DriverOptions): Driver {
       // The test goes on without a recording, and the stop says why there is none. Playwright counts a start that failed as started until it is stopped.
       await screencast.stop().catch(() => {});
       const reason = firstLine((error as Error).message);
-      recording.failure = /ffmpeg/i.test(reason) ? `${reason}; run \`bunx playwright install ffmpeg\`` : reason;
+      recording.failure = /ffmpeg/i.test(reason) ? `${reason}; ${installHint('ffmpeg')}` : reason;
     }
   }
 
@@ -392,7 +423,8 @@ export function webDriver(options: DriverOptions): Driver {
 
   /** A page in a context of its own, which keeps nothing from before: no cookies, no storage, only the permissions the app is granted. */
   async function freshPage(launched: Browser): Promise<Page> {
-    const granted = webGrants(options.app?.permissions);
+    // A browser refuses a context whose grants it does not know, so the ones it would refuse are passed over, as the warm-up says.
+    const {granted} = grantsIn(mode.browser, webGrants(options.app?.permissions));
     const context = await launched.newContext({viewport: VIEWPORT, ...(granted.length ? {permissions: granted} : {})});
     const fresh = await context.newPage();
     await fresh.addInitScript(INIT);
@@ -534,12 +566,27 @@ export function webDriver(options: DriverOptions): Driver {
     platform: 'web',
 
     async available(): Promise<Availability> {
-      if (!playwright()) return {ready: false, reason: 'playwright-core is not installed; add it to this project'};
+      const driver = playwright();
+      if (!driver) return {ready: false, reason: 'playwright-core is not installed; add it to this project'};
+      if (mode.invalid) return {ready: false, reason: mode.invalid};
+      const slower = mode.slowMo ? `, ${mode.slowMo} ms slower each operation` : '';
+      // An endpoint is reached at the first step: asking now would be a session of a hosted browser's for nothing.
+      if (mode.cdp) return {ready: true, found: `the Chromium at ${mode.cdp}, over CDP${slower}`, ...(mode.passedOver ? {notes: mode.passedOver.map(clause => `passed over ${clause}`)} : {})};
+      const builds = installed(driver);
+      const details = browserLines(builds, mode.browser);
+      const windowed = mode.headed ? ', in a window' : '';
+      const {refused} = grantsIn(mode.browser, webGrants(options.app?.permissions));
+      const notes = refused.length ? {notes: [`passed over ${refused.join(' and ')} in app.web.permissions, which ${TITLES[mode.browser]} does not grant a page`]} : {};
+      if (mode.browser !== 'chromium') {
+        const build = builds[mode.browser];
+        if (!build) return {ready: false, reason: `${TITLES[mode.browser]} is not installed; ${installHint(mode.browser)}`, details};
+        return {ready: true, found: `${TITLES[mode.browser]} at ${build}${windowed}${slower}`, details, ...notes};
+      }
       const found = browsers(mode.headed);
       // Playwright may find a browser of its own, so only a shell and no full browser is a sure no.
-      if (mode.headed && found.length === 0 && browsers(false).some(isShell)) return {ready: false, reason: HEADED_NEEDS_FULL};
-      const where = found[0] ? `Chromium at ${path.basename(path.dirname(found[0]))}` : 'Chromium through playwright';
-      return {ready: true, found: `${where}${mode.headed ? ', in a window' : ''}${mode.slowMo ? `, ${mode.slowMo} ms slower each operation` : ''}`};
+      if (mode.headed && found.length === 0 && browsers(false).some(isShell)) return {ready: false, reason: HEADED_NEEDS_FULL, details};
+      const where = found[0] ? `Chromium at ${buildOf(found[0])}` : 'Chromium through playwright';
+      return {ready: true, found: `${where}${windowed}${slower}`, details};
     },
 
     async open(to: string): Promise<StepResult> {
@@ -652,6 +699,7 @@ export function webDriver(options: DriverOptions): Driver {
             }
             const [granted] = webGrants({[request.permission]: 'grant'});
             if (!granted) return cannot(request, 'web', CANNOT.webPermission);
+            if (!GRANTS[mode.browser].includes(granted)) return failed(`${TITLES[mode.browser]} does not grant a page ${granted}`);
             await current.context().grantPermissions([granted]);
             return ok(`granted ${granted}`);
           }
@@ -667,12 +715,16 @@ export function webDriver(options: DriverOptions): Driver {
             return ok('the page has no location to read now');
           }
           case 'clipboard': {
+            const elsewhere = noClipboard(mode.browser);
+            if (elsewhere) return failed(elsewhere);
             const current = await open();
             await current.context().grantPermissions(['clipboard-read', 'clipboard-write']);
             const read = await current.evaluate<string>('navigator.clipboard.readText()');
             return {...ok(`read ${read.length} characters from the clipboard`), value: read};
           }
           case 'setClipboard': {
+            const elsewhere = noClipboard(mode.browser);
+            if (elsewhere) return failed(elsewhere);
             const current = await open();
             await current.context().grantPermissions(['clipboard-read', 'clipboard-write']);
             await current.evaluate(`navigator.clipboard.writeText(${JSON.stringify(request.text)})`);

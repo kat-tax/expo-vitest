@@ -2,9 +2,10 @@
 // Chromium over a page served for the run. Each test reads like the ones in
 // the docs, and between them they touch the queries, the actions, the
 // matchers, the evidence, a screenshot, the harness config and the command.
-import {execFileSync} from 'node:child_process';
+import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import {promisify} from 'node:util';
 import {inject} from 'vitest';
 import {by, device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest/device';
 
@@ -99,9 +100,13 @@ it("sets the device's appearance and network, and puts each back", async () => {
   await expect(screen.getByText('Online: true')).toBeVisible();
 });
 
-it('keeps text on the clipboard', async () => {
-  expect(await device.setClipboard('from the fixture')).toBe('done');
-  expect(await device.clipboard()).toBe('from the fixture');
+// On web the clipboard is Chromium's alone, so under HARNESS_BROWSER=webkit
+// or firefox this is skipped with the reason.
+requires(['clipboard', 'setClipboard'], () => {
+  it('keeps text on the clipboard', async () => {
+    expect(await device.setClipboard('from the fixture')).toBe('done');
+    expect(await device.clipboard()).toBe('from the fixture');
+  });
 });
 
 it('left a trace for each test before it, with its steps', () => {
@@ -125,8 +130,10 @@ onlyOn(['android', 'ios'], () => {
   });
 });
 
-it('drives the same page with the command an app has installed', () => {
+// Run without blocking: over CDP the command shares the browser this file is
+// connected to, and a page it opens waits until this one has answered too.
+it('drives the same page with the command an app has installed', async () => {
   const bin = path.join(process.cwd(), 'node_modules', 'expo-vitest', 'dist', 'harness', 'index.js');
-  const out = execFileSync(process.execPath, [bin, '-p', 'web', '--url', device.config.url as string, 'open', '/', 'tree'], {encoding: 'utf8'});
-  expect(out).toContain('h1/heading "Profile"');
+  const {stdout} = await promisify(execFile)(process.execPath, [bin, '-p', 'web', '--url', device.config.url as string, 'open', '/', 'tree'], {encoding: 'utf8'});
+  expect(stdout).toContain('h1/heading "Profile"');
 });

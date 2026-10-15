@@ -93,13 +93,14 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[],
   }
 }
 
-async function doctor(): Promise<number> {
+async function doctor(options: Options): Promise<number> {
   console.log('what this machine can drive:\n');
   for (const platform of PLATFORMS) {
-    const driver = driverFor(platform, {root: ROOT});
+    const driver = driverFor(platform, {root: ROOT, browser: options.browser, cdp: options.cdp});
     const state = await driver.available();
     await driver.close();
     console.log(`  ${state.ready ? 'yes' : 'no '}  ${platform.padEnd(8)} ${state.ready ? (state.found ?? '') : (state.reason ?? '')}`);
+    for (const line of [...(state.details ?? []), ...(state.notes ?? [])]) console.log(`${' '.repeat(16)}${line}`);
   }
   console.log('\nnothing here changes your machine; a "no" says what is missing.');
   return 0;
@@ -117,7 +118,7 @@ async function main(argv: string[]): Promise<number> {
     console.log(USAGE);
     return 0;
   }
-  if (options.command === 'doctor') return doctor();
+  if (options.command === 'doctor') return doctor(options);
   // Loaded only when asked for, so a step does not pay for what it does not use.
   if (options.command === 'init') return (await import('../cli/init.ts')).init(options.args);
   if (options.command === 'guide') return (await import('../cli/guide.ts')).guide(options.args);
@@ -130,7 +131,7 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
-  const driver = driverFor(options.platform, {root: ROOT, url: options.url, scheme: options.scheme, target: options.target, force: options.force});
+  const driver = driverFor(options.platform, {root: ROOT, url: options.url, scheme: options.scheme, target: options.target, force: options.force, browser: options.browser, cdp: options.cdp});
   const state = await driver.available();
   if (!state.ready) {
     console.error(`${options.platform}: ${state.reason}`);
@@ -138,6 +139,7 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
   console.log(`${options.platform}: ${state.found ?? 'ready'}`);
+  for (const note of state.notes ?? []) console.log(`  ${note}`);
   const stepped = withTiming(driver, timingFor(DEFAULT_TIMING, {settle: options.settle, transition: options.transition}));
 
   let failures = 0;

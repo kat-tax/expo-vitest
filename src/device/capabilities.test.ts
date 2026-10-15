@@ -53,6 +53,14 @@ describe('the capabilities', () => {
     expect(absentBecause('setBiometrics', 'ios', {device: {kind: 'simulator'}})).toBeNull();
   });
 
+  it('keep the clipboard on web to Chromium', () => {
+    expect(absentBecause('clipboard', 'web', {browser: 'webkit'})).toBe('the clipboard is driven in Chromium alone, and this is WebKit');
+    expect(absentBecause('setClipboard', 'web', {browser: 'firefox'})).toBe('the clipboard is driven in Chromium alone, and this is Firefox');
+    expect(absentBecause('clipboard', 'web', {browser: 'chromium'})).toBeNull();
+    expect(absentBecause('clipboard', 'android', {browser: 'webkit'})).toBeNull();
+    expect(capabilitiesOf('web', {browser: 'webkit'}).has('open')).toBe(true);
+  });
+
   it('install and clear an app on Windows only where the harness config says how', () => {
     expect(absentBecause('installApp', 'windows')).toBe('only an .msix is installed on Windows, and app.windows.appPath names none');
     expect(absentBecause('installApp', 'windows', {app: {appPath: 'C:/builds/App.msix'}})).toBeNull();

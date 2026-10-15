@@ -26,6 +26,8 @@ export default async function warmUp(project: TestProject): Promise<void> {
     const availability = await driver.available();
     const found = {...(availability.found ? {found: availability.found} : {}), ...(availability.device ? {device: availability.device} : {})};
     project.provide('harness.available', availability.ready ? {ready: true, ...found} : {ready: false, reason: availability.reason ?? `nothing on this machine can drive ${platform}`});
+    // Said here, once for the run, rather than by each test file's driver.
+    for (const note of availability.notes ?? []) console.warn(`${platform}: ${note}`);
     if (!availability.ready) return;
     // What the first open costs, a bundle built or an app launched, is paid here. A test that opens a route of its own reports any failure better than this could.
     await driver.open('/');

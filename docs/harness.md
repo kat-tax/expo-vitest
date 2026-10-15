@@ -15,7 +15,10 @@ npx expo-harness doctor
 ```
 what this machine can drive:
 
-  yes  web      Chromium at chrome-headless-shell-win64
+  yes  web      Chromium at chromium_headless_shell-1243
+                chromium installed, chromium-1243, the one a run uses
+                firefox  installed, firefox-1543
+                webkit   not installed: run `npx playwright-core install webkit`
   no   windows  no app to drive: build one (`expo-windows run`) and pass --target <exe or process name>
   yes  android  1 device: 2B221FDH3S0HDK
   no   ios      the iOS simulator only runs on macOS
@@ -30,7 +33,7 @@ nothing here changes your machine; a "no" says what is missing.
 
 | Platform | Needs |
 | --- | --- |
-| web | `playwright-core` in the project, and a Chromium: `npx playwright install chromium` |
+| web | `playwright-core` in the project, and a browser it installed: `npx playwright-core install chromium`, or [Firefox or WebKit](#the-browser) |
 | windows | A Windows machine, and a built app |
 | android, ios | `agent-device`: `npm install --global agent-device`, or in the project. The harness finds it in either, and in bun's global folder. |
 
@@ -102,6 +105,8 @@ quotes in it, as your shell requires.
 | --- | --- |
 | `-p`, `--platform <name>` | `web`, `windows`, `android` or `ios`. Required. |
 | `--url <url>` | Where the app is served, for web. `http://localhost:8081` by default. |
+| `--browser <name>` | On web, `chromium`, `firefox` or `webkit`. [The browser](#the-browser). |
+| `--cdp <endpoint>` | On web, a Chromium already running, reached at the endpoint of its remote debugging. |
 | `--scheme <scheme>` | The app's URI scheme, for deep links. |
 | `--target <what>` | The device, simulator, exe or process to drive. |
 | `--out <dir>` | Where screenshots go. `.harness` by default. |
@@ -122,6 +127,52 @@ On web, `HARNESS_HEADED=1` opens the browser in a window to watch, and
 `HARNESS_SLOWMO=<ms>` slows each operation by that much. A window needs the
 full Chromium rather than the headless shell, and `doctor` says when only
 the shell is installed.
+
+## The browser
+
+On web the harness launches a headless Chromium through `playwright-core`.
+`--browser`, or `HARNESS_BROWSER`, picks Firefox or WebKit instead, and
+`--cdp`, or `HARNESS_CDP`, reaches a Chromium that is already running, at
+the endpoint of its remote debugging. Device tests take the two variables.
+
+```sh
+expo-harness -p web --browser webkit open / tree
+expo-harness -p web --cdp http://127.0.0.1:9222 open / tree
+```
+
+Firefox and WebKit are builds that work only with the `playwright-core` that
+installed them, so fetch them with the project's own: `npx playwright-core
+install webkit`. `doctor` lists each browser, installed or not, and the one
+a run would use.
+
+The tree, the steps, screenshots and video work in all three, and the
+package's own device tests pass in each. What differs is what a browser
+grants a page:
+
+| | Chromium | WebKit | Firefox |
+| --- | :-: | :-: | :-: |
+| `clipboard`, `setClipboard` | yes | | |
+| `camera`, `microphone` | yes | yes | |
+| `motion` | yes | | |
+| `notifications`, `location` | yes | yes | yes |
+
+Firefox grants a page no clipboard permission and WebKit none to write
+with, so on web the clipboard is Chromium's alone, and `device.can` says so.
+A browser refuses a whole context that names a permission it does not have,
+so a permission in `app.web.permissions` the browser lacks is passed over,
+and the run's first lines say which.
+
+A browser at an endpoint is someone else's. The run opens contexts of its
+own in it, as it does in a browser it launched, so the browser's own tabs,
+cookies and profile are left alone, and the end of the run leaves it
+running. It has a window or not already, so `HARNESS_HEADED`, and a browser
+named beside the endpoint, are passed over, and the run says so once. It
+must reach the app's `url` from where it runs: a hosted browser does not see
+your `localhost`. And while one client of the browser is blocked, a page
+another opens does not load, so a test that runs `expo-harness` against the
+browser it is connected to runs it without blocking, with `execFile` rather
+than `execFileSync`. A Chromium takes `--remote-debugging-port=9222` with a
+`--user-data-dir` of its own.
 
 ## What each platform can do
 
@@ -250,7 +301,7 @@ Screenshots land in `.harness/`. Add it to `.gitignore`.
 | Platform | Driven by | Why |
 | --- | --- | --- |
 | windows | This package: the window manager, UI Automation and synthetic input, through one PowerShell process kept for the run, which reads the tree in one request, or an element at a time where UI Automation cannot read the cached tree back | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
-| web | A headless Chromium through `playwright-core` | A browser is already how the web build is tested. |
+| web | `playwright-core`: a headless Chromium, its Firefox or WebKit, or a Chromium already running, over CDP | A browser is already how the web build is tested. |
 | ios, android | `agent-device`, through its Node client | It drives both, and installs its own runners without touching the app. A step is one request to its daemon; where the client cannot be loaded, the harness runs its command line instead. |
 
 ## On Windows, a flyout is not in the tree

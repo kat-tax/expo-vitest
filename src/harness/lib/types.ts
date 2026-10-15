@@ -26,6 +26,10 @@ export interface Availability {
   reason?: string;
   /** What the driver found of the device, where it can tell. */
   device?: DeviceFacts;
+  /** Lines the doctor prints under the platform's, such as each browser on web and whether it is installed. */
+  details?: string[];
+  /** What the run passes over of what it was asked, a sentence each, which a run says once. */
+  notes?: string[];
 }
 
 /** What a step did. `skipped` is for what a platform has no counterpart for, which is not a failure. */
@@ -245,4 +249,8 @@ export interface DriverOptions {
   statusBar?: 'fixed' | 'real';
   /** How long one call to the driver may take before it is given up on, in ms. */
   actionTimeout?: number;
+  /** On web, the browser launched: `chromium`, `firefox` or `webkit`, over `HARNESS_BROWSER`. */
+  browser?: string;
+  /** On web, the endpoint of a Chromium already running, reached over CDP rather than launched, over `HARNESS_CDP`. */
+  cdp?: string;
 }

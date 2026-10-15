@@ -75,7 +75,10 @@ block of tests steps around it: `fold` on a phone that does not fold is
 What goes on the clipboard is not written to the [trace](evidence.md): the
 step says how many characters. On Windows the clipboard is the machine's, and
 an Android emulator may share its clipboard with the machine it runs on, so a
-test that sets it replaces what someone copied.
+test that sets it replaces what someone copied. On web the clipboard is
+Chromium's alone: Firefox grants a page no clipboard permission, and WebKit
+none to write with, so under [either](harness.md#the-browser) the two are
+not in `device.capabilities`.
 
 The headless Chromium has no notifications, so `Notification.permission`
 stays `denied` whatever is granted. A page that asks
@@ -150,10 +153,12 @@ export default defineHarness({
 - **Permissions** take agent-device's names: `camera`, `microphone`,
   `photos`, `contacts`, `notifications`, `calendar`, `location` and the
   rest. On a device each is set to `grant`, `deny` or `reset` before the
-  launch, so no prompt asks. On web the granted ones Chromium has are granted
-  to every browser context the harness makes, `location` as `geolocation`.
-  Chromium has no deny through Playwright, so `deny` and `reset` leave the
-  default.
+  launch, so no prompt asks. On web the granted ones the browser has are
+  granted to every browser context the harness makes, `location` as
+  `geolocation`: Chromium has the six there are on web, WebKit all but
+  `motion`, and Firefox `notifications` and `location` alone. One the
+  browser lacks is passed over, and the run says so. Playwright has no deny,
+  so `deny` and `reset` leave the default.
 
 ## On Windows
 

@@ -35,10 +35,12 @@ describe('parse', () => {
   });
 
   it('reads every option in either spelling, before or between the steps', () => {
-    const argv = ['-p', 'web', '--url', 'http://localhost:8085', '--scheme', 'myapp', '--target', 'MyApp', '--out', 'shots', '--force', '-i', 'bench'];
+    const argv = ['-p', 'web', '--url', 'http://localhost:8085', '--browser', 'webkit', '--cdp', 'http://127.0.0.1:9333', '--scheme', 'myapp', '--target', 'MyApp', '--out', 'shots', '--force', '-i', 'bench'];
     expect(parse([...argv, '--iterations', '50', '--press', 'label="Settings"', '--field', 'testID=search', '--json'])).toEqual({
       platform: 'web',
       url: 'http://localhost:8085',
+      browser: 'webkit',
+      cdp: 'http://127.0.0.1:9333',
       scheme: 'myapp',
       target: 'MyApp',
       out: 'shots',

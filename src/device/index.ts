@@ -43,6 +43,7 @@ import type {QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
 import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
+import {modeFrom} from '../harness/platforms/web-browsers.ts';
 import type {VideoMode} from './video.ts';
 import {videoModeOf} from './video.ts';
 
@@ -182,7 +183,12 @@ class Device {
   /** What decides a capability beyond the platform: the device found, by this driver or the warm-up, the app, and how Windows is driven. */
   private circumstances(): Circumstances {
     const device = this.facts ?? knownFacts();
-    return {...(device ? {device} : {}), ...(this.config.app ? {app: this.config.app} : {}), host: process.env.HARNESS_WINDOWS_HOST !== '0'};
+    return {
+      ...(device ? {device} : {}),
+      ...(this.config.app ? {app: this.config.app} : {}),
+      host: process.env.HARNESS_WINDOWS_HOST !== '0',
+      ...(this.platform === 'web' ? {browser: modeFrom(process.env).browser} : {}),
+    };
   }
 
   /** Every step and control this platform and this device have. The device is known once the driver has opened, or from the warm-up. */

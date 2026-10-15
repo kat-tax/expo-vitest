@@ -15,7 +15,7 @@ The app under test needs no SDK and no rebuild. Nothing is installed in it.
 
 | Platform | Driven by |
 | --- | --- |
-| web | A headless Chromium, through `playwright-core` |
+| web | A headless Chromium through `playwright-core`, its Firefox or WebKit, or a Chromium already running, over CDP: [the browser](harness.md#the-browser) |
 | windows | UI Automation and synthetic input, from this package |
 | android, ios | [`agent-device`](https://www.npmjs.com/package/agent-device) |
 
@@ -115,6 +115,8 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_TRACE` | When a test leaves [evidence](evidence.md): `retain-on-failure` (the default), `on` or `off`. |
 | `HARNESS_VIDEO` | When a test keeps a [recording](evidence.md#video) of the screen: `on`, `retain-on-failure` or `off`, over the harness config's `video`, which is `off` unless set. |
 | `HARNESS_HEADED`, `HARNESS_SLOWMO` | On web, `1` opens the browser in a window to watch, and a number of ms slows each operation by that much. A window needs the full Chromium, not only the headless shell. |
+| `HARNESS_BROWSER` | On web, `chromium`, the default, `firefox` or `webkit`. See [the browser](harness.md#the-browser). |
+| `HARNESS_CDP` | On web, the endpoint of a Chromium already running, such as `http://127.0.0.1:9222`, to drive rather than launch one. |
 | `HARNESS_METRO` | Where Metro runs, for the React tree of a development build: `http://localhost:8081` by default. |
 | `HARNESS_REACT` | `take` to read the React tree of an app that takes one debugger only, which closes React Native DevTools if it is open. |
 | `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. The harness's own input does not count, from one test file to the next too: what the guard has seen is kept in `.harness/windows-desk.json`. |

@@ -18,8 +18,9 @@ two kinds of test, each with its own config:
   the native boundary mocked.
 - **Device tests**, `vitest.config.device.mts`, under `device/`: they drive
   the real app and assert on its accessibility tree, the one a screen reader
-  reads. Web is a headless Chromium, Windows is UI Automation, and iOS and
-  Android are agent-device.
+  reads. Web is a headless Chromium, or Firefox or WebKit under
+  HARNESS_BROWSER, Windows is UI Automation, and iOS and Android are
+  agent-device.
 
 ## Run
 

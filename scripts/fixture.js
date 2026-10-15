@@ -93,10 +93,13 @@ try {
   const absent = process.platform === 'darwin' ? 'windows' : 'ios';
   const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'];
   // Playwright records video with the build of ffmpeg its own version names,
-  // and looks for no other, so the copy's playwright-core fetches its own. It
-  // is a small download, once, and nothing where it is already there.
-  console.log("==== The fixture's playwright-core, with its ffmpeg");
-  run(process.execPath, [path.join(modules, 'playwright-core', 'cli.js'), 'install', 'ffmpeg']);
+  // and looks for no other, and Firefox and WebKit are builds that work with
+  // the version that installed them alone. So the copy's playwright-core
+  // fetches its own: ffmpeg, and the browser HARNESS_BROWSER names, once, and
+  // nothing where they are already there.
+  const own = ['ffmpeg', ...(['firefox', 'webkit'].includes(process.env.HARNESS_BROWSER) ? [process.env.HARNESS_BROWSER] : [])];
+  console.log(`==== The fixture's playwright-core, with its ${own.join(' and ')}`);
+  run(process.execPath, [path.join(modules, 'playwright-core', 'cli.js'), 'install', ...own]);
   const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on'};
   console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
   const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});

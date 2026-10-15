@@ -8,7 +8,8 @@ paths:
 
 One set of drivers, two faces: `expo-harness` for looking at a screen by hand,
 and `expo-vitest/device` for asserting on it from Vitest. Web is a headless
-Chromium through `playwright-core`, Windows is UI Automation and synthetic input
+Chromium through `playwright-core`, or its Firefox or WebKit, or a Chromium
+already running, over CDP. Windows is UI Automation and synthetic input
 through PowerShell, iOS and Android are `agent-device`. Nothing is installed in
 the app under test.
 
@@ -55,8 +56,8 @@ the app under test.
 - The project root is the working directory, or `HARNESS_ROOT`. Never work it
   out from a file's own location: installed, that is the package.
 - The PNG comparison is `src/harness/lib/png.ts`, on Node's own zlib. It reads
-  the 8-bit non-interlaced PNGs that Chromium, GDI+ and `adb` write and says so
-  plainly for anything else. Do not add an image dependency.
+  the 8-bit non-interlaced PNGs that Playwright's browsers, GDI+ and `adb`
+  write, and says so plainly for anything else. Do not add an image dependency.
 
 ## Windows
 
@@ -82,6 +83,16 @@ mutation, so a page that is animating is read afresh every time. Anything
 a snapshot wrote to the page would move the count and undo that. Refs live in the page, from element to number, so a node keeps its ref
 for as long as it stays. A press first asks the page where it would land,
 and refuses to press what is over the node.
+
+The browser is Chromium unless `HARNESS_BROWSER` names Firefox or WebKit,
+or `HARNESS_CDP` reaches a Chromium already running
+(`src/harness/platforms/web-browsers.ts`). What each grants a page differs,
+and `GRANTS` there is the table, measured with a page open, which is when a
+browser checks a grant. A grant a browser lacks is passed over rather than
+sent, since one it does not know fails the whole context. Over CDP the run
+opens contexts of its own and closes only those, so the browser's own tabs
+and profile stay as they were. A new step in the driver is run in all three
+browsers and over CDP before it is done.
 
 ## Testing
 

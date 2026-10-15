@@ -196,6 +196,6 @@ npm run test:device                                # assert against what was rec
 Commit a baseline only when the machine that asserts it is the machine that
 drew it. `.harness/` is not for committing.
 
-The comparison reads the 8-bit non-interlaced PNGs that Chromium, GDI+ and
-`adb` write, with Node's own zlib and no image dependency, and says so plainly
+The comparison reads the 8-bit non-interlaced PNGs that Playwright's three
+browsers, GDI+ and `adb` write, with Node's own zlib and no image dependency, and says so plainly
 for anything else.

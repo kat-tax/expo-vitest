@@ -39,6 +39,8 @@ targets     @e7                   a ref from the last snapshot
             New drop              a bare word is a label
 
 options     --url <url>           where the app is served (web; default http://localhost:8081)
+            --browser <name>      the browser on web: chromium (default), firefox or webkit
+            --cdp <endpoint>      on web, a Chromium already running, reached over CDP
             --scheme <scheme>     the app's URI scheme for deep links
             --target <what>       the device, simulator, exe or process to drive
             --out <dir>           where screenshots go (default ${OUT})
@@ -55,6 +57,10 @@ options     --url <url>           where the app is served (web; default http://l
 export interface Options {
   platform?: Platform;
   url?: string;
+  /** On web, the browser launched, as it was typed. */
+  browser?: string;
+  /** On web, the endpoint of a Chromium already running. */
+  cdp?: string;
   scheme?: string;
   target?: string;
   out: string;
@@ -114,6 +120,8 @@ export function parse(argv: string[]): Options {
     const value = () => argv[++at] ?? '';
     if (argument === '--platform' || argument === '-p') options.platform = value() as Platform;
     else if (argument === '--url') options.url = value();
+    else if (argument === '--browser') options.browser = value();
+    else if (argument === '--cdp') options.cdp = value();
     else if (argument === '--scheme') options.scheme = value();
     else if (argument === '--target') options.target = value();
     else if (argument === '--out') options.out = value();

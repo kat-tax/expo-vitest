@@ -6,6 +6,8 @@
  */
 import {CHANGES_SCREEN, LACKS} from '../harness/lib/controls.ts';
 import type {AppOptions, ControlName, DeviceFacts, Platform} from '../harness/lib/types.ts';
+import type {BrowserName} from '../harness/platforms/web-browsers.ts';
+import {noClipboard} from '../harness/platforms/web-browsers.ts';
 
 export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'video' | ControlName;
 
@@ -32,6 +34,8 @@ export interface Circumstances {
   app?: AppOptions;
   /** Windows: whether the host drives, rather than a script per step. */
   host?: boolean;
+  /** Web: the browser the run drives. */
+  browser?: BrowserName;
 }
 
 const major = (version?: string): number => Number.parseInt(version ?? '', 10);
@@ -42,13 +46,14 @@ export function absentBecause(capability: Capability, platform: Platform, circum
   if (!control && !ACTIONS[platform].includes(capability)) return `the ${platform} harness has no ${capability}`;
   const lacks = control ? LACKS[platform][capability as ControlName] : undefined;
   if (lacks) return lacks;
-  const {device = {}, app = {}, host = true} = circumstances;
+  const {device = {}, app = {}, host = true, browser = 'chromium'} = circumstances;
   if (platform === 'windows' && !host && NEEDS_HOST.includes(capability)) return 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off';
   if (capability === 'fold' && !/fold|flip|duo/i.test(device.name ?? '')) return `${device.name ?? 'the device'} does not fold`;
   if (capability === 'setAirplaneMode' && platform === 'android' && major(device.osVersion) < 11) return `airplane mode needs Android 11 or later, and this is Android ${device.osVersion}`;
   if ((capability === 'setBiometrics' || capability === 'enrollBiometrics') && device.kind === 'device') return `a physical ${platform} device answers its own biometric prompts`;
   if (capability === 'installApp' && platform === 'windows' && !/\.msix(bundle)?$/i.test(app.appPath ?? '')) return 'only an .msix is installed on Windows, and app.windows.appPath names none';
   if (capability === 'clearState' && platform === 'windows' && !app.stateDir) return 'app.windows.stateDir names no folder to delete';
+  if ((capability === 'clipboard' || capability === 'setClipboard') && platform === 'web') return noClipboard(browser);
   return null;
 }
 
