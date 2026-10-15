@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: done, but for what needs a device this machine lacks: iOS throughout, and the React tree through Metro · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: done, but for what needs a device this machine lacks: iOS throughout, and the React tree of a react-native-windows debug build · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -294,13 +294,20 @@ below, the build is what holds.
     had a component, and its links matched `TabLink`. A failing test's
     trace named `TabLink` behind the link it pressed and listed the
     page's console.
-  - **Not seen:** the Metro path, on any device. The expo-interface
-    example's development build failed on its own dependencies:
-    Reanimated 4.6 needs Worklets 0.12 and it has 0.8.3. Entz is a release
-    build, and the Metro on 8081 is the owner's. So the questions section
-    7 of Phase 1 left open stay open:
-    - which react-native first says it takes more than one debugger;
-    - whether a react-native-windows debug build registers with Metro.
+  - **Seen later:** the Metro path on the Android emulator, with a
+    development build of a fresh create-expo-app on React Native 0.86.3
+    and its own Metro on a port other than 8081. Its page says it takes
+    more than one debugger (`supportsMultipleDebuggers: true`), so the
+    first of section 7's questions has an answer for 0.86.3, though not
+    which release first said it. It took three fixes: the origin Metro's
+    proxy asks of a debugger, 127.0.0.1 where it lists localhost, and a
+    walk that leaves its answer in the app, since Hermes's debugger cannot
+    wait on React Native's Promise. The walk read each text twice there,
+    now once, and the driver chose a page by a device name no page
+    carries, now by the app's id, so another app's page is never read.
+  - **Not seen:** whether a react-native-windows debug build registers
+    with Metro. The only Windows builds here are the owner's app, whose
+    debug build would load from the owner's dev server on 8081.
   - **Not built:**
     - File and line at a failed press. React 19 drops `_debugSource`,
       and source maps need the debugger domain.

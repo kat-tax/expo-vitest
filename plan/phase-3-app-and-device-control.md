@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: done, but for what needs a device or a build this machine lacks: iOS throughout, and the Expo development build recipe · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: done, but for what needs a device this machine lacks: iOS throughout, the development build recipe there among it · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -159,8 +159,12 @@ below, the build is what holds.
         were skipped, each with its reason;
       - `foregroundApp` named the editor in front, since a process in the
         background cannot take the foreground.
+  - **Seen later, by the development build recipe:** `openLink` on the
+    Android emulator, and `open` with a route through the app's scheme,
+    once the transport sent a link as agent-device's first word: as
+    `{url}` alone it opened nothing and failed nothing.
   - **Not seen:** iOS; `installApp` on a device and on Windows; `openLink`
-    on a device and on Windows.
+    on Windows.
 - **Item 7: the device's settings.**
   - The fourteen controls of 3.5 go through the same `control` member,
     with one table: what changes the screen, what each platform lacks and
@@ -364,9 +368,8 @@ below, the build is what holds.
     comparison, the app's life, the device's settings and gating.
   - `identity` is taken and resolved, and waits for Phase 5's recordings to
     be read.
-  - **Not written:** the Expo development build recipe. It needs a
-    development build on a simulator and an emulator to be shown to work,
-    and the one example here does not build; see the exit criteria below.
+  - **The Expo development build recipe** is in `docs/controls.md`, for
+    Android, where it ran; see the exit criteria below.
 - **The exit criteria,** as they stand:
   - **Several platforms in one invocation:**
     - web and Windows shared one command and left nothing running;
@@ -386,9 +389,21 @@ below, the build is what holds.
   - **`setAppearance('dark')`:** done on web and Android, and skipped
     with its reason on Windows. **`back()`:** done on web and Android, and
     skipped with its reason on Windows. iOS not seen.
-  - **The Expo development build recipe:** not done. It needs a development
-    build. The expo-interface example's fails on its own dependencies,
-    Reanimated 4.6 against Worklets 0.8.3, and there is no Mac.
+  - **The Expo development build recipe:** on the Android emulator, with a
+    development build of a fresh create-expo-app (Expo 57.0.30, React
+    Native 0.86.3, expo-dev-client 57.0.20) built by Gradle and installed
+    with adb, its dev server started by the run on a port of its own. The
+    link with the launcher's switches opened the build on the server on a
+    first launch, its state cleared, with no developer menu sheet or
+    floating button in the tree; without the switches the developer menu's
+    first sheet covered the app. The emulator draws no pixels, so the tree
+    is what shows it. Then a route by the scheme and the React tree through
+    the same Metro. Three things had to change for it, each a commit: the
+    transport's link, and Metro's origin, address and promise. The template's
+    home screen crashed natively in Fabric's mounting (SIGSEGV in
+    `MountingCoordinator`), so plain screens stood in for it. The build had
+    to live under a short path: CMake's ninja looped on the scratch folder's
+    long one. Not run on iOS, which needs a Mac.
   - **`deviceConfig()` with no options** is unchanged, as the contract
     test shows.
 
