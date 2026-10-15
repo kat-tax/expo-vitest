@@ -106,6 +106,12 @@ that names no node, or several, has nothing inside it.
 | `.clear({timeout})` | Empties the field. |
 | `.type(text, {timeout})` | Presses the field to focus it, and types where the press put the caret. To replace what a field holds, `fill` it. |
 | `.check({timeout})`, `.uncheck({timeout})` | Presses a checkbox or a switch only if it is not already as asked, then waits to read it back. |
+| `.longPress({duration, timeout})` | Holds a press, 800 ms by default, as for a context menu. Fails where the platform has no counterpart. |
+| `.hover({timeout})` | Moves the pointer over the node without pressing. `'skipped'` on iOS and Android, which have no pointer. |
+| `.focus({timeout})` | Gives the node the keyboard focus without pressing it: through the page on web and through UI Automation on Windows. On iOS and Android, agent-device gives the focus with a touch. |
+| `.key(name, {timeout})` | Sends a named key, `ArrowDown`, `Enter`, with the node focused, focusing it first. `'skipped'` where the platform sends no keys. |
+| `.scrollIntoView({timeout})` | Scrolls the node onto the screen where it is not there already. |
+| `.swipe(direction, {distance, timeout})` | Draws a finger across the node the way `direction` says, over half of it by default. A finger drawn up scrolls the content down. A wheel on web; `'skipped'` on Windows. |
 | `.waitFor({state, timeout})` | Waits until the nodes are `visible` (the default), `attached` (in the tree at all), `hidden` (none on screen) or `detached` (none in the tree). Gives the node, or `null` for the two states that have none. |
 | `.node()` | The node now, or `undefined`. |
 | `.all()`, `.count()` | Every node it names now, and how many. |
@@ -150,6 +156,25 @@ elsewhere.
 A press on a Windows text goes to the control it sits in when that control
 has the Invoke pattern, so it needs no quiet desk. A press on a text
 anywhere else lands on its middle, which is inside the control it belongs to.
+On web, a node below the fold is scrolled to before it is pressed, as
+Playwright does.
+
+### Scrolling
+
+`scrollIntoView` scrolls a node in the tree onto the screen: on web the
+page, on Windows through the control's ScrollItem pattern, and on iOS and
+Android with agent-device, which scrolls until it sees the node. A row of an
+Android list that is not drawn yet is not in the tree at all. For a plain
+query, a testID or a whole text or label with no scope or filter, agent-device
+looks for it as it scrolls, down and then up:
+
+```ts
+await screen.getByText('About phone').scrollIntoView();
+await screen.getByText('About phone').press();
+```
+
+A long press is a finger held down, so on Android a row with no long press
+of its own takes it as a press when the finger comes up.
 
 ## Waiting
 

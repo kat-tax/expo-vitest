@@ -1,5 +1,5 @@
 import type {HarnessCode} from './errors.ts';
-import type {Snapshot, Target} from './snapshot.ts';
+import type {Point, Snapshot, Target} from './snapshot.ts';
 
 /** The platforms the harness can drive. */
 export type Platform = 'web' | 'windows' | 'android' | 'ios';
@@ -71,6 +71,19 @@ export interface FillOptions extends StepTiming {
   via?: 'keys';
 }
 
+export interface LongPressOptions extends StepTiming {
+  /** How long the press is held, in ms. */
+  duration?: number;
+}
+
+/** The way something is scrolled or swiped: the way the content moves for a scroll, the way the finger moves for a swipe. */
+export type Direction = 'up' | 'down' | 'left' | 'right';
+
+export interface ScrollIntoViewOptions extends StepTiming {
+  /** Which way the node is from the screen, for a backend that scrolls until it sees it. `down` by default. */
+  direction?: 'up' | 'down';
+}
+
 /**
  * One platform's driver, in the shape `agent-device` uses so a test reads the
  * same whichever is underneath: take a snapshot, then act on what it named.
@@ -108,6 +121,20 @@ export interface Driver {
    * skipped rather than failed.
    */
   key?(name: string): Promise<StepResult>;
+  /**
+   * The actions a backend may have no counterpart for. Each is left off where
+   * it is, and a locator then answers `skipped` or says the platform cannot.
+   */
+  /** A press held for `duration` ms, as for a context menu. */
+  longPress?(target: Target, options?: LongPressOptions): Promise<StepResult>;
+  /** The pointer moved over what a target names, without pressing. */
+  hover?(target: Target): Promise<StepResult>;
+  /** The keyboard focus moved to what a target names, without pressing it. */
+  focus?(target: Target): Promise<StepResult>;
+  /** What a target names, scrolled until it is on screen. */
+  scrollIntoView?(target: Target, options?: ScrollIntoViewOptions): Promise<StepResult>;
+  /** A finger drawn from one point to another, in the window's own pixels. */
+  swipe?(from: Point, to: Point, options?: StepTiming): Promise<StepResult>;
   /** Saves a PNG of what is on screen. */
   screenshot(file: string): Promise<StepResult>;
   /** Seconds since the user last touched this machine; null where the question has no meaning. */

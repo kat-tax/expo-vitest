@@ -11,8 +11,8 @@ import type {Ran} from '../lib/run.ts';
 import {firstLine, powershell, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, FillOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
-import {failed, ok} from '../lib/types.ts';
+import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import {elsewhere, failed, ok} from '../lib/types.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
 import {CLEAR, SEND_KEYS, literal} from './windows-keys.ts';
@@ -57,12 +57,22 @@ interface RawTree {
  */
 interface Backend {
   readonly description: string;
+  /**
+   * Whether this is the host, which keeps the newest snapshot to act on and
+   * can hold a press, move the pointer alone and give the focus. A script per
+   * step can do none of those, so they are skipped on it.
+   */
+  readonly host: boolean;
   /** Whether the app has a window; throws only when the means itself cannot run. */
   hasWindow(): Promise<boolean>;
   snapshot(interactive: boolean): Promise<RawTree>;
   raise(): Promise<string>;
   /** A press at a point in the window's own pixels. */
   click(point: Point): Promise<string>;
+  /** A press held at a point for `ms`; null where the means cannot hold one. */
+  hold(point: Point, ms: number): Promise<string | null>;
+  /** The pointer moved to a point, without a press; null where the means cannot. */
+  move(point: Point): Promise<string | null>;
   keys(keys: string): Promise<string>;
   screen(out: string): Promise<string>;
   idle(): Promise<number | null>;
@@ -71,7 +81,9 @@ interface Backend {
    * with whether its state was seen to change. Null where the means has no
    * patterns to offer or the call failed: the press then uses the pointer.
    */
-  act(ref: string, way: 'invoke' | 'toggle' | 'select'): Promise<PatternAnswer | null>;
+  act(ref: string, way: 'invoke' | 'toggle' | 'select' | 'scrollInto'): Promise<PatternAnswer | null>;
+  /** The keyboard focus given to a control of the newest snapshot, with whether it took it; null as for `act`. */
+  focus(ref: string): Promise<PatternAnswer | null>;
   /** Text set through a field's Value pattern, with what it reads back after; null as for `act`. */
   setValue(ref: string, text: string): Promise<PatternAnswer | null>;
   close(): Promise<void>;
@@ -89,6 +101,7 @@ function hostBackend(processName: string): Backend {
   const windowed = processName ? {process: processName} : {};
   return {
     description: 'the Windows host',
+    host: true,
     async hasWindow() {
       // The first request starts the host and compiles it, which is the one slow step.
       await host.request('hello', {}, 60_000);
@@ -103,6 +116,8 @@ function hostBackend(processName: string): Backend {
     snapshot: interactive => host.request<RawTree>('snapshot', {process: processName, interactive, max: 400}, 30_000),
     raise: () => host.request<string>('raise', {process: processName}),
     click: point => host.request<string>('click', {...windowed, points: [[point.x, point.y]]}),
+    hold: (point, ms) => host.request<string>('hold', {...windowed, x: point.x, y: point.y, ms}, 30_000),
+    move: point => host.request<string>('move', {...windowed, x: point.x, y: point.y}),
     keys: keys => host.request<string>('keys', {...windowed, keys}, 30_000),
     screen: out => host.request<string>('screen', {...windowed, out}, 30_000),
     async idle() {
@@ -112,6 +127,8 @@ function hostBackend(processName: string): Backend {
     // A call that fails, as on a disabled control, is no answer: the press goes on with the pointer.
     act: (ref, way) => host.request<PatternAnswer>(way, {ref}).catch(() => null),
     setValue: (ref, text) => host.request<PatternAnswer>('setValue', {ref, text}).catch(() => null),
+    // A control that cannot take the focus throws, and says so.
+    focus: ref => host.request<PatternAnswer>('focus', {ref}),
     close: () => host.close(),
   };
 }
@@ -128,6 +145,7 @@ function scriptBackend(processName: string): Backend {
   const windowed = processName ? ['-Process', processName] : [];
   return {
     description: 'a PowerShell script per step',
+    host: false,
     async hasWindow() {
       const result = run('powershell', ['-NoProfile', '-Command', `@(Get-Process -Name '${processName}' -ErrorAction SilentlyContinue).Count`]);
       return Number(firstLine(result.stdout)) > 0;
@@ -156,6 +174,10 @@ function scriptBackend(processName: string): Backend {
     // A script per step keeps no snapshot to act on, so every press is synthetic.
     act: async () => null,
     setValue: async () => null,
+    focus: async () => null,
+    // Nor does input.ps1 hold a press or move the pointer alone.
+    hold: async () => null,
+    move: async () => null,
     async close() {},
   };
 }
@@ -326,6 +348,70 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         return ok(left ? `pressed ${note} with the pointer, since ${left}` : `pressed ${note}`);
       } catch (error) {
         return failed((error as Error).message, codeOf(error));
+      }
+    },
+
+    async longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
+      if (!backend.host) return elsewhere('a long press', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
+      try {
+        const {point, note} = await pointFor(what);
+        const refusing = await refused('a long press');
+        if (refusing) return refusing;
+        // Pointer input lands on the window at the point, so the app has to be in front.
+        if (processName) await backend.raise().catch(() => {});
+        const held = pressOptions.duration ?? 800;
+        await sending(() => backend.hold(point, held));
+        return ok(`held ${note} for ${held} ms`);
+      } catch (error) {
+        return failed(`long press failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    async hover(what: Target): Promise<StepResult> {
+      if (!backend.host) return elsewhere('a hover', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
+      try {
+        const {point, note} = await pointFor(what);
+        const refusing = await refused('moving the pointer');
+        if (refusing) return refusing;
+        if (processName) await backend.raise().catch(() => {});
+        await sending(() => backend.move(point));
+        return ok(`hovered over ${note}`);
+      } catch (error) {
+        return failed(`hover failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    async focus(what: Target): Promise<StepResult> {
+      if (!backend.host) return elsewhere('giving the focus', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
+      try {
+        // Through UI Automation, which needs no quiet desk and no window in front.
+        const {note, node} = await pointFor(what);
+        if (!node) return failed(`a point cannot be given the focus; name a node`, 'INVALID_ARGUMENT');
+        const answer = await backend.focus(node.ref);
+        return answer?.changed ? {...ok(`focused ${note}`), verified: true} : failed(`${note} did not take the focus`, 'NOT_ACTIONABLE');
+      } catch (error) {
+        return failed(`focus failed: ${(error as Error).message}`, 'NOT_ACTIONABLE');
+      }
+    },
+
+    async scrollIntoView(what: Target): Promise<StepResult> {
+      if (!backend.host) return elsewhere('scrolling a control into view', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
+      try {
+        // Through the control's ScrollItem pattern, which every react-native-windows view offers.
+        const {note, node} = await pointFor(what).catch(error => {
+          // A node off screen has no point to press, but can still be scrolled to.
+          if ((error as {code?: string}).code !== 'NOT_ACTIONABLE') throw error;
+          return {note: describeTarget(what), node: undefined as SnapshotNode | undefined};
+        });
+        if (node && node.offscreen !== true) return ok(`${note} was on screen already`);
+        const selector = asSelector(what);
+        const ref = node?.ref ?? (isPoint(selector) ? undefined : selector.ref);
+        if (!ref) return failed(`${note} cannot be scrolled to: name a node`, 'INVALID_ARGUMENT');
+        const answer = await backend.act(ref, 'scrollInto');
+        if (answer?.pattern) return ok(`scrolled ${note} into view through ScrollItem`);
+        return failed(`${note} ${answer?.unsupported ? 'has no ScrollItem pattern' : 'could not be scrolled into view'}`, 'NOT_ACTIONABLE');
+      } catch (error) {
+        return failed(`scrolling failed: ${(error as Error).message}`, codeOf(error));
       }
     },
 

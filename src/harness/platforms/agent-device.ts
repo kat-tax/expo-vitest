@@ -1,11 +1,11 @@
 import path from 'node:path';
-import {codeOf} from '../lib/errors.ts';
+import {HarnessError, codeOf} from '../lib/errors.ts';
 import {prepare} from '../lib/run.ts';
-import type {Snapshot, Target} from '../lib/snapshot.ts';
-import {describeTarget} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, FillOptions, Platform, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
+import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
+import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {nodesFrom, openTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
+import {nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -42,6 +42,24 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     }
   }
 
+  async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
+    const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
+    return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android')};
+  }
+
+  /**
+   * The node a ref or a selector names, read off a fresh tree, for a step
+   * agent-device takes only as a point or a selector. The screen has not
+   * changed since the ref was read, so the new tree numbers it the same.
+   */
+  async function nodeOf(what: Target): Promise<SnapshotNode> {
+    const tree = await snapshot({interactive: false});
+    const selector = asSelector(what);
+    const node = isPoint(selector) ? undefined : findNode(tree, selector);
+    if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)`, {platform});
+    return node;
+  }
+
   return {
     platform,
     // agent-device waits for the screen itself after a press or a fill
@@ -69,10 +87,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       }
     },
 
-    async snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
-      const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
-      return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android')};
-    },
+    snapshot,
 
     press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
       return step(`pressed ${describeTarget(what)}`, 'press failed', current => current.press(what, waitFrom(pressOptions)));
@@ -80,6 +95,46 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
       return step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(what, text, waitFrom(fillOptions)));
+    },
+
+    longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
+      return step(`held ${describeTarget(what)}`, 'long press failed', current => current.longPress(what, pressOptions.duration, waitFrom(pressOptions)));
+    },
+
+    async focus(what: Target): Promise<StepResult> {
+      try {
+        const selector = asSelector(what);
+        const point = isPoint(selector) ? selector : centreOf(await nodeOf(selector));
+        if (!point) return failed(`${describeTarget(what)} has no bounds to give the focus at`, 'NOT_ACTIONABLE');
+        await (await transport()).focus(point);
+        return ok(`focused ${describeTarget(what)}`);
+      } catch (error) {
+        return failed(`focus failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    async scrollIntoView(what: Target, scrollOptions: ScrollIntoViewOptions = {}): Promise<StepResult> {
+      try {
+        // agent-device scrolls until a selector is on screen, not a ref, and
+        // may scroll once before it looks, so a node on screen is left. A
+        // selector may name what is not in the tree yet, as a row of a list
+        // that is not drawn, which agent-device finds as it scrolls.
+        const selector = asSelector(what);
+        const tree = await snapshot({interactive: false});
+        const node = isPoint(selector) ? undefined : findNode(tree, selector);
+        if (node && node.offscreen !== true) return ok(`${describeTarget(what)} was on screen already`);
+        const named = node && (node.testId ? `id="${node.testId}"` : node.name ? `label="${node.name}"` : null);
+        const until = isPoint(selector) || selector.ref ? named : toAgentTarget(selector);
+        if (!until) return failed(`${describeTarget(what)} ${node ? 'has no testID or name to scroll to' : 'is not on the screen'}`, node ? 'NOT_ACTIONABLE' : 'LOCATOR_NOT_FOUND');
+        await (await transport()).scrollUntil(scrollOptions.direction ?? 'down', until, waitFrom(scrollOptions));
+        return ok(`scrolled until ${until} was on screen`);
+      } catch (error) {
+        return failed(`scrolling failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    swipe(from: Point, to: Point): Promise<StepResult> {
+      return step(`swiped from ${from.x},${from.y} to ${to.x},${to.y}`, 'swipe failed', current => current.swipe(from, to));
     },
 
     type(text: string): Promise<StepResult> {

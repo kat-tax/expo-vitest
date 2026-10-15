@@ -8,8 +8,8 @@
 import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
-import type {Bounds, Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
-import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
+import type {Bounds, Point, Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
+import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {describeReadings, duration, poll} from './polling.ts';
 import type {LocatorQuery, Refinement, TextMatch} from './queries.ts';
@@ -67,6 +67,37 @@ export function follow(node: SnapshotNode, before: Snapshot, after: Snapshot): S
   if (byRef && same(byRef)) return byRef;
   const place = before.nodes.filter(same).indexOf(node);
   return place < 0 ? undefined : after.nodes.filter(same)[place];
+}
+
+/**
+ * The path of a swipe across a node, the way the finger moves, over
+ * `distance` of the node's length along that way, about its middle. A
+ * finger drawn up scrolls the content down. At most nine tenths, so the
+ * swipe starts and ends inside the node.
+ */
+export function swipePath(bounds: Bounds, direction: Direction, distance = 0.5): {from: Point; to: Point} {
+  const x = Math.round(bounds.x + bounds.width / 2);
+  const y = Math.round(bounds.y + bounds.height / 2);
+  const share = Math.min(Math.max(distance, 0), 0.9) / 2;
+  const across = Math.round(bounds.width * share);
+  const along = Math.round(bounds.height * share);
+  if (direction === 'up') return {from: {x, y: y + along}, to: {x, y: y - along}};
+  if (direction === 'down') return {from: {x, y: y - along}, to: {x, y: y + along}};
+  if (direction === 'left') return {from: {x: x + across, y}, to: {x: x - across, y}};
+  return {from: {x: x - across, y}, to: {x: x + across, y}};
+}
+
+/**
+ * The selector a backend can look for as it scrolls, for a query plain
+ * enough to spell as one: a testID, or a whole text or label, with nothing
+ * scoping or refining it. Null for anything else.
+ */
+export function selectorOf(query: LocatorQuery): Selector | null {
+  const {predicate, match, options, scope, refinements} = query;
+  if (scope || refinements.length > 0 || typeof match !== 'string' || options.exact === false || options.normalizer) return null;
+  if (predicate === 'testId') return {testId: match};
+  if (predicate === 'text' || predicate === 'label') return {label: match};
+  return null;
 }
 
 /** How a check box's state reads in a message. */
@@ -135,14 +166,17 @@ export class Locator {
   }
 
   /**
-   * The one node an action is for, waited for while there is none or it is
-   * disabled, as Playwright waits for a control to be enabled. Several is an
-   * error at once: waiting would not say which was meant.
+   * The one node an action is for, waited for while there is none, or, for
+   * an action that needs it, while it is disabled, as Playwright waits for a
+   * control to be enabled. Several is an error at once: waiting would not
+   * say which was meant. `anywhere` looks off screen too, while a message
+   * still names the query as it was written.
    */
-  private async one(timeout = this.host.polling.assertionTimeout): Promise<{node: SnapshotNode; snapshot: Snapshot}> {
+  private async one(timeout = this.host.polling.assertionTimeout, enabled = true, anywhere = false): Promise<{node: SnapshotNode; snapshot: Snapshot}> {
+    const asked = anywhere ? {...this.query, options: {...this.query.options, hidden: true}} : this.query;
     const result = await poll(
-      snapshot => ({snapshot, found: resolve(this.query, snapshot)}),
-      ({found}) => found.length > 1 || (found.length === 1 && (found[0] as SnapshotNode).enabled !== false),
+      snapshot => ({snapshot, found: resolve(asked, snapshot)}),
+      ({found}) => found.length > 1 || (found.length === 1 && (!enabled || (found[0] as SnapshotNode).enabled !== false)),
       {timeout, stable: 0, negated: false, feed: this.host.feed, ...this.timed()},
     );
     const {snapshot, found} = result.last;
@@ -150,6 +184,21 @@ export class Locator {
     if (!node) throw this.notFound(snapshot, timeout);
     if (!result.pass) throw this.error('NOT_ACTIONABLE', `${describeQuery(this.query)} found ${describeCandidate(node)}, and it stayed disabled for ${duration(timeout)}`);
     return {node, snapshot};
+  }
+
+  /**
+   * A step a backend may have no counterpart for: `skipped` where it has
+   * none, or, with `must`, the error that the platform cannot, since a test
+   * that went on as if a context menu had opened would fail later for the
+   * wrong reason.
+   */
+  private async optional(what: string, run: (driver: Driver) => Promise<StepResult> | undefined, must = false): Promise<'done' | 'skipped'> {
+    const pending = run(await this.host.ready());
+    const result = pending ? await pending : {ok: true, skipped: true, message: `${what} is not something the ${this.host.platform} harness can do`};
+    if (!result.ok) throw this.error(result.code ?? 'ACTION_FAILED', result.message);
+    if (!result.skipped) return 'done';
+    if (must) throw this.error('UNSUPPORTED_CAPABILITY', result.message);
+    return 'skipped';
   }
 
   /** A step through the driver, as the error a test sees when it did not work. */
@@ -182,6 +231,69 @@ export class Locator {
     const {node, snapshot} = await this.one(options.timeout);
     await this.act(driver => driver.press(targetFor(node, snapshot)));
     await this.act(driver => driver.type(text));
+  }
+
+  /** A press held for `duration` ms, as for a context menu; an error where the platform has none. */
+  async longPress(options: LongPressOptions & WaitOptions = {}): Promise<void> {
+    const {timeout, ...holding} = options;
+    const {node, snapshot} = await this.one(timeout);
+    await this.optional('a long press', driver => driver.longPress?.(targetFor(node, snapshot), holding), true);
+  }
+
+  /** The pointer over the node, without a press; `skipped` on a device, which has no pointer. */
+  async hover(options: WaitOptions = {}): Promise<'done' | 'skipped'> {
+    const {node} = await this.one(options.timeout, false);
+    return this.optional('a hover', driver => driver.hover?.({ref: node.ref}));
+  }
+
+  /** The keyboard focus on the node, without a press; an error where the platform cannot give it. */
+  async focus(options: WaitOptions = {}): Promise<void> {
+    const {node} = await this.one(options.timeout, false);
+    await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}), true);
+  }
+
+  /**
+   * Scrolls the node onto the screen, where it is not there already, which
+   * each backend tells for itself: a web node below the fold is not off
+   * screen in the tree, since `offscreen` there means a node with no size.
+   * It may be off screen to begin with, so it is looked for there too.
+   */
+  async scrollIntoView(options: WaitOptions = {}): Promise<'done' | 'skipped'> {
+    const selector = selectorOf(this.query);
+    // A row of an Android list that is not drawn is not in the tree at all,
+    // and agent-device finds it as it scrolls, down and then up.
+    if (selector && resolve({...this.query, options: {...this.query.options, hidden: true}}, await this.host.feed.next()).length === 0) {
+      const driver = await this.host.ready();
+      if (!driver.scrollIntoView) return 'skipped';
+      for (const direction of ['down', 'up'] as const) {
+        const result = await driver.scrollIntoView(selector, {direction});
+        if (result.ok) return result.skipped ? 'skipped' : 'done';
+      }
+    }
+    const {node} = await this.one(options.timeout, false, true);
+    const direction = node.bounds && node.bounds.y < 0 ? 'up' : 'down';
+    return this.optional('scrolling into view', driver => driver.scrollIntoView?.({ref: node.ref}, {direction}));
+  }
+
+  /** A finger drawn across the node, the way `direction` says, over `distance` of it (half by default). */
+  async swipe(direction: Direction, options: {distance?: number} & WaitOptions = {}): Promise<'done' | 'skipped'> {
+    const {node} = await this.one(options.timeout, false);
+    if (!node.bounds) throw this.error('NOT_ACTIONABLE', `${describeCandidate(node)} has no bounds to swipe across`);
+    const {from, to} = swipePath(node.bounds, direction, options.distance);
+    return this.optional('a swipe', driver => driver.swipe?.(from, to));
+  }
+
+  /**
+   * A named key pressed with the node focused, given the focus first where it
+   * has not: `skipped` where the platform sends no keys or gives no focus.
+   * Whether it sends keys is asked first, since on a device the focus is
+   * given with a touch, which would press a button for nothing.
+   */
+  async key(name: string, options: WaitOptions = {}): Promise<'pressed' | 'skipped'> {
+    const {node} = await this.one(options.timeout);
+    if (!(await this.host.ready()).key) return 'skipped';
+    if (!node.focused && (await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}))) === 'skipped') return 'skipped';
+    return (await this.optional(`the ${name} key`, driver => driver.key?.(name))) === 'done' ? 'pressed' : 'skipped';
   }
 
   async check(options: PressOptions & WaitOptions = {}): Promise<void> {

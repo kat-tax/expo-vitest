@@ -43,6 +43,7 @@ public static class HarnessHost {
   [StructLayout(LayoutKind.Sequential)] struct POINT { public int X; public int Y; }
   [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT point);
   [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
+  [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
   delegate bool WindowVisit(IntPtr window, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisit visit, IntPtr data);
 
@@ -112,6 +113,8 @@ public static class HarnessHost {
       case "snapshot": return Snapshot(Text(request, "process"), Flag(request, "interactive"), Number(request, "max", 400));
       case "click": return Click(Text(request, "process"), request.ContainsKey("points") ? request["points"] as IEnumerable : null);
       case "hold": return Hold(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "ms", 800));
+      case "move": return Move(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0));
+      case "focus": return Focus(Text(request, "ref"));
       case "keys": return Keys(Text(request, "process"), Text(request, "keys"));
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
       case "idle": return Idle();
@@ -503,16 +506,7 @@ public static class HarnessHost {
         object[] xy = Pair(point);
         int x = Convert.ToInt32(xy[0], CultureInfo.InvariantCulture) + originX;
         int y = Convert.ToInt32(xy[1], CultureInfo.InvariantCulture) + originY;
-        // A click lands on whatever window is at the point, so with an app
-        // named it is sent only where that window is one of the app's own.
-        if (pid != 0) {
-          POINT at;
-          at.X = x;
-          at.Y = y;
-          uint owner;
-          GetWindowThreadProcessId(GetAncestor(WindowFromPoint(at), 2), out owner);
-          if (owner != pid) throw new InvalidOperationException("a window of " + ProcessName(owner) + " is in front of " + name + " at " + x + "," + y + ", so the press would land in it");
-        }
+        Owns(pid, name, x, y, "press");
         SetCursorPos(x, y);
         Thread.Sleep(80);
         mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
@@ -523,6 +517,26 @@ public static class HarnessHost {
       }
     }
     return Json("clicked " + string.Join("; ", clicked.ToArray()));
+  }
+
+  // Pointer input lands on whatever window is at the point, so with an app
+  // named it is sent only where that window is one of the app's own.
+  static void Owns(uint pid, string name, int x, int y, string what) {
+    if (pid == 0) return;
+    POINT at;
+    at.X = x;
+    at.Y = y;
+    uint owner;
+    GetWindowThreadProcessId(GetAncestor(WindowFromPoint(at), 2), out owner);
+    if (owner != pid) throw new InvalidOperationException("a window of " + ProcessName(owner) + " is in front of " + name + " at " + x + "," + y + ", so the " + what + " would land in it");
+  }
+
+  /** The app's window's top left, and its process id, or nothing where no app is named. */
+  static int[] Origin(string name) {
+    if (string.IsNullOrEmpty(name)) return new int[] { 0, 0, 0 };
+    Process process = Window(name);
+    RECT rect = WindowRect(process);
+    return new int[] { rect.Left, rect.Top, process.Id };
   }
 
   /** A process by its name, which says whose window was in the way without reading anything it shows. */
@@ -539,13 +553,10 @@ public static class HarnessHost {
   }
 
   static string Hold(string name, int x, int y, int ms) {
-    int originX = 0;
-    int originY = 0;
-    if (!string.IsNullOrEmpty(name)) {
-      RECT rect = WindowRect(Window(name));
-      originX = rect.Left;
-      originY = rect.Top;
-    }
+    int[] origin = Origin(name);
+    int originX = origin[0];
+    int originY = origin[1];
+    Owns((uint)origin[2], name, x + originX, y + originY, "press");
     SetCursorPos(x + originX, y + originY);
     Thread.Sleep(80);
     mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
@@ -553,6 +564,35 @@ public static class HarnessHost {
     mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
     Thread.Sleep(400);
     return Json("held " + (x + originX) + "," + (y + originY) + " for " + ms + " ms");
+  }
+
+  // The pointer moved over a point without a press, for a hover. SetCursorPos
+  // raises no pointer move, so an absolute move over the whole desktop
+  // follows it, which the renderer sees as the pointer arriving there.
+  static string Move(string name, int x, int y) {
+    int[] origin = Origin(name);
+    int screenX = x + origin[0];
+    int screenY = y + origin[1];
+    Owns((uint)origin[2], name, screenX, screenY, "hover");
+    SetCursorPos(screenX, screenY);
+    int left = GetSystemMetrics(76);
+    int top = GetSystemMetrics(77);
+    int width = Math.Max(2, GetSystemMetrics(78));
+    int height = Math.Max(2, GetSystemMetrics(79));
+    uint normalX = (uint)((screenX - left) * 65535L / (width - 1));
+    uint normalY = (uint)((screenY - top) * 65535L / (height - 1));
+    mouse_event(0x0001 | 0x8000 | 0x4000, normalX, normalY, 0, UIntPtr.Zero);
+    Thread.Sleep(200);
+    return Json("moved to " + screenX + "," + screenY);
+  }
+
+  // The keyboard focus given on UI Automation's own channel, which needs no
+  // quiet desk, and read back from the control.
+  static string Focus(string reference) {
+    AutomationElement element = Element(reference);
+    element.SetFocus();
+    bool focused = Until(() => element.Current.HasKeyboardFocus);
+    return "{\"pattern\":\"Focus\",\"changed\":" + Bool(focused) + "}";
   }
 
   // Keys go to the window in front, so with an app named they are sent only

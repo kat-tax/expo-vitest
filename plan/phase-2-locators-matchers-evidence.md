@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 5 and 7 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 7 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -142,6 +142,51 @@ below, the build is what holds.
     A fill appended on web and through keys on Windows, where agent-device
     and the Value pattern replace. The Windows driver handed typed text
     to SendKeys as syntax, so `1+1` typed `1!`.
+- **Item 6: the actions a backend may not have.**
+  - `longPress`, `hover`, `focus`, `scrollIntoView` and `swipe` are
+    optional on `Driver`, and the locator has them and `key`.
+    `longPress` and `focus` fail with UNSUPPORTED_CAPABILITY where a
+    platform has none, since a test that went on as if a context menu had
+    opened would fail later for the wrong reason. The other three answer
+    `skipped`.
+  - `swipe` takes two points. The locator works the path out across its
+    node, so every backend is given the same thing.
+  - **Web:** the mouse holds and hovers. The page focuses and scrolls the
+    element the ref names. A swipe is a wheel.
+  - **agent-device:** `longpress` takes a ref. Its `focus` takes only a
+    point and its `scroll --until` only a selector, so the driver reads
+    the node off a fresh tree for those. On iOS and Android the focus is
+    given with a touch.
+  - **Windows:**
+    - The host's `hold` now checks that the window under the point is
+      the app's, as a click does.
+    - A new `move` is an absolute pointer move, since SetCursorPos alone
+      raises no pointer move.
+    - A new `focus` is UI Automation's SetFocus, read back.
+    - `scrollIntoView` is the ScrollItem pattern, and there is no swipe.
+    - The script-per-step backend skips all of them.
+  - `offscreen` on web means a node with no size, as Playwright counts
+    what is visible, so whether a node needs scrolling is each backend's
+    to tell. That showed that a web press below the fold landed on
+    nothing. It now scrolls first, in a commit of its own.
+  - An Android list's rows leave the tree as it scrolls. So a plain query
+    (a testID, or a whole text or label) that finds nothing asks the
+    backend to scroll until it sees it, down and then up.
+  - On Android, a long press on a row with no long press of its own is a
+    press when the finger comes up. Live, it opened the row.
+  - Each device test file makes its own driver, so the Windows idle guard
+    refused the second of two files for the first one's input. What the
+    guard has seen is now kept in `.harness/windows-desk.json`, in a
+    commit of its own.
+  - **Seen live:**
+    - Web: all six, with a below-the-fold press.
+    - Windows, on a react-native-windows app: focus through UI
+      Automation, a key, a hover, a long press, ScrollItem on a node off
+      screen, a swipe skipped, and two files run back to back.
+    - Android, on the emulator: a swipe both ways, a long press, and a
+      Settings row swiped out of the tree brought back by its text in
+      6.5 s.
+  - **Not seen:** iOS.
 
 ## Purpose and the claims it proves
 

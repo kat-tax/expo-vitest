@@ -6,7 +6,7 @@ import {firstLine, prepare} from '../lib/run.ts';
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
-import type {Availability, Driver, DriverOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 
 const DEFAULT_URL = 'http://localhost:8081';
@@ -224,14 +224,19 @@ const LANDS = `(([id, x, y]) => {
 })`;
 
 /**
- * Runs in the page: where the middle of the element a ref names is outside
- * the viewport, scrolls it to the middle of the screen. Answers whether the
- * element is still there, whether it was scrolled, and where it is now.
+ * Runs in the page: gives the element a ref names the focus, or, where its
+ * middle is outside the viewport, scrolls it to the middle of the screen.
+ * Answers whether the element is still there, whether it took the focus or
+ * was scrolled, and where it is now.
  */
-const ON_ELEMENT = `(([id]) => {
+const ON_ELEMENT = `(([id, what]) => {
   const refs = window.__harnessRefs;
   const element = refs && refs.elements.get(id) && refs.elements.get(id).deref();
   if (!element) return {there: false};
+  if (what === 'focus') {
+    element.focus();
+    return {there: true, focused: document.activeElement === element};
+  }
   const box = element.getBoundingClientRect();
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -240,6 +245,9 @@ const ON_ELEMENT = `(([id]) => {
   const now = element.getBoundingClientRect();
   return {there: true, scrolled: outside, box: {x: now.x, y: now.y, width: now.width, height: now.height}};
 })`;
+
+/** How long a long press is held when a test does not say, in ms: what a person holds for a context menu. */
+const HOLD_MS = 800;
 
 /** How long a read stands while the page's counter has not moved: a box can move without a mutation, as when an image loads. */
 const KEEP_MS = 2000;
@@ -268,7 +276,7 @@ export function webDriver(options: DriverOptions): Driver {
     addInitScript(script: string): Promise<void>;
     goto(url: string, o?: unknown): Promise<unknown>;
     screenshot(o: {path: string; fullPage?: boolean}): Promise<unknown>;
-    mouse: {click(x: number, y: number): Promise<void>};
+    mouse: {click(x: number, y: number): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
     keyboard: {type(text: string): Promise<void>; press(key: string): Promise<void>};
     locator(selector: string): Locator;
     evaluate<T>(fn: string): Promise<T>;
@@ -367,12 +375,12 @@ export function webDriver(options: DriverOptions): Driver {
     return {node, tree};
   }
 
-  /** Scrolls the element a node is into view where it is not, or says the node has gone. */
-  async function onElement(node: SnapshotNode): Promise<{there: boolean; scrolled?: boolean; box?: Bounds}> {
+  /** Does something in the page to the element a node is, or says the node has gone. */
+  async function onElement(node: SnapshotNode, what: 'focus' | 'scroll'): Promise<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}> {
     const current = await open();
     // A scroll moves boxes without a mutation, so the next read starts again.
     lastRead = null;
-    return current.evaluate<{there: boolean; scrolled?: boolean; box?: Bounds}>(`(${ON_ELEMENT})(${JSON.stringify([Number(node.ref.slice(2))])})`);
+    return current.evaluate<{there: boolean; focused?: boolean; scrolled?: boolean; box?: Bounds}>(`(${ON_ELEMENT})(${JSON.stringify([Number(node.ref.slice(2)), what])})`);
   }
 
   async function pointFor(what: Target): Promise<{point: Point; note: string}> {
@@ -383,7 +391,7 @@ export function webDriver(options: DriverOptions): Driver {
     if (!node.bounds || node.bounds.width === 0) throw new HarnessError('NOT_ACTIONABLE', `${note} is not on screen to press`, {platform: 'web'});
     // A press outside the viewport lands on nothing, so a node below the fold
     // is scrolled to first, as Playwright scrolls one before it clicks.
-    const shown = await onElement(node);
+    const shown = await onElement(node, 'scroll');
     if (!shown.there) throw new HarnessError('LOCATOR_NOT_FOUND', `${note} has gone from the page`, {platform: 'web'});
     const box = shown.box ?? node.bounds;
     const point = {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2)};
@@ -458,6 +466,68 @@ export function webDriver(options: DriverOptions): Driver {
       lastRead = null;
       await current.keyboard.type(text);
       return ok(`typed ${text.length} characters`);
+    },
+
+    async longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
+      const held = pressOptions.duration ?? HOLD_MS;
+      try {
+        const {point, note} = await pointFor(what);
+        const current = await open();
+        lastRead = null;
+        await current.mouse.move(point.x, point.y);
+        await current.mouse.down();
+        await new Promise(resolve => setTimeout(resolve, held));
+        await current.mouse.up();
+        return ok(`held ${note} for ${held} ms`);
+      } catch (error) {
+        return failed((error as Error).message.split('\n')[0] ?? 'long press failed', codeOf(error));
+      }
+    },
+
+    async hover(what: Target): Promise<StepResult> {
+      try {
+        const {point, note} = await pointFor(what);
+        const current = await open();
+        lastRead = null;
+        await current.mouse.move(point.x, point.y);
+        return ok(`hovered over ${note}`);
+      } catch (error) {
+        return failed((error as Error).message.split('\n')[0] ?? 'hover failed', codeOf(error));
+      }
+    },
+
+    async focus(what: Target): Promise<StepResult> {
+      try {
+        const {node} = await nodeFor(what);
+        const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
+        const done = await onElement(node, 'focus');
+        if (!done.there) return failed(`${note} has gone from the page`, 'LOCATOR_NOT_FOUND');
+        return done.focused ? {...ok(`focused ${note}`), verified: true} : failed(`${note} does not take the focus`, 'NOT_ACTIONABLE');
+      } catch (error) {
+        return failed((error as Error).message.split('\n')[0] ?? 'focus failed', codeOf(error));
+      }
+    },
+
+    async scrollIntoView(what: Target): Promise<StepResult> {
+      try {
+        const {node} = await nodeFor(what);
+        const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
+        const done = await onElement(node, 'scroll');
+        if (!done.there) return failed(`${note} has gone from the page`, 'LOCATOR_NOT_FOUND');
+        return ok(done.scrolled ? `scrolled ${note} into view` : `${note} was in view already`);
+      } catch (error) {
+        return failed((error as Error).message.split('\n')[0] ?? 'scrolling failed', codeOf(error));
+      }
+    },
+
+    async swipe(from: Point, to: Point): Promise<StepResult> {
+      // A page scrolls under a wheel, not under a mouse drawn across it,
+      // which would select text: a finger drawn up turns the wheel down.
+      const current = await open();
+      lastRead = null;
+      await current.mouse.move(from.x, from.y);
+      await current.mouse.wheel(from.x - to.x, from.y - to.y);
+      return ok(`swiped from ${from.x},${from.y} to ${to.x},${to.y}`);
     },
 
     async key(name: string): Promise<StepResult> {

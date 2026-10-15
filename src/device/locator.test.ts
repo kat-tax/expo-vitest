@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {LocatorHost} from './locator.ts';
-import {Locator, follow, targetFor} from './locator.ts';
+import {Locator, follow, selectorOf, swipePath, targetFor} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch} from './queries.ts';
 
@@ -164,6 +164,134 @@ describe('an action', () => {
     await email.type(' more');
     expect(driver.press).toHaveBeenLastCalledWith({ref: '@e4'});
     expect(driver.type).toHaveBeenLastCalledWith(' more');
+  });
+});
+
+describe('swipePath', () => {
+  const box = {x: 0, y: 100, width: 200, height: 400};
+
+  it('draws the finger the way it is told, about the middle, over half the node by default', () => {
+    expect(swipePath(box, 'up')).toEqual({from: {x: 100, y: 400}, to: {x: 100, y: 200}});
+    expect(swipePath(box, 'down')).toEqual({from: {x: 100, y: 200}, to: {x: 100, y: 400}});
+    expect(swipePath(box, 'left')).toEqual({from: {x: 150, y: 300}, to: {x: 50, y: 300}});
+    expect(swipePath(box, 'right')).toEqual({from: {x: 50, y: 300}, to: {x: 150, y: 300}});
+  });
+
+  it('keeps the swipe inside the node, and goes nowhere for no distance', () => {
+    expect(swipePath(box, 'up', 2)).toEqual({from: {x: 100, y: 480}, to: {x: 100, y: 120}});
+    expect(swipePath(box, 'up', -1)).toEqual({from: {x: 100, y: 300}, to: {x: 100, y: 300}});
+  });
+});
+
+describe('selectorOf', () => {
+  it('spells a plain testID, text or label query as the selector a backend looks for as it scrolls', () => {
+    expect(selectorOf(query('testId', 'row-50'))).toEqual({testId: 'row-50'});
+    expect(selectorOf(query('text', 'Network'))).toEqual({label: 'Network'});
+    expect(selectorOf(query('label', 'Network'))).toEqual({label: 'Network'});
+  });
+
+  it('has none for a role, a pattern, a loose match, a normaliser, a scope or a refinement', () => {
+    expect(selectorOf(query('role', 'button'))).toBeNull();
+    expect(selectorOf(query('text', /Network/))).toBeNull();
+    expect(selectorOf(query('text', 'Net', {exact: false}))).toBeNull();
+    expect(selectorOf(query('text', 'Net', {normalizer: text => text}))).toBeNull();
+    expect(selectorOf({...query('text', 'Net'), scope: query('role', 'list')})).toBeNull();
+    expect(selectorOf({...query('text', 'Net'), refinements: [{first: true}]})).toBeNull();
+  });
+});
+
+describe('the actions a backend may not have', () => {
+  const row = node('@e5', 'listitem', 'Ada', {kind: 'listitem', bounds: {x: 0, y: 100, width: 200, height: 400}});
+
+  it('hold a press for as long as asked, and fail where the platform has no long press', async () => {
+    const longPress = vi.fn(async (): Promise<StepResult> => ok('held'));
+    const {driver, locate} = rig(() => [row], {longPress});
+    await locate(query('text', 'Ada')).longPress({duration: 900, timeout: 100});
+    expect(driver.longPress).toHaveBeenCalledWith({ref: '@e5'}, {duration: 900});
+    await expect(rig(() => [row]).locate(query('text', 'Ada')).longPress()).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'a long press is not something the web harness can do'));
+    const skipping = rig(() => [row], {longPress: vi.fn(async () => ({ok: true, skipped: true, message: 'a long press needs the host'}))});
+    await expect(skipping.locate(query('text', 'Ada')).longPress()).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'a long press needs the host'));
+  });
+
+  it('hover a node, disabled or not, and skip where there is no pointer', async () => {
+    const hover = vi.fn(async (): Promise<StepResult> => ok('hovered'));
+    const {driver, locate} = rig(() => [{...row, enabled: false}], {hover});
+    expect(await locate(query('text', 'Ada')).hover()).toBe('done');
+    expect(driver.hover).toHaveBeenCalledWith({ref: '@e5'});
+    expect(await rig(() => [row]).locate(query('text', 'Ada')).hover()).toBe('skipped');
+    const skipping = rig(() => [row], {hover: vi.fn(async () => ({ok: true, skipped: true, message: 'no pointer'}))});
+    expect(await skipping.locate(query('text', 'Ada')).hover()).toBe('skipped');
+    const failing = rig(() => [row], {hover: vi.fn(async () => failed('covered', 'NOT_ACTIONABLE'))});
+    await expect(failing.locate(query('text', 'Ada')).hover()).rejects.toThrow(failure('NOT_ACTIONABLE', 'covered'));
+    const uncoded = rig(() => [row], {hover: vi.fn(async () => ({ok: false, message: 'hover failed'}))});
+    await expect(uncoded.locate(query('text', 'Ada')).hover()).rejects.toThrow(failure('ACTION_FAILED', 'hover failed'));
+  });
+
+  it('give the focus without a press, and fail where the platform cannot give it', async () => {
+    const focus = vi.fn(async (): Promise<StepResult> => ok('focused'));
+    const {driver, locate} = rig(() => [row], {focus});
+    await locate(query('text', 'Ada')).focus();
+    expect(driver.focus).toHaveBeenCalledWith({ref: '@e5'});
+    expect(driver.press).not.toHaveBeenCalled();
+    await expect(rig(() => [row]).locate(query('text', 'Ada')).focus()).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'giving the focus is not something the web harness can do'));
+  });
+
+  it('scroll a node into view the way it lies, looking for it off screen too, and leave to the backend whether it must', async () => {
+    const scrollIntoView = vi.fn(async (): Promise<StepResult> => ok('scrolled'));
+    const below = {...row, offscreen: true, bounds: {x: 0, y: 2400, width: 200, height: 40}};
+    const above = {...row, ref: '@e6', name: 'Bo', offscreen: true, bounds: {x: 0, y: -300, width: 200, height: 40}};
+    const unplaced = {...row, ref: '@e7', name: 'Cy', offscreen: true, bounds: null};
+    const {driver, locate} = rig(() => [row, below, above, unplaced].map((each, at) => (at === 1 ? {...each, ref: '@e8', name: 'Di'} : each)), {scrollIntoView});
+    expect(await locate(query('text', 'Ada')).scrollIntoView()).toBe('done');
+    expect(driver.scrollIntoView).toHaveBeenLastCalledWith({ref: '@e5'}, {direction: 'down'});
+    expect(await locate(query('text', 'Di')).scrollIntoView()).toBe('done');
+    expect(driver.scrollIntoView).toHaveBeenLastCalledWith({ref: '@e8'}, {direction: 'down'});
+    expect(await locate(query('text', 'Bo')).scrollIntoView()).toBe('done');
+    expect(driver.scrollIntoView).toHaveBeenLastCalledWith({ref: '@e6'}, {direction: 'up'});
+    expect(await locate(query('text', 'Cy')).scrollIntoView()).toBe('done');
+    expect(driver.scrollIntoView).toHaveBeenLastCalledWith({ref: '@e7'}, {direction: 'down'});
+    expect(await rig(() => [below]).locate(query('text', 'Ada')).scrollIntoView()).toBe('skipped');
+  });
+
+  it('ask a backend to scroll until it sees a node that is not in the tree, down and then up', async () => {
+    const scrollIntoView = vi.fn(async (_target: unknown, options?: {direction?: string}): Promise<StepResult> => (options?.direction === 'up' ? ok('found it') : failed('reached the bottom')));
+    const {driver, locate} = rig(() => [row], {scrollIntoView});
+    expect(await locate(query('text', 'Network')).scrollIntoView()).toBe('done');
+    expect(driver.scrollIntoView).toHaveBeenNthCalledWith(1, {label: 'Network'}, {direction: 'down'});
+    expect(driver.scrollIntoView).toHaveBeenNthCalledWith(2, {label: 'Network'}, {direction: 'up'});
+    const skipping = rig(() => [row], {scrollIntoView: vi.fn(async () => ({ok: true, skipped: true, message: 'no scrolling'}))});
+    expect(await skipping.locate(query('testId', 'row-50')).scrollIntoView()).toBe('skipped');
+    expect(await rig(() => [row]).locate(query('testId', 'row-50')).scrollIntoView()).toBe('skipped');
+    const never = rig(() => [row], {scrollIntoView: vi.fn(async () => failed('not there'))});
+    await expect(never.locate(query('text', 'Nowhere')).scrollIntoView({timeout: 200})).rejects.toThrow(failure('LOCATOR_NOT_FOUND', /^getByText\("Nowhere"\) matched nothing within 200 ms/));
+    expect(never.driver.scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
+  it('swipe across a node, and say so where it has no bounds or the platform has no swipe', async () => {
+    const swipe = vi.fn(async (): Promise<StepResult> => ok('swiped'));
+    const {driver, locate} = rig(() => [row, {...row, ref: '@e9', name: 'Ed', bounds: null}], {swipe});
+    expect(await locate(query('text', 'Ada')).swipe('up', {distance: 0.5})).toBe('done');
+    expect(driver.swipe).toHaveBeenCalledWith({x: 100, y: 400}, {x: 100, y: 200});
+    await expect(locate(query('text', 'Ed')).swipe('up')).rejects.toThrow(failure('NOT_ACTIONABLE', '@e9   listitem "Ed" has no bounds to swipe across'));
+    expect(await rig(() => [row]).locate(query('text', 'Ada')).swipe('left')).toBe('skipped');
+  });
+
+  it('send a key with the node focused, focusing it first, and skip where there are no keys or no focus to give', async () => {
+    const key = vi.fn(async (): Promise<StepResult> => ok('pressed'));
+    const focus = vi.fn(async (): Promise<StepResult> => ok('focused'));
+    const focused = rig(() => [{...row, focused: true}], {key, focus});
+    expect(await focused.locate(query('text', 'Ada')).key('ArrowDown')).toBe('pressed');
+    expect(focus).not.toHaveBeenCalled();
+    expect(key).toHaveBeenCalledWith('ArrowDown');
+    const unfocused = rig(() => [row], {key, focus});
+    expect(await unfocused.locate(query('text', 'Ada')).key('Enter')).toBe('pressed');
+    expect(focus).toHaveBeenCalledWith({ref: '@e5'});
+    const noKeys = rig(() => [row], {focus: vi.fn(async (): Promise<StepResult> => ok('focused'))});
+    expect(await noKeys.locate(query('text', 'Ada')).key('Enter')).toBe('skipped');
+    expect(noKeys.driver.focus).not.toHaveBeenCalled();
+    expect(await rig(() => [row], {key}).locate(query('text', 'Ada')).key('Enter')).toBe('skipped');
+    const skippedKey = rig(() => [{...row, focused: true}], {key: vi.fn(async () => ({ok: true, skipped: true, message: 'no keys'}))});
+    expect(await skippedKey.locate(query('text', 'Ada')).key('Enter')).toBe('skipped');
   });
 });
 

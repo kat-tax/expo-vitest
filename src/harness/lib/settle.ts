@@ -12,9 +12,9 @@
  * such as one with a spinner, gives up after `settleTimeout` and the step
  * goes on, saying so.
  */
-import type {Bounds, Snapshot, SnapshotNode, Target} from './snapshot.ts';
+import type {Bounds, Point, Snapshot, SnapshotNode, Target} from './snapshot.ts';
 import {asSelector, findNode, isPoint} from './snapshot.ts';
-import type {Driver, FillOptions, PressOptions, StepResult} from './types.ts';
+import type {Driver, FillOptions, LongPressOptions, PressOptions, ScrollIntoViewOptions, StepResult, StepTiming} from './types.ts';
 
 export interface Timing {
   /** The gap between the reads that must agree after a step, in ms. 0 turns the wait off. */
@@ -166,5 +166,33 @@ export function withTiming(driver: Driver, timing: Timing, clock: Clock = realCl
       return afterStep(await driver.type(text, handed(timing)), timing);
     },
     ...(driver.key ? {key: async (name: string): Promise<StepResult> => afterStep(await (driver.key as (name: string) => Promise<StepResult>)(name), timing)} : {}),
+    ...(driver.longPress
+      ? {
+          async longPress(target: Target, options: LongPressOptions = {}): Promise<StepResult> {
+            const own = timingFor(timing, options);
+            const waited = await transition(target, own);
+            const result = await (driver.longPress as NonNullable<Driver['longPress']>)(target, {...options, ...handed(own)});
+            return afterStep(waited && result.ok ? {...result, message: result.message + waited} : result, own);
+          },
+        }
+      : {}),
+    ...(driver.hover ? {hover: async (target: Target): Promise<StepResult> => afterStep(await (driver.hover as NonNullable<Driver['hover']>)(target), timing)} : {}),
+    ...(driver.focus ? {focus: async (target: Target): Promise<StepResult> => afterStep(await (driver.focus as NonNullable<Driver['focus']>)(target), timing)} : {}),
+    ...(driver.scrollIntoView
+      ? {
+          async scrollIntoView(target: Target, options: ScrollIntoViewOptions = {}): Promise<StepResult> {
+            const own = timingFor(timing, options);
+            return afterStep(await (driver.scrollIntoView as NonNullable<Driver['scrollIntoView']>)(target, {...options, ...handed(own)}), own);
+          },
+        }
+      : {}),
+    ...(driver.swipe
+      ? {
+          async swipe(from: Point, to: Point, options: StepTiming = {}): Promise<StepResult> {
+            const own = timingFor(timing, options);
+            return afterStep(await (driver.swipe as NonNullable<Driver['swipe']>)(from, to, {...options, ...handed(own)}), own);
+          },
+        }
+      : {}),
   };
 }

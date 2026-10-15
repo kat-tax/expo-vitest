@@ -16,7 +16,7 @@ import {pathToFileURL} from 'node:url';
 import type {HarnessCode} from '../lib/errors.ts';
 import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
-import type {Target} from '../lib/snapshot.ts';
+import type {Point, Target} from '../lib/snapshot.ts';
 import type {Platform} from '../lib/types.ts';
 import type {AgentFailure, Capabilities, Manifest, Wait} from './agent-device-mapping.ts';
 import {clientEntry, clientTarget, cliScript, codeFor, describeDevice, describeFailure, packageFolders, parseFailure, parsePayload, settleArgs, settleRequest, targetArgs} from './agent-device-mapping.ts';
@@ -38,6 +38,13 @@ export interface AgentDeviceTransport {
   /** With a wait, agent-device's own: after the press, until the screen has been quiet a while. */
   press(target: Target, wait?: Wait): Promise<void>;
   fill(target: Target, text: string, wait?: Wait): Promise<void>;
+  /** A press held for `duration` ms, or for agent-device's own length when none is given. */
+  longPress(target: Target, duration?: number, wait?: Wait): Promise<void>;
+  /** The focus given at a point, which is the only way agent-device takes it. */
+  focus(point: Point): Promise<void>;
+  /** Scrolls the way the content moves until a selector is on screen. */
+  scrollUntil(direction: 'up' | 'down', until: string, wait?: Wait): Promise<void>;
+  swipe(from: Point, to: Point): Promise<void>;
   type(text: string): Promise<void>;
   screenshot(file: string): Promise<void>;
   close(): Promise<void>;
@@ -65,7 +72,7 @@ interface Client {
   devices: {capabilities: Call};
   apps: {open: Call};
   capture: {snapshot: Call; screenshot: Call};
-  interactions: {press: Call; fill: Call; type: Call};
+  interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call};
   sessions: {close: Call};
 }
 
@@ -166,6 +173,18 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async fill(target, text, wait) {
       await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
+    async longPress(target, duration, wait) {
+      await call(signal => client.interactions.longPress({...select, ...clientTarget(target), ...(duration === undefined ? {} : {durationMs: duration}), ...settleRequest(wait), signal}), 'ACTION_FAILED');
+    },
+    async focus(point) {
+      await call(signal => client.interactions.focus({...select, x: point.x, y: point.y, signal}), 'ACTION_FAILED');
+    },
+    async scrollUntil(direction, until, wait) {
+      await call(signal => client.interactions.scroll({...select, direction, until, ...settleRequest(wait), signal}), 'ACTION_FAILED');
+    },
+    async swipe(from, to) {
+      await call(signal => client.interactions.swipe({...select, from, to, signal}), 'ACTION_FAILED');
+    },
     async type(text) {
       await call(signal => client.interactions.type({...select, text, signal}), 'ACTION_FAILED');
     },
@@ -209,6 +228,18 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async fill(target, text, wait) {
       await agent(['fill', ...targetArgs(target), text, ...settleArgs(wait)], 'ACTION_FAILED');
+    },
+    async longPress(target, duration, wait) {
+      await agent(['longpress', ...targetArgs(target), ...(duration === undefined ? [] : [String(duration)]), ...settleArgs(wait)], 'ACTION_FAILED');
+    },
+    async focus(point) {
+      await agent(['focus', String(point.x), String(point.y)], 'ACTION_FAILED');
+    },
+    async scrollUntil(direction, until, wait) {
+      await agent(['scroll', direction, '--until', until, ...settleArgs(wait)], 'ACTION_FAILED');
+    },
+    async swipe(from, to) {
+      await agent(['swipe', String(from.x), String(from.y), String(to.x), String(to.y)], 'ACTION_FAILED');
     },
     async type(text) {
       await agent(['type', text], 'ACTION_FAILED');

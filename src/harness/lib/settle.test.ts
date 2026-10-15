@@ -207,4 +207,42 @@ describe('withTiming', () => {
     expect(await keyed.key?.('ArrowDown')).toEqual(ok('pressed ArrowDown'));
     expect('key' in withTiming(stub([home]), timing, fakeClock())).toBe(false);
   });
+
+  it('waits after each action a driver may have, gives a long press the transition, and has none the driver has not', async () => {
+    const longPress = vi.fn(async (): Promise<StepResult> => ok('held'));
+    const hover = vi.fn(async (): Promise<StepResult> => ok('hovered'));
+    const focus = vi.fn(async (): Promise<StepResult> => ok('focused'));
+    const scrollIntoView = vi.fn(async (): Promise<StepResult> => ok('scrolled'));
+    const swipe = vi.fn(async (): Promise<StepResult> => ok('swiped'));
+    const driver = stub([home, home, sheet, sheet], {longPress, hover, focus, scrollIntoView, swipe});
+    const timed = withTiming(driver, timing, fakeClock());
+    await timed.open('/');
+    await timed.press('label="Open sheet"');
+    expect((await timed.longPress?.('label="Done"', {duration: 900}))?.message).toBe('held; it had just come in or moved, so the step waited 500 ms first');
+    expect(longPress).toHaveBeenCalledWith('label="Done"', {duration: 900});
+    expect((await timed.longPress?.('label="Done"'))?.message).toBe('held');
+    expect(await timed.hover?.('@e1')).toEqual(ok('hovered'));
+    expect(await timed.focus?.('@e1')).toEqual(ok('focused'));
+    expect(await timed.scrollIntoView?.('@e2', {direction: 'up'})).toEqual(ok('scrolled'));
+    expect(scrollIntoView).toHaveBeenCalledWith('@e2', {direction: 'up'});
+    expect(await timed.scrollIntoView?.('@e2')).toEqual(ok('scrolled'));
+    expect(await timed.swipe?.({x: 50, y: 500}, {x: 50, y: 100}, {settle: false})).toEqual(ok('swiped'));
+    expect(await timed.swipe?.({x: 50, y: 500}, {x: 50, y: 100})).toEqual(ok('swiped'));
+    expect(swipe).toHaveBeenCalledWith({x: 50, y: 500}, {x: 50, y: 100}, {settle: false});
+    const bare = withTiming(stub([home]), timing, fakeClock());
+    for (const name of ['longPress', 'hover', 'focus', 'scrollIntoView', 'swipe']) expect(name in bare, name).toBe(false);
+  });
+
+  it('hands a driver that waits by itself the times for a long press, a scroll and a swipe', async () => {
+    const longPress = vi.fn(async (): Promise<StepResult> => ok('held'));
+    const scrollIntoView = vi.fn(async (): Promise<StepResult> => ok('scrolled'));
+    const swipe = vi.fn(async (): Promise<StepResult> => ok('swiped'));
+    const timed = withTiming(stub([home], {settles: true, longPress, scrollIntoView, swipe}), timing, fakeClock());
+    await timed.longPress?.('@e1');
+    expect(longPress).toHaveBeenCalledWith('@e1', {settle: 100, settleTimeout: 1000});
+    await timed.scrollIntoView?.('@e1');
+    expect(scrollIntoView).toHaveBeenCalledWith('@e1', {settle: 100, settleTimeout: 1000});
+    await timed.swipe?.({x: 1, y: 2}, {x: 3, y: 4});
+    expect(swipe).toHaveBeenCalledWith({x: 1, y: 2}, {x: 3, y: 4}, {settle: 100, settleTimeout: 1000});
+  });
 });
