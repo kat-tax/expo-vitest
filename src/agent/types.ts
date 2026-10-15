@@ -225,6 +225,8 @@ export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: JsonSchema;
+  /** Whether the schema is strict, so a provider may hold the model to it. */
+  strict?: boolean;
 }
 
 export interface CompletionRequest {
