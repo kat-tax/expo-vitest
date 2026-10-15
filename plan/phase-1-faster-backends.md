@@ -163,8 +163,33 @@ points, while the README's quick start still shows `press @e2`. The first
 work item confirms which forms the installed 0.21.x accepts and whether the
 client's `click` takes a selector string, and fixes the table. `toAgentTarget`
 in `src/harness/platforms/agent-device.ts:65-74` already produces the CLI
-spelling; the client path reuses it and passes `identifier="<testID>"` for
+spelling; the client path reuses it and passes `id="<testID>"` for
 `by.testID`, which is where React Native's `testID` lands on both platforms.
+
+Checked against 0.21.27 on a Pixel 7 Pro while recording Phase 0's
+baselines, so the first work item starts from these:
+
+- `agent-device help press` gives `<x y|@ref|selector>`, and `click` the
+  same; a press by selector ran on the phone as the driver sends it.
+- `press` needs a session that `open` started: without one it fails with
+  `SESSION_NOT_FOUND`. `snapshot` works without one.
+- The selector keys are `id role text label value appname windowtitle
+  visible hidden editable selected focused enabled hittable`, several may be
+  combined (`role=button label="Search"`), and none matches loosely. A
+  testID is `id="<testID>"`; the driver sent `identifier=`, which agent-device
+  refuses, and now sends `id=`. `by.text` still maps to an exact `label=`,
+  which is a question for Phase 2's queries.
+- With no `--device`, agent-device chose an emulator image that was not
+  booted over a phone on adb; `--device "Pixel 7 Pro"` chose the phone.
+  `--serial` and `--udid` exist too.
+- On Windows, npm's global launcher is a `.cmd` script, which Node will not
+  start without a shell (ENOENT by its bare name, EINVAL by its full name),
+  so the CLI fallback must run the package's own bin with `process.execPath`
+  rather than the launcher. bun's launcher is an `.exe`, which is how the
+  baselines were taken.
+- Its help says a press by selector that matches in two subtrees fails
+  with `AMBIGUOUS_MATCH` and a list of candidates, which Phase 2's strict
+  locators can lean on.
 
 **Snapshot shape.** The snapshots page describes a nested tree with `kind`
 (platform-neutral role), optional `type` (raw class), `role` on iOS only,

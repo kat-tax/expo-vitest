@@ -1,6 +1,6 @@
 # Phase 0. Foundations
 
-Status: built apart from the baselines (work item 6) · Size: S · Depends on: nothing · Unblocks: every later phase
+Status: built; two baselines open (iOS, the Windows press) · Size: S · Depends on: nothing · Unblocks: every later phase
 
 Nothing in this phase is visible to a user of the package. It puts in place the
 four things every later phase leans on: a test that pins today's public
@@ -12,12 +12,12 @@ contract, the dependency policy and the feature map are in
 ## As built
 
 Work items 1 to 5 are on the `phase-0-foundations` branch, a commit each,
-with two small commits beside them: the web driver answers a page that will
-not load with `APP_UNREACHABLE` instead of throwing Playwright's error, which
-the docs needed before they could say a failed call rejects with a
-`HarnessError`; and `docs/device-tests.md` gained its section on the codes.
-Work item 6, the baselines, is open. Where the build differs from the design
-below, the build is what holds, for these reasons:
+with smaller commits beside them: the web driver answers a page that will
+not load with `APP_UNREACHABLE` instead of throwing Playwright's error,
+which the docs needed before they could say a failed call rejects with a
+`HarnessError`; `docs/device-tests.md` gained its section on the codes; and
+the baselines turned up the fixes below. Where the build differs from the
+design below, the build is what holds, for these reasons:
 
 - **Seven codes, not ten.** `HarnessCode` has the seven that something
   produces today. `LOCATOR_AMBIGUOUS` and `ASSERTION_FAILED` join it in
@@ -37,16 +37,39 @@ below, the build is what holds, for these reasons:
   in work item 3, which would have gated `run.ts` before its test existed.
   The testing rule and the verify skill point at `coverage.include` rather
   than repeating the list.
-- **`bench` skips input on a busy desk instead of refusing.** On Windows,
-  `press` and `fill` are skipped with the guard's reason while someone is
-  using the machine, and the rest is still timed. Every operation keeps a
-  `cold` first call, `press` included. The press lands on the first static
-  node that is not inside an interactive one, since a label inside a button
-  is the button. `BenchResult` has `source`, a `Sample` that failed says so
-  in `failed`, and the table's columns are nine wide.
+- **`bench` presses only what it is told to.** The design pressed the
+  centre of a node that does not act; the first version found one as the
+  first static node not inside an interactive one, and on the expo-interface
+  example on web that point was the icon of a card react-native-web draws as
+  a pressable `div` with no role, so one press opened the drop. Nothing in
+  a tree says what is safe to press, so `press` times only what `--press`
+  names, as `fill` times only what `--field` names, and both find their
+  target afresh on every call, which is what a test's `element().press()`
+  pays.
+- **`bench` asks the quiet-desk guard before every input, and skips rather
+  than refuses.** On Windows, `press` and `fill` stop with the guard's
+  reason the moment someone uses the machine, and the rest is still timed.
+  Every operation keeps a `cold` first call. `BenchResult` has `source`, a
+  `Sample` that failed says so in `failed`, and the table's columns are nine
+  wide.
+- **Two driver fixes the baselines turned up.** The agent-device driver
+  sent `identifier="<testID>"`, which agent-device 0.21.27 refuses; it sends
+  `id=` now. And npm's global install cannot be started by the harness on
+  Windows (a `.cmd` launcher), so the doctor and the setup say
+  `bun add --global agent-device` there.
 - **`runAsync` keeps its own timer** rather than `spawn`'s `timeout` option,
   so a timeout is known rather than inferred from the signal, and `0` means
   no limit, as it does for `spawnSync`.
+
+Work item 6's baselines are in `docs/performance.md` for web (the
+expo-interface example under `expo start`), Windows (a react-native-windows
+0.84 Release build made with expo-windows 0.25, standing in for
+expo-windows's example app, which this machine does not have) and Android
+(a Pixel 7 Pro over agent-device 0.21.27, installed with bun). Two are
+open: iOS, which needs a Mac, and the Windows press, which needs a desk
+left alone long enough for the guard to let twenty-one presses through.
+The Windows numbers for snapshot and screenshot are the "before" Phase 1's
+host is measured against; its press target waits on that run.
 
 ## Purpose and the claims it proves
 
