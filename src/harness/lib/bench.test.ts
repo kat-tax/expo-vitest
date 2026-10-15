@@ -3,8 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {BenchResult} from './bench.ts';
-import {FEWEST, ITERATIONS, bench, iterationsFrom, percentile, quietPoint, renderBench, summarise} from './bench.ts';
-import type {Snapshot, SnapshotNode} from './snapshot.ts';
+import {FEWEST, ITERATIONS, bench, iterationsFrom, percentile, renderBench, summarise} from './bench.ts';
 import type {Driver} from './types.ts';
 import {elsewhere, failed, ok} from './types.ts';
 
@@ -42,34 +41,6 @@ describe('iterationsFrom', () => {
   });
 });
 
-function node(overrides: Partial<SnapshotNode>): SnapshotNode {
-  return {ref: '@e1', role: 'Text', name: 'Settings', depth: 1, interactive: false, bounds: {x: 0, y: 0, width: 10, height: 10}, ...overrides};
-}
-
-describe('quietPoint', () => {
-  it('is the middle of the first static node that sits inside nothing that acts', () => {
-    const tree: Snapshot = {
-      platform: 'windows',
-      nodes: [
-        node({ref: '@e1', role: 'Button', interactive: true, bounds: {x: 0, y: 0, width: 100, height: 40}}),
-        // The button's own label: pressing it presses the button.
-        node({ref: '@e2', name: 'Save', bounds: {x: 10, y: 10, width: 40, height: 20}}),
-        node({ref: '@e3', offscreen: true, bounds: {x: 0, y: 200, width: 10, height: 10}}),
-        node({ref: '@e4', bounds: null}),
-        node({ref: '@e5', bounds: {x: 0, y: 100, width: 0, height: 10}}),
-        node({ref: '@e6', bounds: {x: 0, y: 100, width: 10, height: 0}}),
-        node({ref: '@e7', bounds: {x: 200, y: 100, width: 60, height: 20}}),
-      ],
-    };
-    expect(quietPoint(tree)).toEqual({x: 230, y: 110});
-  });
-
-  it('is nothing when everything acts or sits inside something that does', () => {
-    expect(quietPoint({platform: 'web', nodes: [node({interactive: true}), node({ref: '@e2'})]})).toBeNull();
-    expect(quietPoint({platform: 'web', nodes: []})).toBeNull();
-  });
-});
-
 describe('bench', () => {
   const folders: string[] = [];
   afterEach(() => {
@@ -87,7 +58,7 @@ describe('bench', () => {
       platform: 'web',
       available: async () => ({ready: true}),
       open: async () => ok('opened'),
-      snapshot: async () => ({platform: 'web', source: 'http://localhost:8081', nodes: [node({bounds: {x: 0, y: 0, width: 20, height: 20}})]}),
+      snapshot: async () => ({platform: 'web', source: 'http://localhost:8081', nodes: []}),
       press: async () => ok('pressed'),
       fill: async () => ok('filled'),
       type: async () => ok('typed'),
@@ -105,7 +76,7 @@ describe('bench', () => {
     const directory = folder();
     const press = vi.fn(async () => ok('pressed'));
     const fill = vi.fn(async () => ok('filled'));
-    const result = await bench(stub({press, fill}), {iterations: 5, field: 'testID=name', directory});
+    const result = await bench(stub({press, fill}), {iterations: 5, press: 'label="Settings"', field: 'testID=name', directory});
     expect(result).toMatchObject({platform: 'web', source: 'http://localhost:8081', iterations: 5, node: process.versions.node});
     expect(result.at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
     expect(result.samples.map(sample => sample.operation)).toEqual(['snapshot', 'snapshot -i', 'press', 'fill', 'screenshot']);
@@ -113,34 +84,50 @@ describe('bench', () => {
       expect(sample.ms, sample.operation).toHaveLength(5);
       expect(sample.cold, sample.operation).toBeTypeOf('number');
     }
-    // The press lands in the middle of the static node, every time.
+    // Found afresh each time, as a test's element(…).press() does.
     expect(press).toHaveBeenCalledTimes(6);
-    expect(press).toHaveBeenCalledWith({x: 10, y: 10});
+    expect(press).toHaveBeenCalledWith('label="Settings"');
     expect(fill).toHaveBeenCalledWith('testID=name', 'bench');
     // The screenshots are gone; the folder stays, since the result is written there too.
     expect(fs.readdirSync(directory)).toEqual([]);
   });
 
-  it('leaves fill out without a field, and press when nothing is safe to press', async () => {
-    const result = await bench(stub({snapshot: async () => ({platform: 'web', nodes: [node({interactive: true})]})}), {iterations: 5, directory: folder()});
+  it('presses and fills nothing it was not told to', async () => {
+    const press = vi.fn(async () => ok('pressed'));
+    const result = await bench(stub({press, snapshot: async () => ({platform: 'web', nodes: []})}), {iterations: 5, directory: folder()});
     expect('source' in result).toBe(false);
-    expect(result.samples[2]).toEqual({operation: 'press', ms: [], cold: null, skipped: 'nothing on screen is safe to press: every node with bounds acts, or sits inside one that does'});
+    expect(result.samples[2]).toEqual({operation: 'press', ms: [], cold: null, skipped: 'pass --press <target> to measure it'});
     expect(result.samples[3]).toEqual({operation: 'fill', ms: [], cold: null, skipped: 'pass --field <target> to measure it'});
+    expect(press).not.toHaveBeenCalled();
   });
 
   it('sends no input when it is refused, and says why', async () => {
     const press = vi.fn(async () => ok('pressed'));
     const fill = vi.fn(async () => ok('filled'));
     const refuse = async (what: string) => `refusing ${what}: someone used this machine 3 seconds ago`;
-    const result = await bench(stub({press, fill}), {iterations: 5, field: '@e3', directory: folder(), refuse});
+    const result = await bench(stub({press, fill}), {iterations: 5, press: '@e1', field: '@e3', directory: folder(), refuse});
     expect(result.samples[2]?.skipped).toBe('refusing a press: someone used this machine 3 seconds ago');
     expect(result.samples[3]?.skipped).toBe('refusing typing: someone used this machine 3 seconds ago');
     expect(press).not.toHaveBeenCalled();
     expect(fill).not.toHaveBeenCalled();
   });
 
+  it('stops sending input the moment someone comes back, and keeps what it timed', async () => {
+    const press = vi.fn(async () => ok('pressed'));
+    let asked = 0;
+    const refuse = async (what: string) => (++asked > 3 ? `refusing ${what}: someone used this machine 1 seconds ago` : null);
+    const result = await bench(stub({press}), {iterations: 5, press: '@e1', directory: folder(), refuse});
+    expect(press).toHaveBeenCalledTimes(3);
+    expect(result.samples[2]).toEqual({
+      operation: 'press',
+      cold: expect.any(Number),
+      ms: [expect.any(Number), expect.any(Number)],
+      skipped: 'refusing a press: someone used this machine 1 seconds ago',
+    });
+  });
+
   it('sends input when nothing refuses it', async () => {
-    const result = await bench(stub(), {iterations: 5, field: '@e3', directory: folder(), refuse: async () => null});
+    const result = await bench(stub(), {iterations: 5, press: '@e1', field: '@e3', directory: folder(), refuse: async () => null});
     expect(result.samples[2]?.ms).toHaveLength(5);
     expect(result.samples[3]?.ms).toHaveLength(5);
   });
@@ -151,12 +138,12 @@ describe('bench', () => {
       stub({
         snapshot: async options => {
           if (options?.interactive) throw new Error('could not read the tree of MyApp: access is denied');
-          return {platform: 'windows', source: 'MyApp', nodes: [node({})]};
+          return {platform: 'windows', source: 'MyApp', nodes: []};
         },
         press: async () => (++presses === 3 ? failed('press failed: no window') : ok('pressed')),
         screenshot: async () => elsewhere('a screenshot', 'web'),
       }),
-      {iterations: 5, directory: folder()},
+      {iterations: 5, press: 'label="Settings"', directory: folder()},
     );
     expect(result.samples[1]).toEqual({operation: 'snapshot -i', ms: [], cold: null, failed: 'could not read the tree of MyApp: access is denied'});
     expect(result.samples[2]).toMatchObject({operation: 'press', failed: 'press failed: no window'});

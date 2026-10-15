@@ -337,7 +337,12 @@ describe('expo-harness', () => {
       interactive: true,
     });
     expect(parse(['--platform', 'ios', '--interactive'])).toMatchObject({platform: 'ios', interactive: true});
-    expect(parse(['--iterations', '50', '--field', 'testID=search', '--json'])).toMatchObject({iterations: '50', field: 'testID=search', json: true});
+    expect(parse(['--iterations', '50', '--press', 'label="Settings"', '--field', 'testID=search', '--json'])).toMatchObject({
+      iterations: '50',
+      press: 'label="Settings"',
+      field: 'testID=search',
+      json: true,
+    });
     expect(parse([])).toMatchObject({out: '.harness', force: false, interactive: false, json: false});
     expect(parse(['-h']).command).toBe('help');
     expect(parse(['--help']).command).toBe('help');

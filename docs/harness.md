@@ -106,6 +106,7 @@ quotes in it, as your shell requires.
 | `-i`, `--interactive` | Snapshot only what can be acted on. |
 | `--force` | Press even when someone is using the machine. |
 | `--iterations <n>` | How many times `bench` runs each operation. The same as `bench <n>`. |
+| `--press <target>` | Something a press does nothing to, for `bench` to time `press` on. |
 | `--field <target>` | A field for `bench` to time `fill` on. |
 | `--json` | `bench` prints its result as JSON instead of a table. |
 | `-h`, `--help` | The usage. |
@@ -151,20 +152,20 @@ make one faster can be shown to. It is a step like the others, and times
 whatever the steps before it left on screen:
 
 ```sh
-expo-harness -p web --url http://localhost:8081 open / bench
+expo-harness -p web --url http://localhost:8081 open / bench --press 'label="Home"'
 expo-harness -p windows --target MyApp bench 50
 expo-harness -p android --scheme myapp open /settings bench --field 'testID=search'
 ```
 
 ```
-bench on web (http://localhost:8099), 20 iterations, node 24.20.0, 2026-10-15T01:23:05Z
+bench on web (http://localhost:8083), 20 iterations, node 24.20.0, 2026-10-15T02:34:35Z
 
   operation         cold      p50      p95      min      max
-  snapshot          11.2      1.3      5.4      1.0     19.1
-  snapshot -i        1.0      1.0      1.2      0.9      1.3
-  press              7.6      0.5      3.1      0.4      3.3
+  snapshot           6.6      2.1      5.3      1.6      7.0
+  snapshot -i        1.9      1.8      2.2      1.6      2.2
+  press              6.9      3.1      4.9      2.6      5.4
   fill         skipped: pass --field <target> to measure it
-  screenshot        46.7     32.9     34.9     25.4     35.3
+  screenshot        19.0     16.8     17.5     15.6     33.3
 ```
 
 Each operation runs once and then `n` more times, and the times are in
@@ -177,13 +178,18 @@ needed, since the p95 of fewer is only the slowest.
 | --- | --- |
 | `snapshot` | The whole tree. |
 | `snapshot -i` | Only what can be acted on. |
-| `press` | A press in the middle of the first node on screen that cannot be acted on and is not inside one that can, so that it changes nothing. Skipped when there is no such node. |
-| `fill` | Types `bench` into the field `--field` names. The field keeps the text. Skipped without `--field`. |
+| `press` | A press on what `--press` names, found afresh each time as `element(…).press()` does in a test. Skipped without `--press`. |
+| `fill` | Types `bench` into the field `--field` names, found afresh each time. The field keeps the text. Skipped without `--field`. |
 | `screenshot` | A PNG, deleted afterwards. |
 
-On Windows, `press` and `fill` wait for a quiet desk as the steps do. While
-someone is using the machine they are skipped, with that as the reason, and
-the rest is still timed.
+`--press` has to name something a press does nothing to, since it is pressed
+every time: a heading, or the tab that is already selected. Nothing in the
+tree says what is safe to press. A container that responds to a press can
+carry no role at all, so `bench` leaves the choice to you.
+
+On Windows, `press` and `fill` wait for a quiet desk as the steps do, and ask
+again before every call. While someone is using the machine they stop, with
+that as the reason, and the rest is still timed.
 
 Every run writes its result, every sample included, to
 `.harness/bench/<platform>-<time>.json`, so a before and an after can be

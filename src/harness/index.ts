@@ -96,7 +96,7 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[])
       fs.mkdirSync(folder, {recursive: true});
       // The press and the fill are synthetic input, so they wait on the same quiet desk as the steps.
       const refuse = async (what: string) => (await guard(driver, options, what))?.message ?? null;
-      const result = await bench(driver, {iterations, field: options.field, directory: folder, refuse});
+      const result = await bench(driver, {iterations, press: options.press, field: options.field, directory: folder, refuse});
       const file = path.join(folder, `${result.platform}-${result.at.replace(/:/g, '-')}.json`);
       fs.writeFileSync(file, `${JSON.stringify(result, null, 1)}\n`);
       const filled = result.samples.some(sample => sample.operation === 'fill' && sample.cold !== null);

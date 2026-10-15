@@ -41,6 +41,7 @@ options     --url <url>           where the app is served (web; default http://l
             --interactive         snapshot only what can be acted on
             --force               press even when someone is using the machine
             --iterations <n>      how many times bench runs each operation
+            --press <target>      something a press does nothing to, for bench to time press on
             --field <target>      a field for bench to time fill on
             --json                bench prints its result as JSON instead of a table
 `;
@@ -55,6 +56,8 @@ export interface Options {
   interactive: boolean;
   /** How many times `bench` runs each operation, as it was typed. */
   iterations?: string;
+  /** What `bench` times `press` on: something a press does nothing to. */
+  press?: string;
   /** The field `bench` times `fill` on. */
   field?: string;
   /** `bench` prints JSON rather than a table. */
@@ -95,6 +98,7 @@ export function parse(argv: string[]): Options {
     else if (argument === '--force') options.force = true;
     else if (argument === '--interactive' || argument === '-i') options.interactive = true;
     else if (argument === '--iterations') options.iterations = value();
+    else if (argument === '--press') options.press = value();
     else if (argument === '--field') options.field = value();
     else if (argument === '--json') options.json = true;
     else if (argument === '--help' || argument === '-h') options.command = 'help';

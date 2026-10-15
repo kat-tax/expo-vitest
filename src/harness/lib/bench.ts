@@ -4,14 +4,12 @@
  * on whichever platform is under test, before and after a change.
  *
  * The first call of each operation is kept apart as `cold`, because it pays
- * for the browser launch, the host start or the device claim, which is a
- * different fact from the steady state. Percentiles are nearest rank over the
- * rest.
+ * for whatever starts on first use, which is a different fact from the
+ * steady state. Percentiles are nearest rank over the rest.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import type {Bounds, Point, Snapshot, Target} from './snapshot.ts';
-import {centreOf} from './snapshot.ts';
+import type {Target} from './snapshot.ts';
 import type {Driver, StepResult} from './types.ts';
 
 /** How many times each operation runs after its first, unless told otherwise. */
@@ -45,11 +43,17 @@ export interface BenchResult {
 
 export interface BenchOptions {
   iterations: number;
+  /**
+   * What `press` presses; without it, `press` is not measured. It has to be
+   * something a press does nothing to, such as a heading, since it is pressed
+   * every time; only the person who knows the app can say what that is.
+   */
+  press?: Target;
   /** The field `fill` types into; without one, `fill` is not measured. */
   field?: Target;
   /** Where screenshots go while they are taken. Each is removed afterwards. */
   directory: string;
-  /** Why the operations that send input must not run, or null when they may. */
+  /** Why the operations that send input must not run, or null when they may. Asked before each of their calls. */
   refuse?: (what: string) => Promise<string | null>;
 }
 
@@ -73,33 +77,20 @@ export function iterationsFrom(value: string | undefined): number | null {
   return Number.isInteger(iterations) && iterations >= FEWEST ? iterations : null;
 }
 
-function inside(point: Point, box: Bounds): boolean {
-  return point.x >= box.x && point.x < box.x + box.width && point.y >= box.y && point.y < box.y + box.height;
-}
-
-/**
- * Somewhere a press does nothing: the middle of the first node on screen that
- * cannot be acted on and does not sit inside one that can. A label inside a
- * button is not it, or timing a press would press the button every time.
- */
-export function quietPoint(snapshot: Snapshot): Point | null {
-  const acting = snapshot.nodes.filter(node => node.interactive && node.bounds);
-  for (const node of snapshot.nodes) {
-    if (node.interactive || node.offscreen || !node.bounds || node.bounds.width === 0 || node.bounds.height === 0) continue;
-    const point = centreOf(node)!;
-    if (!acting.some(other => inside(point, other.bounds!))) return point;
-  }
-  return null;
-}
-
 function skipped(operation: string, reason: string): Sample {
   return {operation, ms: [], cold: null, skipped: reason};
 }
 
-/** Times a call once, kept apart, and then `iterations` more times. */
-async function measure(operation: string, iterations: number, call: () => Promise<StepResult | void>): Promise<Sample> {
+/**
+ * Times a call once, kept apart, and then `iterations` more times. `refuse`
+ * is asked before every call, outside the timing, and a reason from it stops
+ * the operation there.
+ */
+async function measure(operation: string, iterations: number, call: () => Promise<StepResult | void>, refuse?: () => Promise<string | null>): Promise<Sample> {
   const sample: Sample = {operation, ms: [], cold: null};
   for (let at = 0; at <= iterations; at++) {
+    const refusal = await refuse?.();
+    if (refusal) return {...sample, skipped: refusal};
     const started = performance.now();
     let result: StepResult | void;
     try {
@@ -117,19 +108,32 @@ async function measure(operation: string, iterations: number, call: () => Promis
 }
 
 /**
+ * The input operations, each only when it has a target, and each call only
+ * while nothing refuses it: someone can come back to the desk partway through.
+ * Both find their target afresh every time, as `element(…).press()` and
+ * `.fill()` do in a test, so what they cost is what a test pays.
+ */
+async function input(operation: 'press' | 'fill', target: Target | undefined, flag: string, options: BenchOptions, call: (target: Target) => Promise<StepResult>): Promise<Sample> {
+  if (target === undefined) return skipped(operation, `pass ${flag} <target> to measure it`);
+  const {refuse} = options;
+  const what = operation === 'press' ? 'a press' : 'typing';
+  return measure(operation, options.iterations, () => call(target), refuse && (() => refuse(what)));
+}
+
+/**
  * Snapshot, snapshot of what can be acted on, press, fill and screenshot, each
- * `iterations` times after a first call. The press lands where nothing acts,
- * found in the last full snapshot; the fill types `bench` into the field it is
- * given, and the field keeps it; the screenshots are deleted as they go.
+ * `iterations` times after a first call. `press` presses what it is told to
+ * and `fill` types `bench` into the field it is told of, which keeps it; the
+ * screenshots are deleted once they are all taken.
  */
 export async function bench(driver: Driver, options: BenchOptions): Promise<BenchResult> {
-  const {iterations, field} = options;
+  const {iterations} = options;
   const samples: Sample[] = [];
-  let tree: Snapshot = {platform: driver.platform, nodes: []};
+  let source: string | undefined;
 
   samples.push(
     await measure('snapshot', iterations, async () => {
-      tree = await driver.snapshot();
+      source = (await driver.snapshot()).source;
     }),
   );
   samples.push(
@@ -137,17 +141,8 @@ export async function bench(driver: Driver, options: BenchOptions): Promise<Benc
       await driver.snapshot({interactive: true});
     }),
   );
-
-  const point = quietPoint(tree);
-  const pressing = await options.refuse?.('a press');
-  if (pressing) samples.push(skipped('press', pressing));
-  else if (!point) samples.push(skipped('press', 'nothing on screen is safe to press: every node with bounds acts, or sits inside one that does'));
-  else samples.push(await measure('press', iterations, () => driver.press(point)));
-
-  const typing = field ? await options.refuse?.('typing') : null;
-  if (!field) samples.push(skipped('fill', 'pass --field <target> to measure it'));
-  else if (typing) samples.push(skipped('fill', typing));
-  else samples.push(await measure('fill', iterations, () => driver.fill(field, 'bench')));
+  samples.push(await input('press', options.press, '--press', options, target => driver.press(target)));
+  samples.push(await input('fill', options.field, '--field', options, target => driver.fill(target, 'bench')));
 
   const shots: string[] = [];
   samples.push(
@@ -161,7 +156,7 @@ export async function bench(driver: Driver, options: BenchOptions): Promise<Benc
 
   return {
     platform: driver.platform,
-    ...(tree.source ? {source: tree.source} : null),
+    ...(source ? {source} : null),
     iterations,
     node: process.versions.node,
     at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
