@@ -26,6 +26,7 @@ import path from 'node:path';
 import type {HarnessCode} from '../lib/errors.ts';
 import type {SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, describeTarget, isPoint} from '../lib/snapshot.ts';
+import type {Kind} from '../lib/roles.ts';
 import {kindOnAndroid, kindOnIos} from '../lib/roles.ts';
 import {DEFAULT_TIMING} from '../lib/settle.ts';
 import type {DeviceFacts, StepTiming} from '../lib/types.ts';
@@ -106,7 +107,7 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
   nodes.forEach((node, at) => {
     if (typeof node.index === 'number') byIndex.set(node.index, {node, ref: mapped[at]!.ref});
   });
-  return mapped.map((node, at) => {
+  const kinded = mapped.map((node, at) => {
     const raw = nodes[at]!;
     const above = typeof raw.parentIndex === 'number' ? byIndex.get(raw.parentIndex) : undefined;
     const kind =
@@ -115,7 +116,41 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
         : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type);
     return {...node, ...(above ? {parent: above.ref} : null), ...(kind ? {kind} : null)};
   });
+  return platform === 'android' ? readAsTalkBack(kinded, nodes) : kinded;
 }
+
+/** The kinds a control drawn inside a node that takes its press lends that node. */
+const LENT = new Set<Kind>(['button', 'checkbox', 'switch', 'radio', 'tab', 'link', 'menuitem']);
+
+/**
+ * Android's tree as TalkBack reads it, where the tree splits one control in
+ * two, as Compose draws a button: a touch target that can be pressed and
+ * says nothing, around the label's text and a node with the button's role
+ * that cannot be pressed. TalkBack reads a node that can be pressed and says
+ * nothing by the text of the nodes inside it that cannot be pressed, and so
+ * does the tree. The node also takes the kind of the one control inside it
+ * that cannot be pressed, where it has none of its own. A node inside that
+ * can be pressed is a stop of its own, and lends nothing.
+ */
+function readAsTalkBack(mapped: SnapshotNode[], nodes: AgentNode[]): SnapshotNode[] {
+  const children = new Map<number, number[]>();
+  nodes.forEach((node, at) => {
+    if (typeof node.parentIndex !== 'number') return;
+    children.set(node.parentIndex, [...(children.get(node.parentIndex) ?? []), at]);
+  });
+  const inside = (at: number): number[] =>
+    (children.get(nodes[at]!.index as number) ?? []).flatMap(child => (mapped[child]!.interactive ? [] : [child, ...inside(child)]));
+  return mapped.map((node, at) => {
+    const raw = nodes[at]!;
+    if (!node.interactive || raw.label || typeof raw.index !== 'number') return node;
+    const held = inside(at);
+    const name = held.map(each => nodes[each]!.label ?? '').filter(Boolean).join(' ');
+    const lent = held.map(each => mapped[each]!.kind).filter((kind): kind is Kind => kind !== undefined && LENT.has(kind));
+    const kind = (node.kind === undefined || node.kind === 'group') && lent.length === 1 ? lent[0] : node.kind;
+    return {...node, ...(name ? {name} : null), ...(kind ? {kind} : null)};
+  });
+}
+
 
 /** The nodes inside whatever shape an answer came in. */
 export function nodesFrom(payload: unknown): AgentNode[] {

@@ -267,6 +267,63 @@ describe('toSnapshotNodes', () => {
   });
 });
 
+describe('Android read as TalkBack reads it', () => {
+  // Compose's button as Android reports it: a touch target that can be
+  // pressed and says nothing, around its label and a node with its role.
+  const button = [
+    {index: 10, ref: 'e10', type: 'android.view.View', identifier: 'sign-in-submit', hittable: true},
+    {index: 11, parentIndex: 10, ref: 'e11', type: 'android.widget.TextView', label: 'Sign in', hittable: false},
+    {index: 12, parentIndex: 10, ref: 'e12', type: 'android.widget.Button', hittable: false},
+  ];
+
+  it('names a node that can be pressed by the text inside it, and gives it the role of the control inside it', () => {
+    const [target, label, role] = toSnapshotNodes(button);
+    expect(target).toMatchObject({ref: '@e10', name: 'Sign in', kind: 'button', testId: 'sign-in-submit'});
+    expect([label!.name, role!.kind]).toEqual(['Sign in', 'button']);
+  });
+
+  it('gives a group that can be pressed the role of the one control inside it', () => {
+    const [row] = toSnapshotNodes([
+      {index: 1, ref: 'e1', type: 'android.view.ViewGroup', hittable: true},
+      {index: 2, parentIndex: 1, ref: 'e2', type: 'android.widget.TextView', label: 'Dark mode'},
+      {index: 3, parentIndex: 1, ref: 'e3', type: 'android.widget.Switch'},
+    ]);
+    expect(row).toMatchObject({name: 'Dark mode', kind: 'switch'});
+  });
+
+  it('names a field by the hint inside it, and keeps its own kind', () => {
+    const [field] = toSnapshotNodes([
+      {index: 1, ref: 'e1', type: 'android.widget.EditText', identifier: 'sign-in-email', hittable: true, editable: true},
+      {index: 2, parentIndex: 1, ref: 'e2', type: 'android.widget.TextView', label: 'Email'},
+    ]);
+    expect(field).toMatchObject({name: 'Email', kind: 'textbox'});
+  });
+
+  it('takes nothing from what can be pressed itself, nor a role from more than one control', () => {
+    const [outer] = toSnapshotNodes([
+      {index: 1, ref: 'e1', type: 'android.view.View', identifier: 'row', hittable: true},
+      {index: 2, parentIndex: 1, ref: 'e2', type: 'android.widget.TextView', label: 'Wi-Fi'},
+      {index: 3, parentIndex: 1, ref: 'e3', type: 'android.view.View', hittable: true},
+      {index: 4, parentIndex: 3, ref: 'e4', type: 'android.widget.TextView', label: 'Off'},
+      {index: 5, parentIndex: 1, ref: 'e5', type: 'android.widget.Button'},
+      {index: 6, parentIndex: 1, ref: 'e6', type: 'android.widget.CheckBox'},
+      {index: 7, parentIndex: 1, ref: 'e7', type: 'android.view.View'},
+    ]);
+    expect(outer).toMatchObject({name: 'Wi-Fi'});
+    expect(outer!.kind).toBeUndefined();
+  });
+
+  it('leaves alone a node that says something, one that cannot be pressed, one with nothing inside, and iOS', () => {
+    const labelled = toSnapshotNodes([{...button[0]!, label: 'Send'}, ...button.slice(1)]);
+    expect(labelled[0]).toMatchObject({name: 'Send'});
+    expect(labelled[0]!.kind).toBeUndefined();
+    expect(toSnapshotNodes([{...button[0]!, hittable: false}, ...button.slice(1)])[0]).toMatchObject({name: 'sign-in-submit'});
+    expect(toSnapshotNodes([{index: 1, ref: 'e1', type: 'android.widget.CheckBox', identifier: 'sign-in-show', hittable: true}])[0]).toMatchObject({name: 'sign-in-show', kind: 'checkbox'});
+    expect(toSnapshotNodes([{...button[0]!, index: undefined}, ...button.slice(1)])[0]).toMatchObject({name: 'sign-in-submit'});
+    expect(toSnapshotNodes(button, 'ios')[0]).toMatchObject({name: 'sign-in-submit'});
+  });
+});
+
 describe('the wait after an action', () => {
   it('is asked for by a settle above 0, with its timeout or the harness\'s', () => {
     expect(waitFrom({settle: 150, settleTimeout: 2000})).toEqual({quietMs: 150, timeoutMs: 2000});

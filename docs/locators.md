@@ -80,6 +80,12 @@ control is that control's own, so a list that scrolls is not named after its
 rows. On iOS and Android, agent-device names a node with no label after its
 testID; that counts as no name.
 
+On Android the tree itself does this for a node that can be pressed and
+says nothing, which is how Compose draws a button: a touch target around the
+label's text and a node with the button's role that cannot be pressed. The
+touch target is named by the text inside it that cannot be pressed, as
+TalkBack reads it, and takes the kind of the one control inside it.
+
 ## within
 
 `within` keeps the queries inside one node:
@@ -223,7 +229,7 @@ Each platform's word becomes a kind like this:
 | Platform | From | Where it reads more than the word |
 | --- | --- | --- |
 | Windows | the UI Automation control type | a `Button` that toggles and does not invoke is a `switch`; a `Button` in a `Tab` is a `tab`; an `Edit` named for searching is a `searchbox` |
-| Android | the widget's class | a named child of a tab bar is a `tab`; a class the table lacks takes agent-device's own word for it |
+| Android | the widget's class | a named child of a tab bar is a `tab`; a node that can be pressed and says nothing takes the kind of the one control inside it that cannot be pressed; a class the table lacks takes agent-device's own word for it |
 | iOS | the XCUIElement type | a button in a tab bar or a segmented control is a `tab` |
 | web | the ARIA role, given or implied by the tag | a plain element kept for its text is `text` |
 
