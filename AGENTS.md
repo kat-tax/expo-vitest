@@ -19,6 +19,7 @@ page per topic. A change to a feature changes its page.
 | `src/reporter/` | the summary and GitHub reporters, as `expo-vitest/reporter` |
 | `skills/expo-vitest/` | the skill for coding agents, which `guide` prints and `init` copies |
 | `fixture/` | a one-constant library with a test per file-name rule, run against the packed package |
+| `testapp/` | an Expo app of the usual kind with its device suite, run against the packed package by `bun run test:testapp` |
 
 ## Before reporting anything done
 

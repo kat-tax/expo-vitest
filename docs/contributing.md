@@ -13,7 +13,8 @@
 | `src/device/` | The device test API and its matchers. |
 | `src/harness/` | The drivers and the `expo-harness` command. |
 | `fixture/` | A library the size of one constant, tested against the packed package. |
-| `scripts/` | The build and the fixture run. |
+| `testapp/` | An Expo app of the usual kind, with a device suite, run against the packed package. |
+| `scripts/` | The build, and the fixture and test app runs. |
 
 `AGENTS.md` at the root has the conventions.
 
@@ -101,6 +102,32 @@ After changing `fixture/package.json`:
 
 ```sh
 node scripts/fixture.js --update-lockfile
+```
+
+## The test app
+
+`testapp/` is an app of the kind this package is for, on Expo Router and
+expo-interface: onboarding, sign-in, sign-up and a forgotten password, notes
+with a search, filters and each row's own menu, a note's editor that asks
+before it throws an edit away, and settings with one of each kind of
+control, a field checked as it changes, and actions behind a confirmation.
+Its data stays on the device, seeded on the first launch, and it signs in
+with a demo account written in the app: `ada@example.com`, password
+`testapp-demo-pass`. `testapp/device/` is the suite an app would write
+for it.
+
+```sh
+bun run test:testapp                                  # on web
+TESTAPP_PLATFORMS=android,web bun run test:testapp    # and on a device
+```
+
+As with the fixture, the app is copied outside the package and installed
+there from its own lockfile, with the packed package unpacked into its
+`node_modules`. Web is served by Expo's dev server, which the run starts on a
+port of its own. After changing `testapp/package.json`:
+
+```sh
+node scripts/testapp.js --update-lockfile
 ```
 
 ## CI

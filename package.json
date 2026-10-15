@@ -90,6 +90,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:fixture": "node scripts/fixture.js",
+    "test:testapp": "node scripts/testapp.js",
     "prepack": "node scripts/build.js"
   },
   "peerDependencies": {

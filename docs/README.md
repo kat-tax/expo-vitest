@@ -39,7 +39,7 @@ with one project per platform. New here? Start with
 | Page | What is in it |
 | --- | --- |
 | [The web pipeline](web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`, for a web Storybook or anything else that runs Expo code through Vite. |
-| [Contributing](contributing.md) | How the package runs from source and from `dist`, and the fixture that proves it installed. |
+| [Contributing](contributing.md) | How the package runs from source and from `dist`, the fixture that proves it installed, and the test app its device features run against. |
 
 ## What it exports
 

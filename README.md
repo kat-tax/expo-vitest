@@ -187,7 +187,7 @@ platform's project.
 | [Migrating](docs/migrating.md) | From Detox, Maestro, Playwright and e2e, call by call. |
 | [Coding agents](docs/coding-agents.md) | The skill for coding agents, `guide`, `init`, the MCP server, explore and bug bash. |
 | [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
-| [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
+| [Contributing](docs/contributing.md) | How the package runs from source, the fixture that proves it installed, and the test app its device features run against. |
 
 ## Versions
 
