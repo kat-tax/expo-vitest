@@ -26,6 +26,8 @@ import {DEFAULT_TIMING, timingFor, withTiming} from '../harness/lib/settle.ts';
 import type {Driver, FillOptions, Platform, PressOptions, StepResult} from '../harness/lib/types.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
 import {Journal} from './evidence.ts';
+import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
+import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
 import {Locator} from './locator.ts';
 import type {LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
@@ -35,8 +37,8 @@ import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
 
-export {by, HarnessError, isHarnessError, Journal, Locator};
-export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
+export {by, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
+export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -129,6 +131,12 @@ class Device {
         return result.ok && !result.skipped;
       },
       tree: () => this.read({interactive: false}),
+      react: async () => {
+        const driver = this.driver as Driver;
+        if (!driver.react) return null;
+        const tree = await driver.react();
+        return 'unavailable' in tree ? null : tree;
+      },
     };
   }
 
@@ -148,6 +156,8 @@ class Device {
     const state = await driver.available();
     if (!state.ready) throw new HarnessError('DRIVER_UNAVAILABLE', `no ${this.config.platform} device to drive: ${state.reason}`, {platform: this.config.platform});
     this.driver = invalidating(withTiming(driver, timingFor(DEFAULT_TIMING, {settle: this.config.settle, transition: this.config.transition})), this.feed);
+    // What the app writes to its console goes in the journal, beside the steps.
+    driver.onConsole?.((level, text) => this.journal.log(level, text));
     return this.driver;
   }
 
@@ -203,6 +213,22 @@ class Device {
       answer => (answer === 'skipped' ? {result: 'skipped', message: `the ${this.platform} harness sends no keys`} : {result: 'ok', message: ''}),
     );
     return pressed;
+  }
+
+  /**
+   * The React tree behind the native one: the component behind each node,
+   * the chain above it, and its props as written. Read from the page on web,
+   * and through Metro from a development build elsewhere. Pass it with a
+   * snapshot to `withComponents` for each node's component.
+   */
+  async react(): Promise<ReactTree> {
+    return this.journal.run({event: 'snapshot', what: 'the React tree'}, async () => {
+      const driver = await this.ready();
+      if (!driver.react) throw new HarnessError('UNSUPPORTED_CAPABILITY', `reading the React tree is not something the ${this.platform} harness can do`, {platform: this.platform});
+      const tree = await driver.react();
+      if ('unavailable' in tree) throw new HarnessError('UNSUPPORTED_CAPABILITY', `the React tree cannot be read: ${tree.unavailable}`, {platform: this.platform});
+      return tree;
+    });
   }
 
   /** Waits until a selector is in the tree, or says what was there instead. */

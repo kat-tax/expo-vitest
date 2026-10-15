@@ -66,6 +66,22 @@ the trees the test read anyway, so recording costs no snapshot of its own.
 A `verified` step follows an assertion or a wait that ended well, and names
 the action before it, which it shows took effect.
 
+Where the [React tree](device-tests.md#the-react-tree) can be read, the tree
+at the end names the component behind each node, and a `## Component` part
+names the one behind the node the failing step was for, with the end of the
+chain of components above it:
+
+```markdown
+## Component
+
+@e32 link "Settings" is drawn by TabLink:
+
+    … › WebTabList › View › TabTrigger › Slot.Slot › TabLink › Pressable › View
+```
+
+A `## Console` part lists what the app wrote to its console during the
+test, and the errors it did not catch, on web, the last fifty lines.
+
 ## When
 
 | `HARNESS_TRACE` | Writes evidence for |

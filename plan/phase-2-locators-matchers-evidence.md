@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 13 done; the React tree from section 5 is next) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: done, but for what needs a device this machine lacks: iOS throughout, and the React tree through Metro · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -241,7 +241,7 @@ below, the build is what holds.
     `expo-vitest:evidence`, through `recordArtifact`, with the trace and
     the screenshot attached, and its paths on `meta.evidence`. Found by the
     fixture's device suite; Phase 4's reporter reads the artifact.
-  - **Still to build from section 5:** the React tree.
+  - The React tree is built after item 13; see the end of this list.
 - **Item 11: headed web.** The browser search is
   `src/harness/platforms/web-browsers.ts`, in the gate. It looked for the
   full Chromium under `chrome-win` only, and Playwright now installs it
@@ -268,6 +268,44 @@ below, the build is what holds.
   how each platform's words become a kind. The four snapshot matchers
   moved to `docs/matchers.md`. The README's rows name `screen`, the
   matchers that wait, and evidence.
+- **The React tree, from section 5.**
+  - `src/harness/lib/react.ts` is one walk: a script run in the app's
+    runtime that reads React's DevTools hook. It keeps the largest mounted
+    root. It gives each host node its component, the innermost above it
+    that is not React Native's own or react-native-web's, and the chain of
+    components above it. It also gives the node's testID, label and text,
+    and its bounds, from the element on web and from Fabric's
+    `measureInWindow` on a device.
+  - **Web:** the init script installs a minimal hook before React loads,
+    and leaves one already there alone. React DOM keeps a lone string
+    child in the props, not a text fiber, so the walk reads it there.
+    Elements that draw nothing, `style` and `script`, are passed over.
+  - **Elsewhere:** `src/harness/lib/metro.ts` reads Metro's `/json/list`
+    and sends one CDP `Runtime.evaluate`. It does so only where the page
+    says it takes more than one debugger, or under `HARNESS_REACT=take`,
+    at `HARNESS_METRO`.
+  - `device.react()`, `withComponents` and `reactNodeOf` are exported, and
+    `SnapshotNode` gains `component`, which the tree prints as
+    `<SaveButton>`.
+  - **Evidence:** the tree at the end carries components. A `## Component`
+    part names the one behind the failing step's node, with the end of
+    its chain, and the console on web goes in the journal and the trace.
+  - **Seen live:** on web, on the Expo Router example, 80 host nodes each
+    had a component, and its links matched `TabLink`. A failing test's
+    trace named `TabLink` behind the link it pressed and listed the
+    page's console.
+  - **Not seen:** the Metro path, on any device. The expo-interface
+    example's development build failed on its own dependencies:
+    Reanimated 4.6 needs Worklets 0.12 and it has 0.8.3. Entz is a release
+    build, and the Metro on 8081 is the owner's. So the questions section
+    7 of Phase 1 left open stay open:
+    - which react-native first says it takes more than one debugger;
+    - whether a react-native-windows debug build registers with Metro.
+  - **Not built:**
+    - File and line at a failed press. React 19 drops `_debugSource`,
+      and source maps need the debugger domain.
+    - The console on a device, which needs a connection held open with
+      `Runtime.enable`.
 
 ## Purpose and the claims it proves
 

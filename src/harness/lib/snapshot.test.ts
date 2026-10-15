@@ -112,6 +112,11 @@ describe('renderSnapshot', () => {
     expect(text).not.toContain('@e1 TabItem "Drops" #');
   });
 
+  it('prints the component that drew a node, where the React tree was read alongside', () => {
+    const drawn: Snapshot = {platform: 'web', nodes: [{ref: '@e1', role: 'button', name: 'Save', component: 'SaveButton', testId: 'save', depth: 0, interactive: true}]};
+    expect(renderSnapshot(drawn)).toBe('@e1 button "Save" <SaveButton> #save');
+  });
+
   it('prints what a screen reader says past the name, where the platform reported it', () => {
     const said: Snapshot = {
       platform: 'windows',

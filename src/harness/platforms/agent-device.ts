@@ -5,6 +5,8 @@ import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
+import {metroFrom, readReact} from '../lib/metro.ts';
+import type {ReactTree} from '../lib/react.ts';
 import {nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
@@ -131,6 +133,11 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       } catch (error) {
         return failed(`scrolling failed: ${(error as Error).message}`, codeOf(error));
       }
+    },
+
+    react(): Promise<ReactTree | {unavailable: string}> {
+      // A development build's, through Metro's inspector, where it is let.
+      return readReact({...metroFrom(process.env), ...(options.target ? {target: options.target} : {})});
     },
 
     swipe(from: Point, to: Point): Promise<StepResult> {

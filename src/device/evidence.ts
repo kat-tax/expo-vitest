@@ -11,6 +11,8 @@
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import type {ReactTree} from '../harness/lib/react.ts';
+import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {renderSnapshot} from '../harness/lib/snapshot.ts';
 import {duration} from './polling.ts';
@@ -37,7 +39,7 @@ export type StepEvent =
   | 'agent'
   | 'verified';
 
-/** The events that change the screen, which a \`verified\` step can vouch for. */
+/** The events that change the screen, which a `verified` step can vouch for. */
 const ACTIONS = new Set<StepEvent>(['open', 'press', 'longPress', 'fill', 'clear', 'type', 'key', 'check', 'hover', 'focus', 'scroll', 'swipe', 'control', 'agent']);
 
 /** What the screen held: each node as what it is, which one had the focus, and how many could be acted on. */
@@ -52,7 +54,7 @@ export interface Step {
   event: StepEvent;
   /** What was asked: the target, the query or the matcher, as written. */
   what: string;
-  /** The node it came to, where there was one: \`@e7 button "Settings" #settings at 24,612\`. */
+  /** The node it came to, where there was one: `@e7 button "Settings" #settings at 24,612`. */
   resolved?: string;
   /** When it began, in ms since the test did. */
   startedAt: number;
@@ -63,7 +65,7 @@ export interface Step {
   /** For an assertion or a wait: how many times it read the tree, and the values it read, in order. */
   polls?: number;
   readings?: string[];
-  /** For a \`verified\` step: the index of the step it vouches for. */
+  /** For a `verified` step: the index of the step it vouches for. */
   verifies?: number;
   /** The screen after the step, from the last full snapshot it, or the step after it, read. */
   treeAfter?: TreeDigest;
@@ -79,7 +81,7 @@ export function digest(snapshot: Snapshot): TreeDigest {
   return {nodes: snapshot.nodes.map(identify), ...(focused ? {focused: identify(focused)} : {}), interactive: snapshot.nodes.filter(node => node.interactive).length};
 }
 
-/** A few of a list for a line of a table: \`a, b and 3 more\`. */
+/** A few of a list for a line of a table: `a, b and 3 more`. */
 function some(items: string[], few = 6): string {
   return items.length > few ? `${items.slice(0, few).join(', ')} and ${items.length - few} more` : items.join(', ');
 }
@@ -105,9 +107,18 @@ export function diffDigests(before: TreeDigest, after: TreeDigest): string {
 
 export type StepListener = (step: Step) => void;
 
+/** A line the app wrote to its console, or an error it did not catch, and when, in ms since the test began. */
+export interface ConsoleLine {
+  level: string;
+  text: string;
+  at: number;
+}
+
 /** One test's record: its steps, the last full snapshot seen, and who is listening. */
 export class Journal {
   steps: Step[] = [];
+  /** What the app wrote to its console during the test, where the backend reads it. */
+  console: ConsoleLine[] = [];
   /** The last full snapshot seen, for the tree at failure when the driver has gone. */
   last: Snapshot | null = null;
   private began = 0;
@@ -122,12 +133,19 @@ export class Journal {
   /** Starts a test's record afresh. */
   begin(): void {
     this.steps = [];
+    this.console = [];
     this.last = null;
     this.running = null;
     this.began = this.now();
   }
 
-  /** Calls \`listener\` with each step as it is recorded; the function it answers stops that. */
+  /** A line from the app's console, kept with when it came; at most the last 500. */
+  log(level: string, text: string): void {
+    this.console.push({level, text, at: this.now() - this.began});
+    if (this.console.length > 500) this.console.shift();
+  }
+
+  /** Calls `listener` with each step as it is recorded; the function it answers stops that. */
   onStep(listener: StepListener): () => void {
     this.listeners.add(listener);
     return () => void this.listeners.delete(listener);
@@ -149,8 +167,8 @@ export class Journal {
 
   /**
    * Runs one step and records it, with how long it took and how it ended:
-   * \`failed\` where \`work\` threw, which is thrown on, or where the outcome
-   * \`judge\` reads says so.
+   * `failed` where `work` threw, which is thrown on, or where the outcome
+   * `judge` reads says so.
    */
   async run<T>(
     step: {event: StepEvent; what: string; resolved?: string},
@@ -191,7 +209,7 @@ export class Journal {
 
 /**
  * A test's folder name: its title path lower-cased, each run of anything
- * outside \`[a-z0-9._-]\` one \`-\`, at most 80 characters, then six hex
+ * outside `[a-z0-9._-]` one `-`, at most 80 characters, then six hex
  * characters of the untouched title, so two that clean up alike never
  * share a folder.
  */
@@ -207,7 +225,7 @@ export function sanitiseTitle(titlePath: string[]): string {
   return clean ? `${clean}-${hash}` : hash;
 }
 
-/** Where a test's evidence goes: \`.harness/results/<platform>/<file without its extension>/<test>/\`. */
+/** Where a test's evidence goes: `.harness/results/<platform>/<file without its extension>/<test>/`. */
 export function resultsFolder(root: string, platform: string, file: string, titlePath: string[]): string {
   const relative = path.relative(root, path.resolve(root, file)).replace(/\\/g, '/');
   const stem = relative.replace(/\.[^./]+$/, '').replace(/\.test$/, '');
@@ -231,6 +249,10 @@ export interface TraceInput {
   tree: Snapshot | null;
   /** Why there is no screenshot, where there is none. */
   noScreenshot?: string;
+  /** What the app wrote to its console. */
+  console?: ConsoleLine[];
+  /** The component behind the node the failing step was for, and the chain above it, where the React tree was read. */
+  chain?: {node: string; component?: string; chain: string[]};
 }
 
 /** A step's line in the table: what it did to the screen, from the screen before it. */
@@ -263,6 +285,12 @@ export function renderTrace(input: TraceInput): string {
     }
     lines.push('');
   }
+  if (input.chain) {
+    // The end of the chain, nearest the node, is where the app's own components are.
+    const {node, component, chain} = input.chain;
+    const tail = chain.length > 12 ? ['…', ...chain.slice(-12)] : chain;
+    lines.push('## Component', '', `${node} is drawn by ${component ?? 'no component of the app'}:`, '', `    ${tail.join(' › ')}`, '');
+  }
   lines.push(input.failed ? '## Screen at failure' : '## Screen at the end', '');
   if (input.noScreenshot) lines.push(`Screenshot: not taken, ${input.noScreenshot}.`, '');
   if (!input.tree) lines.push('No tree was read.');
@@ -272,6 +300,11 @@ export function renderTrace(input: TraceInput): string {
     const shown = renderSnapshot(input.tree).split('\n');
     lines.push(...shown.slice(0, 40).map(line => `    ${line}`));
     if (shown.length > 40) lines.push(`    ... and ${shown.length - 40} more in tree.txt`);
+  }
+  if (input.console && input.console.length > 0) {
+    lines.push('', '## Console', '', '| at | level | text |', '| --- | --- | --- |');
+    for (const line of input.console.slice(-50)) lines.push(`| ${(line.at / 1000).toFixed(2)} s | ${line.level} | ${cell(line.text)} |`);
+    if (input.console.length > 50) lines.push('', `The last 50 of ${input.console.length} lines.`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -283,7 +316,15 @@ export interface EvidenceSource {
   open(): boolean;
   screenshot(file: string): Promise<boolean>;
   tree(): Promise<Snapshot>;
+  /** The React tree, where the backend can read it, or null. */
+  react?(): Promise<ReactTree | null>;
   journal: Journal;
+}
+
+/** The node a step was for, from the ref its resolved node begins with. */
+function nodeOfStep(step: Step | undefined, tree: Snapshot): SnapshotNode | undefined {
+  const ref = step?.resolved?.split(/\s/)[0];
+  return ref ? tree.nodes.find(node => node.ref === ref) : undefined;
 }
 
 export interface Written {
@@ -294,8 +335,8 @@ export interface Written {
 
 /**
  * Writes a test's evidence to its folder, replacing what an earlier run left
- * there: \`screenshot.png\`, \`tree.txt\`, \`tree.json\` and \`trace.md\`. A driver
- * closed by the test's own \`afterEach\` leaves no picture, and the tree is
+ * there: `screenshot.png`, `tree.txt`, `tree.json` and `trace.md`. A driver
+ * closed by the test's own `afterEach` leaves no picture, and the tree is
  * then the last the journal kept.
  */
 export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInput, 'tree' | 'steps' | 'noScreenshot' | 'platform'> & {root: string}): Promise<Written> {
@@ -315,12 +356,25 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
     }
     tree = await source.tree().catch(() => tree);
   } else noScreenshot = 'the driver was closed';
+  // The components behind the nodes, and above the one the failing step was for, where the React tree can be read.
+  let chain: TraceInput['chain'];
+  const react = source.open() && source.react ? await source.react().catch(() => null) : null;
+  if (react && tree) {
+    tree = withComponents(tree, react);
+    const failing = source.journal.steps.findLast(step => step.result === 'failed' && step.resolved) ?? source.journal.steps.findLast(step => step.resolved);
+    const node = nodeOfStep(failing, tree);
+    const behind = node ? reactNodeOf(node, react) : undefined;
+    if (node && behind) chain = {node: `${node.ref} ${node.kind ?? node.role} ${JSON.stringify(node.name)}`, ...(behind.component ? {component: behind.component} : {}), chain: behind.chain};
+  }
   if (tree) {
     fs.writeFileSync(path.join(folder, 'tree.txt'), `${renderSnapshot(tree)}\n`);
     fs.writeFileSync(path.join(folder, 'tree.json'), `${JSON.stringify(tree, null, 2)}\n`);
   }
   const trace = path.join(folder, 'trace.md');
   const {root: _root, ...rest} = input;
-  fs.writeFileSync(trace, renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, ...(noScreenshot ? {noScreenshot} : {})}));
+  fs.writeFileSync(
+    trace,
+    renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})}),
+  );
   return {folder, trace, ...(screenshot ? {screenshot} : {})};
 }

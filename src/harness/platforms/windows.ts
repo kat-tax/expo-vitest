@@ -13,6 +13,8 @@ import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {elsewhere, failed, ok} from '../lib/types.ts';
+import {metroFrom, readReact} from '../lib/metro.ts';
+import type {ReactTree} from '../lib/react.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
 import {CLEAR, SEND_KEYS, literal} from './windows-keys.ts';
@@ -349,6 +351,11 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
       } catch (error) {
         return failed((error as Error).message, codeOf(error));
       }
+    },
+
+    react(): Promise<ReactTree | {unavailable: string}> {
+      // A debug build's, through Metro's inspector, which react-native-windows builds into its host.
+      return readReact({...metroFrom(process.env), ...(processName ? {target: processName} : {})});
     },
 
     async longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {

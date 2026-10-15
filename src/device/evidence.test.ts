@@ -76,6 +76,20 @@ describe('the journal', () => {
     expect([journal.steps, journal.last]).toEqual([[], null]);
   });
 
+  it("keeps the app's console with when each line came, the last 500 of them, and starts afresh with a test", () => {
+    const {time, now} = clock();
+    const journal = new Journal(now);
+    journal.begin();
+    time.at += 250;
+    journal.log('error', 'boom');
+    expect(journal.console).toEqual([{level: 'error', text: 'boom', at: 250}]);
+    for (let line = 0; line < 600; line++) journal.log('log', `line ${line}`);
+    expect(journal.console).toHaveLength(500);
+    expect(journal.console[0]?.text).toBe('line 100');
+    journal.begin();
+    expect(journal.console).toEqual([]);
+  });
+
   it("says an action was seen to take effect, naming the last that did not fail, and nothing when there was none", async () => {
     const journal = new Journal();
     journal.verified('expect(getByText("Saved")) to be visible');
@@ -162,6 +176,29 @@ describe('the trace', () => {
     );
   });
 
+  it("names the component behind the failing step's node, with the end of the chain above it, and the app's console", () => {
+    const chain = ['App', 'Router', 'Screen', 'Settings', 'Section', 'Row', 'Field', 'Label', 'Form', 'Group', 'Line', 'SaveButton', 'Pressable', 'View'];
+    const trace = renderTrace({
+      titlePath: ['t'],
+      platform: 'web',
+      file: 'a.test.ts',
+      failed: true,
+      duration: 1,
+      at: new Date(0),
+      errors: [],
+      steps: [],
+      tree: null,
+      chain: {node: '@e7 button "Save"', component: 'SaveButton', chain},
+      console: [{level: 'warn', text: 'a | b\nc', at: 1500}],
+    });
+    expect(trace).toContain('## Component\n\n@e7 button "Save" is drawn by SaveButton:\n\n    … › Screen › Settings › Section › Row › Field › Label › Form › Group › Line › SaveButton › Pressable › View\n');
+    expect(trace).toContain('## Console\n\n| at | level | text |\n| --- | --- | --- |\n| 1.50 s | warn | a \\| b c |');
+    const plain = renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, chain: {node: '@e1 text "Hi"', chain: ['View']}});
+    expect(plain).toContain('@e1 text "Hi" is drawn by no component of the app:\n\n    View\n');
+    const long = Array.from({length: 60}, (_, at) => ({level: 'log', text: `line ${at}`, at}));
+    expect(renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, console: long})).toContain('The last 50 of 60 lines.');
+  });
+
   it('says so where there were no steps and no tree, a test passed, and the tree is long', () => {
     const none = renderTrace({titlePath: ['t'], platform: 'ios', file: 'a.test.ts', failed: false, duration: 20, at: new Date(0), errors: [], steps: [], tree: null});
     expect(none).toContain('ios · a.test.ts · passed in 20 ms · 1970-01-01T00:00:00Z');
@@ -214,6 +251,35 @@ describe('writeEvidence', () => {
     const blank = await writeEvidence(source({open: false, last: null}), input(root));
     expect(fs.readdirSync(blank.folder)).toEqual(['trace.md']);
     expect(fs.readFileSync(blank.trace, 'utf8')).toContain('No tree was read.');
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
+  it('gives each node the component behind it, and the failing step its chain, where the React tree can be read', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
+    const reading = source();
+    reading.react = async () => ({nodes: [{id: 1, host: 'input', chain: ['App', 'NameField', 'TextInput'], component: 'NameField', ref: '@e3'}]});
+    reading.journal.steps.push(
+      {index: 1, event: 'fill', what: 'getByTestId("name")', resolved: '@e3   textbox "Name" #name', startedAt: 0, durationMs: 1, result: 'ok', message: ''},
+      {index: 2, event: 'press', what: 'getByText("Gone")', resolved: '@e9   button "Gone"', startedAt: 1, durationMs: 1, result: 'ok', message: ''},
+    );
+    const written = await writeEvidence(reading, input(root));
+    const trace = fs.readFileSync(written.trace, 'utf8');
+    expect(trace).not.toContain('## Component');
+    expect(fs.readFileSync(path.join(written.folder, 'tree.txt'), 'utf8')).toContain('@e3 input/textbox "Name" <NameField> #name [focused]');
+    reading.journal.steps[1] = {...(reading.journal.steps[1] as Step), result: 'failed', resolved: undefined};
+    reading.journal.steps[0] = {...(reading.journal.steps[0] as Step), result: 'failed'};
+    const again = await writeEvidence(reading, input(root));
+    expect(fs.readFileSync(again.trace, 'utf8')).toContain('@e3 textbox "Name" is drawn by NameField:\n\n    App › NameField › TextInput');
+    reading.react = async () => ({nodes: [{id: 1, host: 'input', chain: ['TextInput'], ref: '@e3'}]});
+    reading.tree = async () => tree(node('@e3', 'input', 'Name', {testId: 'name'}));
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).toContain('@e3 input "Name" is drawn by no component of the app:');
+    reading.react = async () => null;
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).not.toContain('## Component');
+    reading.react = () => Promise.reject(new Error('no Metro'));
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).not.toContain('## Component');
+    reading.journal.steps.length = 0;
+    reading.react = async () => ({nodes: []});
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).not.toContain('## Component');
     fs.rmSync(root, {recursive: true, force: true});
   });
 

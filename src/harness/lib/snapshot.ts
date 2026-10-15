@@ -27,6 +27,12 @@ export interface SnapshotNode {
   /** The accessible name — what a screen reader says. */
   name: string;
   /**
+   * The React component that drew it, such as `SaveButton`, where the React
+   * tree was read alongside (`withComponents` in `react.ts`). Absent
+   * otherwise.
+   */
+  component?: string;
+  /**
    * The identifier the component was given in the source: React Native's
    * `testID`, which reaches `data-testid` on web and `AutomationProperties.
    * AutomationId` on Windows. Unlike the name it is not user-visible, so it
@@ -282,7 +288,9 @@ export function renderSnapshot(snapshot: Snapshot): string {
       ].filter(Boolean).join(' ');
       // The kind beside the role where they differ, so a reader sees the word getByRole takes.
       const role = node.kind && node.kind !== node.role.toLowerCase() ? `${node.role}/${node.kind}` : node.role;
-      return `${indent}${node.ref} ${role} ${JSON.stringify(node.name)}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
+      // The component that drew it, where the React tree was read alongside.
+      const drawn = node.component ? ` <${node.component}>` : '';
+      return `${indent}${node.ref} ${role} ${JSON.stringify(node.name)}${drawn}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
     })
     .join('\n');
 }

@@ -104,6 +104,8 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_ASSERTION_TIMEOUT`, `HARNESS_STABLE` | How long a locator's wait looks, and how long something must stay gone, in ms. `deviceConfig`'s `assertionTimeout` and `stable` set them. |
 | `HARNESS_TRACE` | When a test leaves [evidence](evidence.md): `retain-on-failure` (the default), `on` or `off`. |
 | `HARNESS_HEADED`, `HARNESS_SLOWMO` | On web, `1` opens the browser in a window to watch, and a number of ms slows each operation by that much. A window needs the full Chromium, not only the headless shell. |
+| `HARNESS_METRO` | Where Metro runs, for the React tree of a development build: `http://localhost:8081` by default. |
+| `HARNESS_REACT` | `take` to read the React tree of an app that takes one debugger only, which closes React Native DevTools if it is open. |
 | `HARNESS_FORCE` | `1` to press, fill, type and send keys on Windows even when someone used the machine in the last three minutes. Without it, those refuse while the desk is in use, since synthetic input goes to whatever window is in front. The harness's own input does not count, from one test file to the next too: what the guard has seen is kept in `.harness/windows-desk.json`. |
 
 On Windows, when Node is started through Volta's `node` shim, a run that
@@ -130,7 +132,8 @@ each platform.
 | `device.key(name)` | A named key where the focus is: `ArrowDown`, `Home`, `Enter`. Answers `'pressed'`, or `'skipped'` on a backend that cannot send one. |
 | `device.waitFor(selector, {timeout, interval})` | Waits until a [selector](locators.md#by-and-element) is in the tree. Ten seconds by default. The error says how many nodes the tree had. |
 | `device.close()` | Closes the driver. |
-| `device.journal` | The record of the current test's steps, which [evidence](evidence.md) is written from. |
+| `device.react()` | The [React tree](#the-react-tree) behind the native one. |
+| `device.journal` | The record of the current test's steps and the app's console, which [evidence](evidence.md) is written from. |
 
 The driver is made on first use and kept for the file's tests.
 
@@ -205,6 +208,38 @@ The tree walks the descendants of the app's main window. A WinUI `MenuFlyout`
 opens in a separate top-level window, so a menu plainly open on screen leaves
 no trace in the tree. Verify menus with a screenshot on Windows. A tree that
 says nothing happened is not evidence that nothing did.
+
+## The React tree
+
+`device.react()` reads the React tree behind the native one: for each node
+the platform draws, the component that drew it, such as `SaveButton`, every
+named component above it, and its `testID`, label and text as written. An
+iOS `accessible` container folds its children's testIDs and labels away from
+the native tree, and the React tree still has them.
+
+```ts
+import {device, withComponents} from 'expo-vitest/device';
+
+const tree = withComponents(await device.fullSnapshot(), await device.react());
+// each node now has its component: tree.nodes[0].component === 'SaveButton'
+```
+
+`withComponents` matches each native node to the React node behind it: by
+its ref on web, else by its testID, else by the box they share. The tree
+prints the component beside the name: `@e7 button "Save" <SaveButton>`.
+
+It is read from React's DevTools hook, which only a development build has.
+On web the page is the runtime, and the harness puts the hook in place before
+React loads. On iOS, Android and Windows the walk runs in the app through
+Metro's inspector, at `HARNESS_METRO`. Metro closes every other debugger
+connected to an app when one more connects, unless the app says it takes
+more than one, so the harness reads only such an app, and says so otherwise:
+`HARNESS_REACT=take` reads it anyway, at the price of a React Native
+DevTools window that was open. Nothing else is sent to the app, and nothing
+it keeps after the connection goes.
+
+Where the tree can be read, a failing test's [evidence](evidence.md) names
+the component behind the node its failing step was for.
 
 ## Errors
 

@@ -9,6 +9,8 @@ import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from
 import type {Availability, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {HEADED_NEEDS_FULL, browserRoots, candidates, isShell, launchOptions, modeFrom} from './web-browsers.ts';
+import type {ReactTree} from '../lib/react.ts';
+import {walkExpression} from '../lib/react.ts';
 
 const DEFAULT_URL = 'http://localhost:8081';
 
@@ -43,6 +45,29 @@ const INIT = `(() => {
   else document.addEventListener('DOMContentLoaded', observe, {once: true});
   for (const type of ['focusin', 'focusout', 'resize', 'scroll', 'transitionend', 'animationend']) window.addEventListener(type, bump, true);
   window.__harness = state;
+  // React's DevTools hook, the least a renderer needs to register with it,
+  // so the React tree can be read: React looks for it as it loads, and only
+  // then. One already there, as a DevTools extension's, is left as it is.
+  if (!window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+    const renderers = new Map();
+    const roots = new Map();
+    let next = 0;
+    window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+      renderers,
+      supportsFiber: true,
+      inject(renderer) { next += 1; renderers.set(next, renderer); roots.set(next, new Set()); return next; },
+      onCommitFiberRoot(id, root) {
+        const kept = roots.get(id);
+        if (!kept) return;
+        if (root.current && root.current.memoizedState && root.current.memoizedState.element == null) kept.delete(root);
+        else kept.add(root);
+      },
+      onCommitFiberUnmount() {},
+      onPostCommitFiberRoot() {},
+      checkDCE() {},
+      getFiberRoots(id) { return roots.get(id) || new Set(); },
+    };
+  }
 })();`;
 
 /**
@@ -250,6 +275,8 @@ const KEEP_MS = 2000;
 export function webDriver(options: DriverOptions): Driver {
   // HARNESS_HEADED opens a window to watch, and HARNESS_SLOWMO slows each operation.
   const mode = modeFrom(process.env);
+  /** Who hears the page's console, from the page's first open. */
+  const listeners = new Set<(level: string, text: string) => void>();
   const require = createRequire(path.join(options.root, 'package.json'));
   const base = options.url ?? DEFAULT_URL;
   let browser: {newPage(o?: unknown): Promise<Page>; close(): Promise<void>} | null = null;
@@ -268,6 +295,8 @@ export function webDriver(options: DriverOptions): Driver {
     keyboard: {type(text: string): Promise<void>; press(key: string): Promise<void>};
     locator(selector: string): Locator;
     evaluate<T>(fn: string): Promise<T>;
+    on(event: 'console', listener: (message: {type(): string; text(): string}) => void): void;
+    on(event: 'pageerror', listener: (error: Error) => void): void;
   }
 
   function playwright() {
@@ -296,6 +325,12 @@ export function webDriver(options: DriverOptions): Driver {
     browser = launched;
     page = await launched.newPage({viewport: {width: 1280, height: 900}});
     await page.addInitScript(INIT);
+    page.on('console', message => {
+      for (const listener of listeners) listener(message.type(), message.text());
+    });
+    page.on('pageerror', error => {
+      for (const listener of listeners) listener('uncaught', error.message);
+    });
     return page;
   }
 
@@ -509,6 +544,20 @@ export function webDriver(options: DriverOptions): Driver {
       } catch (error) {
         return failed((error as Error).message.split('\n')[0] ?? 'scrolling failed', codeOf(error));
       }
+    },
+
+    onConsole(listener: (level: string, text: string) => void): () => void {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+
+    async react(): Promise<ReactTree | {unavailable: string}> {
+      // The page is the runtime on web, so the walk runs in it, through the
+      // hook the init script installed, after a read of the tree, which
+      // gives the page the refs a React node is matched to.
+      await collect();
+      const current = await open();
+      return current.evaluate<ReactTree | {unavailable: string}>(walkExpression());
     },
 
     async swipe(from: Point, to: Point): Promise<StepResult> {

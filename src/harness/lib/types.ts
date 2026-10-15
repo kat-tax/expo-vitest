@@ -1,4 +1,5 @@
 import type {HarnessCode} from './errors.ts';
+import type {ReactTree} from './react.ts';
 import type {Point, Snapshot, Target} from './snapshot.ts';
 
 /** The platforms the harness can drive. */
@@ -135,6 +136,10 @@ export interface Driver {
   scrollIntoView?(target: Target, options?: ScrollIntoViewOptions): Promise<StepResult>;
   /** A finger drawn from one point to another, in the window's own pixels. */
   swipe?(from: Point, to: Point, options?: StepTiming): Promise<StepResult>;
+  /** The React tree behind the native one, or why it cannot be read here. */
+  react?(): Promise<ReactTree | {unavailable: string}>;
+  /** Calls `listener` with each line the app writes to its console, and each error it does not catch; the function it answers stops that. */
+  onConsole?(listener: (level: string, text: string) => void): () => void;
   /** Saves a PNG of what is on screen. */
   screenshot(file: string): Promise<StepResult>;
   /** Seconds since the user last touched this machine; null where the question has no meaning. */

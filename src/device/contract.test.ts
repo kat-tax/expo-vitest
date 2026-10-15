@@ -25,7 +25,7 @@ import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, selfAliases} from '../projects.ts';
 import type {DeviceConfig, HarnessCode, Kind, Selector, Snapshot, SnapshotNode} from './index.ts';
-import {Locator, by, configFromEnvironment, device, element, isHarnessError, screen, within} from './index.ts';
+import {Locator, by, configFromEnvironment, device, element, isHarnessError, screen, withComponents, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -336,6 +336,19 @@ describe('screen', () => {
     const reads = snapshot.mock.calls.length;
     expect(await screen.queryByText('Save')).toBe(save);
     expect(snapshot.mock.calls.length).toBe(reads + 1);
+  });
+
+  it('reads the React tree where the backend can, and says why where it cannot', async () => {
+    const save: SnapshotNode = {ref: '@e2', role: 'button', name: 'Save', depth: 1, interactive: true};
+    drive(stub({snapshot: async () => ({platform: 'web', nodes: [save]}), react: async () => ({nodes: [{id: 1, host: 'button', chain: ['App', 'SaveButton'], component: 'SaveButton', ref: '@e2'}]})}));
+    const tree = await device.react();
+    expect(withComponents(await device.fullSnapshot(), tree).nodes[0]?.component).toBe('SaveButton');
+    await device.close();
+    drive(stub({react: async () => ({unavailable: 'no hook'})}));
+    await expect(device.react()).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'the React tree cannot be read: no hook'));
+    await device.close();
+    drive(stub());
+    await expect(device.react()).rejects.toThrow(failure('UNSUPPORTED_CAPABILITY', 'reading the React tree is not something the web harness can do'));
   });
 
   it('is ambiguous where a locator names several, and lists them', async () => {
