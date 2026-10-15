@@ -15,6 +15,7 @@ export const USAGE = `the harness: run an app on a platform and look at what it 
   expo-harness init [--yes]              set a project up to test with expo-vitest
   expo-harness guide [topic | --list]    how to write and run the tests, for a person or an agent
   expo-harness cache [ls | stats | clear] the agent's replay cache: list it, count it, or empty it
+  expo-harness mcp [options]             an MCP server a coding agent drives the app through (mcp --help)
   expo-harness -p <platform> [options] <step>...
 
 expo-vitest is the same command.
@@ -80,8 +81,8 @@ export interface Options {
   /** `bench` prints JSON rather than a table. */
   json: boolean;
   steps: string[][];
-  command: 'doctor' | 'run' | 'help' | 'init' | 'guide' | 'cache';
-  /** What follows `init`, `guide` or `cache`, which each reads for itself. */
+  command: 'doctor' | 'run' | 'help' | 'init' | 'guide' | 'cache' | 'mcp';
+  /** What follows `init`, `guide`, `cache` or `mcp`, which each reads for itself. */
   args: string[];
 }
 
@@ -112,9 +113,9 @@ function milliseconds(flag: string, value: string): number {
 
 export function parse(argv: string[]): Options {
   const options: Options = {out: OUT, force: false, interactive: false, json: false, steps: [], command: 'run', args: []};
-  // init, guide and cache take arguments of their own, and are known in the first place only, where no step is.
+  // init, guide, cache and mcp take arguments of their own, and are known in the first place only, where no step is.
   const [first, ...after] = argv;
-  if (first === 'init' || first === 'guide' || first === 'cache') return {...options, command: first, args: after};
+  if (first === 'init' || first === 'guide' || first === 'cache' || first === 'mcp') return {...options, command: first, args: after};
   const rest: string[] = [];
   for (let at = 0; at < argv.length; at++) {
     const argument = argv[at];

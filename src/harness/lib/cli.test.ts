@@ -72,6 +72,7 @@ describe('parse', () => {
     expect(parse(['guide', 'device'])).toMatchObject({command: 'guide', args: ['device']});
     expect(parse(['guide'])).toMatchObject({command: 'guide', args: []});
     expect(parse(['cache', 'clear'])).toMatchObject({command: 'cache', args: ['clear']});
+    expect(parse(['mcp', '--platform', 'web'])).toMatchObject({command: 'mcp', args: ['--platform', 'web']});
     expect(() => parse(['-p', 'web', 'init'])).toThrow('init is not a step; try --help');
   });
 

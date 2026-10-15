@@ -6,42 +6,14 @@
  * Every project's global setup runs before the first test and every
  * teardown after the last, so a command two platforms share is started by
  * the first of them and stopped after both. What decides is in
- * `app-process.ts`; this hands it Node's own calls.
+ * `app-process.ts`, and Node's own calls it needs are in `system.ts`.
  */
-import {spawn, spawnSync} from 'node:child_process';
-import fs from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import type {TestProject} from 'vitest/node';
-import {prepare} from '../harness/lib/run.ts';
-import {realClock} from '../harness/lib/settle.ts';
-import type {System} from './app-process.ts';
 import {acquire, commandKey, registry, release, startCommand} from './app-process.ts';
 import {loadHarness, resolveRun, runId, serialisable} from './config.ts';
 import './provided.ts';
-
-const system: System = {
-  platform: process.platform,
-  env: process.env,
-  exists: fs.existsSync,
-  spawn: (file, args, options) => spawn(file, args, options),
-  signal: (pid, signal) => process.kill(pid, signal),
-  killTree: pid => void spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {windowsHide: true}),
-  openLog: file => fs.openSync(prepare(file), 'w'),
-  closeLog: fd => fs.closeSync(fd),
-  readLog: file => {
-    try {
-      return fs.readFileSync(file, 'utf8');
-    } catch {
-      return '';
-    }
-  },
-  fetcher: (url, init) => fetch(url, init),
-  clock: realClock,
-  onExit: stop => {
-    process.once('exit', stop);
-    return () => void process.off('exit', stop);
-  },
-};
+import {system} from './system.ts';
 
 export default async function setup(project: TestProject): Promise<(() => Promise<void>) | undefined> {
   const provided = project.getProvidedContext();
