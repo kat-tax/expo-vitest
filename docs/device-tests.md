@@ -91,6 +91,14 @@ HARNESS_PLATFORM=android HARNESS_SCHEME=myapp npm run test:device
 | `HARNESS_UPDATE_SCREENSHOTS` | Set it to record screenshot baselines. |
 | `HARNESS_AGENT_DEVICE` | Where `agent-device` is installed, when that is somewhere the harness does not look; or `cli` to drive it through its command line rather than its Node client. |
 
+On Windows, when Node is started through Volta's `node` shim, a run that
+starts agent-device's daemon passes it a handle to the run's own output, and
+the daemon holds it until it stops, about five minutes after its last
+request. A terminal does not notice. Anything that reads the output to its
+end, such as a pipe or a CI log, waits that long after the tests have
+finished. Start the daemon first from outside the pipe, with any
+`agent-device` command, or run Node itself rather than the shim.
+
 [The harness](harness.md#getting-an-app-to-drive) says how to get an app up on
 each platform.
 
