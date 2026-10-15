@@ -41,9 +41,17 @@ the app under test.
   in it. The picture comes from the screen while a menu or popup of the app's
   own is open over it, or when the window draws nothing.
 - **A baseline belongs to the machine that drew it.** `toMatchScreenshot`
-  records one only under `HARNESS_UPDATE_SCREENSHOTS`; without one it keeps the
-  picture as evidence and passes on the tree assertions. Nothing records a
-  baseline as a side effect of a run.
+  records or replaces one only under `HARNESS_UPDATE_SCREENSHOTS` or
+  `vitest -u`; without one it keeps the picture as evidence and passes on the
+  tree assertions. Nothing records a baseline as a side effect of a run. A
+  mask is painted at compare time, so the baseline is the region without it.
+- **A control answers, as a step does.** The app's life and the device's
+  settings go through one driver member, `control`, and what each platform
+  lacks, and why, is the table in `src/harness/lib/controls.ts`, which
+  `src/device/capabilities.ts` reads. A new control is a row there and a
+  case in each driver, and a platform without it answers `skipped` with the
+  table's reason. A control a platform has but this device lacks, as a fold
+  on a phone that does not fold, throws with agent-device's reason.
 - The project root is the working directory, or `HARNESS_ROOT`. Never work it
   out from a file's own location: installed, that is the package.
 - The PNG comparison is `src/harness/lib/png.ts`, on Node's own zlib. It reads
@@ -78,6 +86,9 @@ and refuses to press what is over the node.
 ## Testing
 
 None of this runs in the unit tests: they cover the logic (the snapshot shapes,
-the PNG reader, the command line, the error codes, the process helpers, the
-benchmark's arithmetic). The drivers are proved by running them against a real
-app, and the device matchers by a device suite in a consumer.
+the PNG reader and the image geometry, the command line, the error codes, the
+process helpers, the benchmark's arithmetic, the harness config and the
+command's lifecycle, the controls' table and the capabilities, and what the
+screenshot matcher decides). The drivers are proved by running them against a
+real app, and the device matchers by the fixture's device suite and a device
+suite in a consumer.

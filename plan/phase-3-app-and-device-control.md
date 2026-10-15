@@ -1,6 +1,6 @@
 # Phase 3. App and device control
 
-Status: in progress (items 1 to 12 and 14 done, and the start of 13) · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
+Status: done, but for what needs a device or a build this machine lacks: iOS throughout, and the Expo development build recipe · Size: M · Depends on: Phase 0, Phase 1, Phase 2 · Unblocks: Phase 4, Phase 5
 
 [Back to the index](README.md). The compatibility contract, the dependency
 policy and the shared facts (README sections 3, 4 and 11) apply throughout and
@@ -345,13 +345,52 @@ below, the build is what holds.
     keys that do nothing.
 - **Item 14: `engines.node` is `>=22.18`,** the package's first floor, and
   `docs/getting-started.md` says why beside the install.
-- **Item 13, its start.** `docs/configuration.md` has the three options, a
-  project per platform, and `harness.config.ts` with the precedence and the
-  command. `docs/device-tests.md` has `HARNESS_CONFIG`, `HARNESS_REQUIRE`
-  and the two new codes, and the README a row. The keys the file takes
-  ahead of their items, `bundleId`, `appPath`, `identity`,
-  `launchArguments`, `permissions`, `stateDir`, `statusBar` and
-  `actionTimeout`, are documented with their items.
+- **Item 13: the docs,** written with each item rather than at the end.
+  - `docs/configuration.md`: the three `deviceConfig` options, a project
+    per platform, and `harness.config.ts` with every key the run reads,
+    what wins over what, and the command.
+  - `docs/controls.md`, new: the app's life, the device's settings, what a
+    device can do with `onlyOn`, `skipOn` and `requires`, a fresh launch,
+    and Windows.
+  - `docs/matchers.md`: the screenshot options, the element and the clip,
+    the still picture, the three pictures, `-u` and the status bar.
+  - `docs/device-tests.md`: the new variables and codes.
+  - `docs/getting-started.md`: the Node floor.
+  - `docs/contributing.md`, `.claude/rules/testing.md` and
+    `.claude/rules/harness.md`: the fixture's device suite, the control
+    table as the one place a control is added, and what the unit tests
+    now cover.
+  - **The README** has rows for several platforms in one run, visual
+    comparison, the app's life, the device's settings and gating.
+  - `identity` is taken and resolved, and waits for Phase 5's recordings to
+    be read.
+  - **Not written:** the Expo development build recipe. It needs a
+    development build on a simulator and an emulator to be shown to work,
+    and the one example here does not build; see the exit criteria below.
+- **The exit criteria,** as they stand:
+  - **Several platforms in one invocation:**
+    - web and Windows shared one command and left nothing running;
+    - web ran beside iOS, which was skipped;
+    - Android ran alone.
+    - Not seen: three platforms in one run behind one Metro, since no
+      development build runs here.
+  - **A platform the machine lacks:** skipped with the driver's reason,
+    and failing with `DRIVER_UNAVAILABLE` under `HARNESS_REQUIRE=1`, in
+    the fixture on every run.
+  - **A masked screenshot with a running clock:** on web, in the fixture
+    and in a scratch consumer. Not on Android, whose headless emulator
+    composites nothing, nor on iOS.
+  - **An element screenshot of a button:** on web, at 83 by 41, and on
+    Windows, 84 by 37, a picture of "+ New" cut exactly. Not on Android or
+    iOS, for the same reasons.
+  - **`setAppearance('dark')`:** done on web and Android, and skipped
+    with its reason on Windows. **`back()`:** done on web and Android, and
+    skipped with its reason on Windows. iOS not seen.
+  - **The Expo development build recipe:** not done. It needs a development
+    build. The expo-interface example's fails on its own dependencies,
+    Reanimated 4.6 against Worklets 0.8.3, and there is no Mac.
+  - **`deviceConfig()` with no options** is unchanged, as the contract
+    test shows.
 
 ## Purpose and the claims it proves
 
