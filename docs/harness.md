@@ -118,6 +118,11 @@ quotes in it, as your shell requires.
 Everything is relative to the project the command is run in, or to
 `HARNESS_ROOT` when that is set.
 
+On web, `HARNESS_HEADED=1` opens the browser in a window to watch, and
+`HARNESS_SLOWMO=<ms>` slows each operation by that much. A window needs the
+full Chromium rather than the headless shell, and `doctor` says when only
+the shell is installed.
+
 ## What each platform can do
 
 | | web | windows | android | ios |

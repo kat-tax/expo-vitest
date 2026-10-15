@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: in progress (items 1 to 10 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: in progress (items 1 to 11 done) · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -237,6 +237,16 @@ below, the build is what holds.
     trace on web, on a react-native-windows app and on an Android
     emulator.
   - **Still to build from section 5:** the React tree.
+- **Item 11: headed web.** The browser search is
+  `src/harness/platforms/web-browsers.ts`, in the gate. It looked for the
+  full Chromium under `chrome-win` only, and Playwright now installs it
+  under `chrome-win64`, so it knows each platform's layouts of both builds.
+  It also looks where `PLAYWRIGHT_BROWSERS_PATH` says. Playwright may find
+  a browser of its own, so `available()` says only a shell is installed
+  only where the search found a shell and no full browser. **Seen live:**
+  a headed run slowed by 50 ms opened, pressed and read the page of
+  controls, `doctor` said so, and with only a shell faked in its place,
+  `doctor` gave the message.
 
 ## Purpose and the claims it proves
 

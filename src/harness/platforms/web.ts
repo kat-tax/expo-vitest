@@ -8,35 +8,21 @@ import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import type {Availability, Driver, DriverOptions, LongPressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
+import {HEADED_NEEDS_FULL, browserRoots, candidates, isShell, launchOptions, modeFrom} from './web-browsers.ts';
 
 const DEFAULT_URL = 'http://localhost:8081';
 
-/** Where a `playwright install` leaves the headless shell, when playwright cannot find it itself. */
-function shells(): string[] {
-  const home = process.env.LOCALAPPDATA ?? process.env.HOME ?? '';
-  const roots = [path.join(home, 'ms-playwright'), path.join(home, 'Library', 'Caches', 'ms-playwright'), path.join(home, '.cache', 'ms-playwright')];
+/** The browsers a launch can fall back on, of those `playwright install` left, newest first. */
+function browsers(headed: boolean): string[] {
   const found: string[] = [];
-  for (const root of roots) {
-    let entries: string[] = [];
+  for (const root of browserRoots(process.env)) {
+    let entries: string[];
     try {
-      entries = fs.readdirSync(root).filter(entry => entry.startsWith('chromium_headless_shell-') || entry.startsWith('chromium-'));
+      entries = fs.readdirSync(root);
     } catch {
       continue;
     }
-    entries.sort((a, b) => Number(b.split('-').at(-1)) - Number(a.split('-').at(-1)));
-    for (const entry of entries) {
-      for (const relative of [
-        path.join('chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
-        path.join('chrome-win', 'headless_shell.exe'),
-        path.join('chrome-win', 'chrome.exe'),
-        path.join('chrome-headless-shell-mac', 'chrome-headless-shell'),
-        path.join('chrome-linux', 'headless_shell'),
-        path.join('chrome-linux', 'chrome'),
-      ]) {
-        const file = path.join(root, entry, relative);
-        if (fs.existsSync(file)) found.push(file);
-      }
-    }
+    found.push(...candidates(root, entries, headed).filter(file => fs.existsSync(file)));
   }
   return found;
 }
@@ -262,6 +248,8 @@ const KEEP_MS = 2000;
  * element by that ref rather than by a coordinate.
  */
 export function webDriver(options: DriverOptions): Driver {
+  // HARNESS_HEADED opens a window to watch, and HARNESS_SLOWMO slows each operation.
+  const mode = modeFrom(process.env);
   const require = createRequire(path.join(options.root, 'package.json'));
   const base = options.url ?? DEFAULT_URL;
   let browser: {newPage(o?: unknown): Promise<Page>; close(): Promise<void>} | null = null;
@@ -296,9 +284,9 @@ export function webDriver(options: DriverOptions): Driver {
     if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core is not installed in this project', {platform: 'web'});
     let launched: typeof browser = null;
     const reasons: string[] = [];
-    for (const executablePath of [undefined, ...shells()]) {
+    for (const executablePath of [undefined, ...browsers(mode.headed)]) {
       try {
-        launched = await driver.chromium.launch(executablePath ? {headless: true, executablePath} : {headless: true});
+        launched = await driver.chromium.launch(launchOptions(mode, executablePath));
         break;
       } catch (error) {
         reasons.push((error as Error).message.split('\n')[0] ?? '');
@@ -410,8 +398,11 @@ export function webDriver(options: DriverOptions): Driver {
 
     async available(): Promise<Availability> {
       if (!playwright()) return {ready: false, reason: 'playwright-core is not installed; add it to this project'};
-      const shell = shells()[0];
-      return {ready: true, found: shell ? `Chromium at ${path.basename(path.dirname(shell))}` : 'Chromium through playwright'};
+      const found = browsers(mode.headed);
+      // Playwright may find a browser of its own, so only a shell and no full browser is a sure no.
+      if (mode.headed && found.length === 0 && browsers(false).some(isShell)) return {ready: false, reason: HEADED_NEEDS_FULL};
+      const where = found[0] ? `Chromium at ${path.basename(path.dirname(found[0]))}` : 'Chromium through playwright';
+      return {ready: true, found: `${where}${mode.headed ? ', in a window' : ''}${mode.slowMo ? `, ${mode.slowMo} ms slower each operation` : ''}`};
     },
 
     async open(to: string): Promise<StepResult> {
