@@ -21,6 +21,7 @@
   <a href="/web/report.csv" download data-testid="report">Download the report</a>
   <div data-testid="menu-target" role="button" tabindex="0">Options</div>
   <p data-testid="menu">No menu</p>
+  <div role="listitem" data-testid="row">Groceries <span aria-hidden="true">star</span><div popover><div role="menuitem" tabindex="-1">Archive</div></div></div>
   <iframe title="Card" src="/web/frame" id="card"></iframe>
   <script>
     const text = (id, value) => (document.querySelector(`[data-testid=${id}]`).textContent = value);

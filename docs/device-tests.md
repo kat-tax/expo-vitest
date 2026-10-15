@@ -303,14 +303,14 @@ network request, is what a [matcher](matchers.md) waits for.
 
 ## The tree
 
-A snapshot is `{platform, source, nodes}`. Each node has:
+A snapshot is `{platform, source, nodes}`. On web, what a screen reader is told to pass over, under `aria-hidden="true"`, is not in it, as it is not on a device: an icon drawn as a font's ligature is its name as text there. Each node has:
 
 | Field | What it is |
 | --- | --- |
 | `ref` | `@e1`, `@e2` and so on. Stable within one snapshot, not across snapshots. On web and Windows a node has the same ref in an interactive snapshot as in a full one of the same screen, so a ref read from an interactive snapshot presses that node while the screen stays as it was. On web a node keeps its ref for as long as it stays on the page, so a ref read earlier still presses it after the page has changed around it. |
 | `role` | The platform's own word for what this is. |
 | `kind` | One word for it on every platform, from a fixed list: `button`, `textbox`, `checkbox`, `switch`, `tab`, `tablist`, `link`, `heading`, `listitem`, `menuitem`, `radio`, `slider`, `progressbar`, `dialog`, `text`, `image`, `group`, `list`, `combobox`, `searchbox`, `spinbutton`, `status`, `alert`, `toolbar`, `menu`, `radiogroup`. Absent where the platform's word is not one the harness knows. On Windows a switch and a toggle button are the same control type, with the Toggle pattern and no Invoke, and both read as `switch`. The tree prints it beside the role where the two differ: `Button/switch`. |
-| `name` | The accessible name: what a screen reader says. |
+| `name` | The accessible name: what a screen reader says. On web a name made from an element's text leaves out what is not drawn, such as a menu that is shut. |
 | `testId` | The `testID` from the source. |
 | `depth` | Depth in the tree. |
 | `parent` | The ref of the nearest node in the same snapshot that this one sits inside. Absent at the top, and where the platform does not say: on iOS and Android, a node whose parent an interactive snapshot left out. |

@@ -116,19 +116,42 @@ const COLLECT = `((last) => {
   // reader, with a space where the text passes from one element to another.
   // react-native-web puts each line of a Pressable in a div of its own with
   // nothing between them, and joined bare they would run together.
+  // Whether an element is drawn: not display: none, nor inside an element
+  // that is, as a closed popover is, and not visibility: hidden, which
+  // descendants inherit. Kept for the one read.
+  const drawn = new Map();
+  const isDrawn = (element) => {
+    if (!element) return true;
+    let known = drawn.get(element);
+    if (known === undefined) {
+      known = getComputedStyle(element).display !== 'none' && isDrawn(element.parentElement);
+      drawn.set(element, known);
+    }
+    return known;
+  };
+  const shows = (element) => isDrawn(element) && getComputedStyle(element).visibility === 'visible';
   const textOf = (root) => {
     let text = '';
     let previous = null;
+    // A screen reader leaves out what is not drawn, as a row's menu while it
+    // is shut. An element not drawn itself keeps all its text, so a query
+    // that takes hidden nodes still finds it by its name.
+    const drawnRoot = shows(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const hidden = node.parentElement && node.parentElement.closest('[aria-hidden="true"]');
       if (hidden && hidden !== root && root.contains(hidden)) continue;
+      if (drawnRoot && node.parentElement && !shows(node.parentElement)) continue;
       text += (previous && previous !== node.parentElement ? ' ' : '') + node.data;
       previous = node.parentElement;
     }
     return readable(text);
   };
   for (const element of document.querySelectorAll(selector)) {
+    // What a screen reader is told to pass over is not in the tree, as it is
+    // not on a device: an icon drawn as a font's ligature, as Material
+    // Symbols draws one, is the icon's name as text under aria-hidden.
+    if (element.closest('[aria-hidden="true"]')) continue;
     const box = element.getBoundingClientRect();
     const role = element.getAttribute('role') ?? element.tagName.toLowerCase();
     // react-native-web draws a Pressable with no role as a div that takes the

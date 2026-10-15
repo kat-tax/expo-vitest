@@ -66,6 +66,16 @@ onlyOn(['web'], () => {
     await expect(screen.getByText('Menu open')).toBeVisible();
   });
 
+  it('reads the page as a screen reader does: nothing under aria-hidden, and no closed menu in a name', async () => {
+    await opened();
+    await expect(screen.getByRole('listitem', {name: 'Groceries'})).toBeVisible();
+    const tree = await device.snapshot({interactive: false});
+    expect(tree.nodes.map(node => node.name)).not.toContain('star');
+    // The shut menu is in the tree, off screen, its item named by its own text.
+    await expect(screen.getByRole('menuitem', {name: 'Archive'})).toBeHidden();
+    expect(await screen.getByRole('menuitem', {name: 'Archive', hidden: true}).count()).toBe(1);
+  });
+
   it('keeps a download, by the name the page gave it', async () => {
     await opened();
     const file = await device.web.waitForDownload(() => screen.getByTestId('report').press());
