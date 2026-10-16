@@ -1,6 +1,6 @@
 # Phase 7. The test app
 
-Status: done, but for iOS, which needs a Mac. The app and its suite run from the packed package on web, Android and Windows, every test passing but those that mark expo-interface's bugs and those a platform skips with its reason, though a whole run on the Android emulator loses a test to the emulator stalling. A coding agent wrote a passing test of the app over the MCP server on Windows, and explore and bug bash ran on it there · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
+Status: done, but for iOS, which runs in CI on a simulator, launching the app and passing its onboarding, and not yet the rest. The app and its suite run from the packed package on web, Android and Windows, on this machine and in this repository's CI, every test passing but those that mark expo-interface's bugs and those a platform skips with its reason. A coding agent wrote a passing test of the app over the MCP server on Windows, and explore and bug bash ran on it there · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
 
 One app, kept in this repository, that behaves like a typical product app on
 iOS, Android, web and Windows, so that the device layer, the agent, explore,
@@ -36,10 +36,14 @@ build is what holds.
   stopped answering adb part of the way through a run; started with
   `-memory 4096`, it lasts most of one. Two full runs on it each passed 19
   tests and failed the 8 marked ones as marked, and each lost one test, a
-  different one each time, when the app left for the home screen as the
-  emulator stopped answering adb. The three tests added after those runs,
-  the coding agent's, a new note thrown away and the agent's act step, pass
-  and fail as marked there, run on their own.
+  different one each time, when the app left for the home screen. The
+  device's log says why: now and then the development build dies as it
+  first draws, a SIGSEGV on React Native's JavaScript thread in Fabric's
+  mounting, half a second after "Running main". The tests' launch now
+  launches the app again once it is seen gone, and a run with the app
+  force-stopped as it came up passed. Through agent-device 0.21.28 a whole
+  run here passed 21 tests and failed the 9 marked, the crash taking one
+  more before the launch did that.
 - **Windows.** The Release exe expo-windows' `ci/build.sh` makes from the
   app, with its JavaScript bundled in, on the react-native-windows 0.84 line.
   The build needs PowerShell 7 and a .NET SDK on the PATH, which this machine
@@ -51,6 +55,27 @@ build is what holds.
   are skipped, the two row menus and going offline, each with its reason. A
   change to the app reaches the exe by building its Release bundle again,
   which takes minutes, the native code being built.
+- **In CI.** `.github/workflows/testapp.yml` runs the suite on this
+  repository's pull requests, from the packed package, a job a platform:
+  web on `ubuntu-latest`; Android on an API 35 emulator there, drawn in
+  software, from a debug build the job makes; iOS on a simulator on
+  `macos-26`, the same way; and Windows on `windows-latest`, from the
+  Release build expo-windows' `ci/build.sh` makes there, on a screen set
+  to 1920x1080. Web passed from the first run (38845895084). Windows passed
+  with 27, 1 as marked and 3 skipped (38861467210, 38871546118), once what
+  the first runs showed was fixed in the host: the window reaching past the
+  runner's 1024x768 screen, a secure field whose mask hid a change, a busy
+  indicator still leaving as the next screen came in, and refs that moved
+  when nodes went. Android passed with 22 and 9 as marked (38857656883)
+  once a node agent-device 0.21.28 refused as still moving was pressed
+  again; the next run lost every test to the emulator's launcher not
+  responding after boot, its dialog over every app, which the job now
+  hides, and the run after passed again (38871546118). iOS runs on its
+  simulator (38871546118): the app launches, past iOS's question before it
+  opens the link, and the onboarding passes, but 27 tests fail. Typing on
+  the simulator drops characters, so an email arrives as "ada@examplecom"
+  and signing in fails, and expo-interface's iOS controls lack the roles
+  and names the tests look for, a checkbox among them.
 - **What the suite found in the harness, and fixed**, a commit each: an
   option a select lacks fails at once with the options it has; Vitest's
   copies of the evidence go under `.harness/attachments/`; the web tree
@@ -61,7 +86,16 @@ build is what holds.
   no point of its own; an Android field whose testID or name says search is a
   search box; a wait reads again after a read that fails; that press finds
   its node in the tree its ref came from; and a stopped Windows app's state
-  folder is deleted once the process lets go of it.
+  folder is deleted once the process lets go of it. CI found more, each
+  fixed in a commit of its own: a window that reaches past its screen is
+  moved onto it before synthetic input; a secure field as long as the new
+  text is emptied before Value sets it; a node agent-device refuses as still
+  moving is pressed again where it came to rest; iOS's question before it
+  hands a link to the app is answered Open; a step on what came in since
+  the screen last held still waits for it to hold still again; a Windows
+  ref lasts as long as its element; agent-device's first call of a run has
+  an open's time; and an iOS node of a type the table does not know takes
+  agent-device's own word for it.
 - **What it found in the app, and fixed.** The search row sat under the web
   tab bar (`underBar` with content that does not pad itself), and a note's
   editor under the header (`native header`, now `native underBar`). The
@@ -85,10 +119,19 @@ build is what holds.
     beside the control rather than on it, so nothing names them, and a
     checkbox's label cannot be pressed. The `Picker` draws nothing to press.
   - Windows: a `Switch` has no name, its label a text beside it.
+  - iOS: a `TextField` is named by its placeholder alone, which iOS does
+    not count as a name, so the field has none.
+- **What it found in React Native, to report there.** On an Android
+  emulator the development build now and then dies as it first draws:
+  SIGSEGV, "trying to execute non-executable memory", on the JavaScript
+  thread (`mqt_v_js`), in Fabric's mounting in `libreactnative.so`, half
+  a second after "Running main" (React Native 0.86.3, Expo SDK 57's
+  development client). About one launch in thirty here.
 - **The agent.** The harness config gives the agent a model of rules,
   `testapp/device/rules.mts`, which acts and explores a sign-in with a wrong
   password. `device/agent.test.ts` is its `act` step, which passes on web,
-  Android and Windows. `expo-harness explore` on web took 7 model calls, reported
+  Android and Windows. `expo-harness explore` on web took 7 model calls,
+  reported
   nothing and concluded that the app said the password was wrong; the model
   waits two seconds before its look after the press, as a real model's answer
   would take, since the pretend server answers after 700 ms. A scripted MCP
@@ -113,10 +156,14 @@ build is what holds.
   rules, `expo-harness explore` concluded in 7 calls that the app refuses a
   wrong password, and `expo-harness bug-bash` ran the feature map's two
   charters one at a time and confirmed nothing.
-- **Open.** iOS needs a Mac. On Android a scroll looks for a row by
-  agent-device's own labels, so a button named by the tree's reading of its
-  text is scrolled to by that text, and the emulator stops answering adb
-  after most of a run.
+- **Open.** iOS, in CI: typing that drops characters on the simulator, the
+  roles and names of expo-interface's iOS controls, a press on Create an
+  account that leaves sign-in where it was, and iOS's question before a
+  link, which two launches left unanswered. On Android a scroll looks for a
+  row by agent-device's own labels, so a button named by the tree's reading
+  of its text is scrolled to by that text. This machine's emulator slows
+  after an hour of runs, its sensors service spinning, and its adb server
+  wedges after agent-device's runs; restarting each clears it.
 
 ## Purpose and the claims it proves
 

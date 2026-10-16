@@ -1,6 +1,6 @@
 # Phase 4. Developer experience
 
-Status: done, but for what needs an account, a push or a machine this one is not: a provider's hosted device, the pull request comment and the CI jobs, and iOS · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs an account or more iOS work: a provider's hosted device, and an iOS job that runs but does not pass yet · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
 
 The shared goal, the bar, the compatibility contract and the dependency policy
 are in [README.md](README.md). The shared facts this phase builds on, the
@@ -96,7 +96,8 @@ Against the exit criteria:
   fixture.
 - The pull request comment: seen on the branch's pull request, posted by
   the summary reporter from the fixture's device run in CI, with the
-  run's 29 passed and 37 skipped and every test in a table.
+  run's 29 passed and 37 skipped and every test in a table. Each later run
+  on the branch updated that comment rather than adding one.
 - Video: `video.webm` for a failing web test and none for a passing one,
   `video.mp4` on the Android emulator, and Windows has no `video`
   capability, with the reason.
@@ -104,8 +105,15 @@ Against the exit criteria:
   suite, and `HARNESS_CDP` runs it on a Chromium the run did not start.
 - Two emulators in `devices` ran two files at the same time, each device
   held by one file at a time, and agent-device showed no claim left after.
-- The CI jobs: the web one's steps run in this repository's CI; the iOS,
-  Android and Windows jobs have not run.
+- The CI jobs: `.github/workflows/testapp.yml` runs the four of them on
+  this repository's pull requests, against the test app from the packed
+  package, as Phase 7's notes say. Web passed on `ubuntu-latest`, Android
+  on an API 35 emulator there, and Windows on `windows-latest`, once what
+  their first runs showed was fixed. The iOS job runs on a simulator on
+  `macos-26`: the app launches and the onboarding passes, and the rest fails
+  for the reasons Phase 7's notes give. `docs/ci.md` names the
+  images, and its Windows job sets a larger screen, as a runner's 1024x768
+  is smaller than most app windows.
 - `docs/migrating.md` has every row of e2e's Detox and Maestro guides, read
   for it, and the Playwright and e2e tables.
 

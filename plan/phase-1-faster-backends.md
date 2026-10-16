@@ -1,6 +1,6 @@
 # Phase 1. Faster backends
 
-Status: built but for item 6, whose scripts stay until the host has run on a second Windows machine. Item 3 was dropped; items 5, 7, 9 and 10 were done as 17, 20, 21 and 19; item 16 moved to Phase 2 and the agent surfaces; item 22 is designed, for Phase 2; item 11's docs came with each item · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
+Status: built. Item 3 was dropped; items 5, 7, 9 and 10 were done as 17, 20, 21 and 19; item 16 moved to Phase 2 and the agent surfaces; item 22 is designed, for Phase 2; item 11's docs came with each item · Size: M · Depends on: Phase 0 · Unblocks: Phase 2
 
 The index is [`README.md`](README.md). Section 5 there is the one-table
 summary of this phase; section 11 holds the agent-device, Playwright and
@@ -221,6 +221,19 @@ below, the build is what holds:
   [`external-drivers.md`](external-drivers.md). None could take over our
   apps. The owner kept our drivers and took the list of features, which
   items 12 to 22 below carry out.
+- **Item 6: the host alone.** The host and its patterns ran on a second
+  Windows machine, GitHub's `windows-latest` runner, in this repository's
+  CI, which put the test app's suite through it (run 38845895084, 25
+  tests passing). The five per-step scripts, the driver's script backend,
+  `HARNESS_WINDOWS_HOST`, the steps and controls it took away and the
+  helper that ran a script went in one commit, and the test app's Windows
+  suite here passed on the host alone. What the runner showed went into
+  the host too: a window that reaches past its screen is moved onto it
+  before synthetic input, and a point off every screen is refused; a
+  secure field as long as the new text is emptied before Value sets it;
+  and a ref lasts as long as its element, numbered by the element's
+  runtime id rather than its place in the walk, so an overlay leaving
+  does not move every ref after it.
 
 ## Purpose and the claims it proves
 
