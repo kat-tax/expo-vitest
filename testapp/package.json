@@ -16,6 +16,7 @@
     "expo": "~57.0.30",
     "expo-asset": "~57.0.20",
     "expo-constants": "~57.0.16",
+    "expo-dev-client": "~57.0.20",
     "expo-font": "~57.0.2",
     "expo-image": "~57.0.3",
     "expo-interface": "^0.32.0",

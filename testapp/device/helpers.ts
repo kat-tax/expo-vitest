@@ -1,29 +1,91 @@
-// What the tests share: the demo account, and a first launch taken past
-// onboarding and signed in, landing on the notes.
-import type {Locator} from 'expo-vitest/device';
-import {device, screen} from 'expo-vitest/device';
+// What the tests share: the demo account, the app's launches as each
+// platform has them, a first launch taken past onboarding and signed in, a
+// row's own actions, and the tabs.
+import type {Locator, Queries} from 'expo-vitest/device';
+import {device, screen, within} from 'expo-vitest/device';
 
 export const DEMO = {email: 'ada@example.com', password: 'testapp-demo-pass'};
 
-/** A first launch, past onboarding, signed in with the demo account, on the notes. */
-export async function signedIn(): Promise<void> {
+/** How long the app may take to come up: on a device the dev server may be building its first bundle. */
+const UP = 90_000;
+
+/**
+ * Opens the app. On web that is its page. A development build on a device
+ * loads its JavaScript from the dev server the run started, which it learns
+ * of from the link expo-dev-client registers (docs/controls.md, An Expo
+ * development build), since a cleared app has no server to go back to and a
+ * restarted one opens on the launcher.
+ */
+async function launch(): Promise<void> {
+  if (device.platform !== 'android' && device.platform !== 'ios') {
+    await device.open('/');
+    return;
+  }
+  const server = encodeURIComponent(String(device.config.url));
+  await device.openLink(`exp+testapp://expo-development-client/?url=${server}&disableOnboarding=1&disableFab=1&disableAutoLaunch=1`);
+}
+
+/** A first launch, with nothing saved, which opens on onboarding. */
+export async function firstLaunch(): Promise<void> {
   await device.clearState();
-  await device.open('/');
-  await screen.getByRole('button', {name: 'Skip'}).press();
-  await screen.getByRole('textbox', {name: 'Email'}).fill(DEMO.email);
-  await screen.getByRole('textbox', {name: 'Password'}).fill(DEMO.password);
-  await screen.getByRole('button', {name: 'Sign in'}).press();
-  await expect(screen.getByRole('searchbox', {name: 'Search notes'})).toBeVisible();
+  await launch();
+  await expect(screen.getByRole('button', {name: 'Skip'})).toBeVisible({timeout: UP});
+}
+
+/** How long a restarted development build is given to open its last server by itself. */
+const BY_ITSELF = 15_000;
+
+/**
+ * The next launch, which keeps what was saved, until `first` shows: the app
+ * restarted on a device, and the page loaded again on web, since a restart
+ * there is a new browser context with no storage at all. A development build
+ * may open the server it last loaded by itself as it restarts, and a link
+ * sent then starts a second load over the first, which React Native does not
+ * survive ("runtime not ready"), so the link goes only where the app has not
+ * come up.
+ */
+export async function relaunch(first: Locator): Promise<void> {
+  if (device.platform === 'android' || device.platform === 'ios') {
+    await device.restart();
+    if (await first.isVisible().catch(() => false)) return;
+    await new Promise(resolve => setTimeout(resolve, BY_ITSELF));
+    if (await first.isVisible().catch(() => false)) return;
+  }
+  await launch();
+  await expect(first).toBeVisible({timeout: UP});
 }
 
 /**
- * The next launch: the app relaunched on a device, which keeps its data, and
- * the page loaded again on web, since a restart there is a new browser
- * context with no storage at all.
+ * A text field by the name a person hears for it. expo-interface names a
+ * field by its placeholder alone, which Android takes away once the field
+ * holds text, so there the field is found by its testID. sign-in.test.ts
+ * shows the gap, marked failing on Android until the kit names its fields.
  */
-export async function relaunch(): Promise<void> {
-  if (device.platform === 'web') await device.open('/');
-  else await device.restart();
+export function field(name: string, testId: string): Locator {
+  return device.platform === 'android' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
+}
+
+/** The notes' search field. */
+export const searchField = () => screen.getByRole('searchbox', {name: 'Search notes'});
+
+/** A first launch, past onboarding, signed in with the demo account, on the notes. */
+export async function signedIn(): Promise<void> {
+  await firstLaunch();
+  await screen.getByRole('button', {name: 'Skip'}).press();
+  await field('Email', 'sign-in-email').fill(DEMO.email);
+  await field('Password', 'sign-in-password').fill(DEMO.password);
+  await screen.getByRole('button', {name: 'Sign in'}).press();
+  await expect(searchField()).toBeVisible();
+}
+
+/**
+ * An item of a menu by its name: a menu item on web, a button among those a
+ * swipe shows on iOS, and on Android an item by its name alone, since
+ * Compose gives a menu's items no role.
+ */
+export function menuItem(name: string): Locator {
+  if (device.platform === 'android') return screen.getByLabelText(name);
+  return screen.getByRole(device.platform === 'ios' ? 'button' : 'menuitem', {name});
 }
 
 /**
@@ -32,17 +94,32 @@ export async function relaunch(): Promise<void> {
  * among the buttons a swipe shows on iOS.
  */
 export async function rowAction(row: Locator, action: string): Promise<void> {
-  if (device.platform === 'ios') {
-    await row.swipe('left');
-    await screen.getByRole('button', {name: action}).press();
-    return;
-  }
-  if (device.platform === 'web') await device.web.secondaryTap(row);
+  if (device.platform === 'ios') await row.swipe('left');
+  else if (device.platform === 'web') await device.web.secondaryTap(row);
   else await row.longPress();
-  await screen.getByRole('menuitem', {name: action}).press();
+  await menuItem(action).press();
 }
 
-/** Goes to a tab as a person would: a link in the bar on web, a tab elsewhere. */
+/**
+ * An alert by its title, to look inside. On Android an alert is a window of
+ * its own, the only one read while it shows, and nothing in it says it is a
+ * dialog, so the screen is the alert there.
+ */
+export function alert(title: string): Queries {
+  return device.platform === 'android' ? screen : within(screen.getByRole('dialog', {name: title}));
+}
+
+/** What shows while an alert does: its dialog, or on Android its title. */
+export function alertTitle(title: string): Locator {
+  return device.platform === 'android' ? screen.getByText(title) : screen.getByRole('dialog', {name: title});
+}
+
+/**
+ * Goes to a tab as a person would: a link in the bar on web, a tab on iOS,
+ * and on Android the bar's item by its name, which Material marks a tab by a
+ * role description agent-device does not report.
+ */
 export async function openTab(name: 'Notes' | 'Settings'): Promise<void> {
-  await screen.getByRole(device.platform === 'web' ? 'link' : 'tab', {name}).press();
+  const tab = device.platform === 'android' ? screen.getByLabelText(name) : screen.getByRole(device.platform === 'web' ? 'link' : 'tab', {name});
+  await tab.press();
 }

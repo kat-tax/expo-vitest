@@ -124,7 +124,28 @@ TESTAPP_PLATFORMS=android,web bun run test:testapp    # and on a device
 As with the fixture, the app is copied outside the package and installed
 there from its own lockfile, with the packed package unpacked into its
 `node_modules`. Web is served by Expo's dev server, which the run starts on a
-port of its own. After changing `testapp/package.json`:
+port of its own.
+
+On Android the suite drives the app's development build, which loads its
+JavaScript from the dev server the run starts on port 41752, reached
+through `adb reverse`:
+
+```sh
+cd testapp && npx expo prebuild --platform android --no-install
+cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64
+adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 reverse tcp:41752 tcp:41752
+cd ../.. && TESTAPP_PLATFORMS=android HARNESS_TARGET=emulator-5554 HARNESS_METRO=http://localhost:41752 bun run test:testapp
+```
+
+Each first launch opens the build through its `exp+testapp` link to that
+server, so a dev server someone has on 8081 is never used, and
+`HARNESS_METRO` keeps the React tree's reads on it too. A whole run needs an
+emulator with 4 GB (`emulator -avd <name> -memory 4096`). The tests that
+show expo-interface's Android bugs are marked failing there, as two are on
+web.
+
+After changing `testapp/package.json`:
 
 ```sh
 node scripts/testapp.js --update-lockfile

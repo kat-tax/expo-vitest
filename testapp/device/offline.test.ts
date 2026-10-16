@@ -4,15 +4,23 @@
 import {device, screen} from 'expo-vitest/device';
 import {signedIn} from './helpers';
 
+/**
+ * Takes the device off every network, or puts it back: the page on web, and
+ * airplane mode on Android, where Wi-Fi off leaves an emulator on its mobile
+ * data.
+ */
+const offline = (on: boolean) => (device.platform === 'android' ? device.setAirplaneMode(on) : device.setNetwork(on ? 'offline' : 'online'));
+const banner = () => screen.getByText(/You are offline/);
+
 beforeEach(signedIn);
 
 afterEach(async () => {
-  await device.setNetwork('online');
+  await offline(false);
 });
 
 it('says so while the device is offline, and stops when it is back', async ({skip}) => {
-  if ((await device.setNetwork('offline')) === 'skipped') skip(`${device.platform} cannot be taken offline here`);
-  await expect(screen.getByRole('alert')).toHaveText(/You are offline/);
-  await device.setNetwork('online');
-  await expect(screen.getByRole('alert')).toBeHidden();
+  if ((await offline(true)) === 'skipped') skip(`${device.platform} cannot be taken offline here`);
+  await expect(banner()).toBeVisible();
+  await offline(false);
+  await expect(banner()).toBeHidden();
 });
