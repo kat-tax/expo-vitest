@@ -19,6 +19,12 @@ concurrency:
 permissions:
   contents: read
 
+# The app's lockfile is the one an install of expo-vitest leaves: the app's
+# own packages, and what expo-vitest brings beside them, which
+# scripts/testapp.js adds to the app's manifest in its copy. A job that
+# installs the app in place, to build it or to fetch its browser, needs the
+# app's own alone, at their locked versions, so it saves no lockfile.
+
 jobs:
   web:
     name: Test app on web
@@ -33,7 +39,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Chromium, at the app's own playwright-core
         working-directory: testapp
-        run: bun install --frozen-lockfile && npx playwright-core install --with-deps --only-shell chromium
+        run: bun install --no-save && npx playwright-core install --with-deps --only-shell chromium
       - run: bun run test:testapp
         timeout-minutes: 20
         env: {TESTAPP_RESULTS: '${{ runner.temp }}/harness'}
@@ -62,7 +68,7 @@ jobs:
       - name: Build the development build
         working-directory: testapp
         run: |
-          bun install --frozen-lockfile
+          bun install --no-save
           npx expo prebuild --platform android --no-install
           cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
       # An emulator drawn in software can leave its launcher not responding
@@ -109,7 +115,7 @@ jobs:
       - name: Build the development build for the simulator
         working-directory: testapp
         run: |
-          bun install --frozen-lockfile
+          bun install --no-save
           npx expo prebuild --platform ios
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)

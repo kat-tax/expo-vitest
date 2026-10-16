@@ -134,15 +134,18 @@ bun run test:testapp device/sign-in                   # the files whose paths ma
 
 As with the fixture, the app is copied outside the package and installed
 there from its own lockfile, with the packed package unpacked into its
-`node_modules`. Web is served by Expo's dev server, which the run starts on a
-port of its own.
+`node_modules`. The lockfile is the one an install of expo-vitest leaves,
+with what expo-vitest brings beside the app's own packages, so the app is
+installed in place, as to build it, with `bun install --no-save`, which
+leaves the lockfile as it is. Web is served by Expo's dev server, which the
+run starts on a port of its own.
 
 On Android the suite drives the app's development build, which loads its
 JavaScript from the dev server the run starts on port 41752, reached
 through `adb reverse`:
 
 ```sh
-cd testapp && npx expo prebuild --platform android --no-install
+cd testapp && bun install --no-save && npx expo prebuild --platform android --no-install
 cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64
 adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s emulator-5554 reverse tcp:41752 tcp:41752
@@ -179,7 +182,7 @@ yet: expo-interface's iOS form buttons take a press only on what they draw,
 and a press goes to the middle of a button's frame, which is the whole row.
 
 ```sh
-cd testapp && npx expo prebuild --platform ios
+cd testapp && bun install --no-save && npx expo prebuild --platform ios
 WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
 xcodebuild -workspace "$WORKSPACE" -scheme "$(basename "$WORKSPACE" .xcworkspace)" -configuration Debug \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build
