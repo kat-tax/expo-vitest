@@ -112,7 +112,7 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
     const above = typeof raw.parentIndex === 'number' ? byIndex.get(raw.parentIndex) : undefined;
     const kind =
       platform === 'ios'
-        ? kindOnIos(raw.role ?? raw.type ?? '', above ? (above.node.role ?? above.node.type) : undefined)
+        ? kindOnIos(raw.role ?? raw.type ?? '', above ? (above.node.role ?? above.node.type) : undefined, raw.kind)
         : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type, node.testId);
     return {...node, ...(above ? {parent: above.ref} : null), ...(kind ? {kind} : null)};
   });

@@ -96,6 +96,13 @@ describe('kindOnIos', () => {
     expect(kindOnIos('Button', 'Cell')).toBe('button');
   });
 
+  it("takes agent-device's own word for a type it does not know, as for a SwiftUI control read by its class", () => {
+    expect(kindOnIos('SwiftUI.AccessibilityNode', undefined, 'button')).toBe('button');
+    expect(kindOnIos('SwiftUI.AccessibilityNode', undefined, 'something-new')).toBeUndefined();
+    expect(kindOnIos('SwiftUI.AccessibilityNode')).toBeUndefined();
+    expect(kindOnIos('StaticText', undefined, 'button')).toBe('text');
+  });
+
   it('reads an iOS snapshot through the mapping', () => {
     const nodes = toSnapshotNodes(
       [

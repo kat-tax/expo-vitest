@@ -193,10 +193,16 @@ const IOS: Record<string, Kind> = {
   ScrollView: 'group',
 };
 
-/** An iOS node's kind. A button in a tab bar or a segmented control is one of its tabs. */
-export function kindOnIos(type: string, parentType?: string): Kind | undefined {
+/**
+ * An iOS node's kind, from its XCUIElement type, or from agent-device's own
+ * word for one whose type the table does not know: a read can name a
+ * SwiftUI control by its class, `SwiftUI.AccessibilityNode`, where another
+ * names it a Button. A button in a tab bar or a segmented control is one of
+ * its tabs.
+ */
+export function kindOnIos(type: string, parentType?: string, agentKind?: string): Kind | undefined {
   const bare = (word: string) => word.replace(/^XCUIElementType/, '');
-  const kind = IOS[bare(type)];
+  const kind = IOS[bare(type)] ?? (agentKind ? AGENT_DEVICE[agentKind] : undefined);
   if (kind === 'button' && parentType && IOS[bare(parentType)] === 'tablist') return 'tab';
   return kind;
 }
