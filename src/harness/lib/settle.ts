@@ -12,7 +12,7 @@
  * such as one with a spinner, gives up after `settleTimeout` and the step
  * goes on, saying so.
  */
-import type {Bounds, Point, Snapshot, SnapshotNode, Target} from './snapshot.ts';
+import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from './snapshot.ts';
 import {asSelector, findNode, isPoint} from './snapshot.ts';
 import {CHANGES_SCREEN} from './controls.ts';
 import type {ControlRequest, ControlResult, Driver, FillOptions, LongPressOptions, PressOptions, ScrollIntoViewOptions, StepResult, StepTiming} from './types.ts';
@@ -115,7 +115,8 @@ export async function settled(read: () => Promise<Snapshot>, timing: Timing, clo
  * from the options it was given over `timing`. Before a press or a fill, a
  * node the last step brought in or moved is given what is left of
  * `transition` since the screen held still; the trees for that are the ones
- * the wait already read, so it costs no read of its own.
+ * the wait already read, so it costs no read of its own. A node that came in
+ * since the screen last held still waits for it to hold still again.
  */
 export function withTiming(driver: Driver, timing: Timing, clock: Clock = realClock): Driver {
   // The tree before the last step, the one it settled to, and when.
@@ -136,11 +137,31 @@ export function withTiming(driver: Driver, timing: Timing, clock: Clock = realCl
     const selector = asSelector(target);
     if (own.transition <= 0 || !after || isPoint(selector)) return '';
     const node = findNode(after, selector);
-    if (!node || !appeared(before, after, node)) return '';
+    if (!node) return await againStill(selector, own);
+    if (!appeared(before, after, node)) return '';
     const left = own.transition - (clock.now() - settledAt);
     if (left <= 0) return '';
     await clock.sleep(left);
     return `; it had just come in or moved, so the step waited ${left} ms first`;
+  }
+
+  /**
+   * Before a step on what was not on the screen when it last held still: it
+   * came in since, as the screen an assertion waited for does, and whatever
+   * brought it in may still be going, as an overlay on its way out, so the
+   * screen is let hold still again first, unless the step was told not to
+   * wait. Nothing is said where the node is not there even then.
+   */
+  async function againStill(selector: Selector, own: Timing): Promise<string> {
+    if (own.settle <= 0) return '';
+    const from = clock.now();
+    before = after;
+    const outcome = await settled(() => driver.snapshot(), own, clock);
+    after = outcome.last;
+    settledAt = clock.now();
+    if (!findNode(after, selector)) return '';
+    const came = '; it came in after the screen last held still';
+    return outcome.settled ? `${came}, so the step waited ${settledAt - from} ms for it to hold still again` : `${came}, and the screen was still changing after ${own.settleTimeout} ms`;
   }
 
   /** What a driver that waits by itself is given: the times, and how many reads it should not make. */

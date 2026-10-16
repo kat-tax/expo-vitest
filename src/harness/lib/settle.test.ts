@@ -183,6 +183,26 @@ describe('withTiming', () => {
     expect((await timed.press('label="Gone"')).message).toBe('pressed');
   });
 
+  it('lets the screen hold still again before a step on what came in since it last did, and says so', async () => {
+    const clock = fakeClock();
+    const driver = stub([home, home, sheet, sheet]);
+    const timed = withTiming(driver, timing, clock);
+    await timed.open('/');
+    // The sheet came in after the screen held still, as a screen an assertion waited for does.
+    expect((await timed.press('label="Done"')).message).toBe('pressed; it came in after the screen last held still, so the step waited 100 ms for it to hold still again');
+    // A screen that keeps changing for longer than the wait gives it, then holds still.
+    let tick = 0;
+    const loaded = tree(node('@e1', 'Loaded'), node('@e2', 'Done'));
+    const spinning = stub([], {snapshot: vi.fn(async () => (++tick <= 2 ? home : tick <= 13 ? tree(node('@e1', `Loading ${tick}`), node('@e2', 'Done')) : loaded))});
+    const busy = withTiming(spinning, timing, fakeClock());
+    await busy.open('/');
+    expect((await busy.fill('label="Done"', 'x')).message).toBe('filled; it came in after the screen last held still, and the screen was still changing after 1000 ms');
+    // Told not to wait, a step does not wait for that either.
+    const told = withTiming(stub([home, home, sheet]), timing, fakeClock());
+    await told.open('/');
+    expect((await told.press('label="Done"', {settle: false})).message).toBe('pressed');
+  });
+
   it('keeps real time when given no clock', async () => {
     const outcome = await settled(async () => home, {...timing, settle: 1, settleTimeout: 1000});
     expect(outcome.settled).toBe(true);
