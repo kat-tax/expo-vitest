@@ -15,7 +15,9 @@ param(
 #
 # With -Process, a click is sent only where the window at the point is one of
 # that process's own, and keys only while one of its windows is in front:
-# otherwise they would land in whatever window is there.
+# otherwise they would land in whatever window is there. Nor is a click sent
+# to a point off every screen: the pointer stops at the edge, and the press
+# would land on whatever is there.
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -27,6 +29,12 @@ public static class HarnessInput {
   [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
   [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+  // Whether a point is on a screen.
+  public static bool OnScreen(int x, int y) {
+    POINT at; at.X = x; at.Y = y;
+    return MonitorFromPoint(at, 0) != IntPtr.Zero;
+  }
   // The process whose window is at a point of the screen.
   public static uint OwnerAt(int x, int y) {
     POINT at; at.X = x; at.Y = y;
@@ -69,6 +77,10 @@ foreach ($point in $Points.Split(';')) {
   $x = [int]$xy[0] + $originX
   $y = [int]$xy[1] + $originY
   if ($Process) {
+    if (-not [HarnessInput]::OnScreen($x, $y)) {
+      Write-Error "$Process's window reaches past the screen, and $x,$y is off it, so the press would land elsewhere"
+      exit 1
+    }
     $owner = [HarnessInput]::OwnerAt($x, $y)
     if ($owner -ne $proc.Id) {
       $other = (Get-Process -Id $owner -ErrorAction SilentlyContinue).ProcessName

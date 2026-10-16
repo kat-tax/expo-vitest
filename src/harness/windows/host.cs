@@ -44,6 +44,12 @@ public static class HarnessHost {
   [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT point);
   [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
   [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+  [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
+  [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+  [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
+  [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+  [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr h);
+  [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attribute, out RECT value, int size);
   delegate bool WindowVisit(IntPtr window, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisit visit, IntPtr data);
 
@@ -523,12 +529,15 @@ public static class HarnessHost {
   }
 
   // Pointer input lands on whatever window is at the point, so with an app
-  // named it is sent only where that window is one of the app's own.
+  // named it is sent only where that window is one of the app's own, and
+  // only to a point on a screen: the pointer stops at the edge of the last
+  // one, and a press meant for a point past it lands on whatever is there.
   static void Owns(uint pid, string name, int x, int y, string what) {
     if (pid == 0) return;
     POINT at;
     at.X = x;
     at.Y = y;
+    if (MonitorFromPoint(at, 0) == IntPtr.Zero) throw new InvalidOperationException(name + "'s window reaches past the screen, and " + x + "," + y + " is off it, so the " + what + " would land elsewhere");
     uint owner;
     GetWindowThreadProcessId(GetAncestor(WindowFromPoint(at), 2), out owner);
     if (owner != pid) throw new InvalidOperationException("a window of " + ProcessName(owner) + " is in front of " + name + " at " + x + "," + y + ", so the " + what + " would land in it");
@@ -746,6 +755,7 @@ public static class HarnessHost {
     uint me = GetCurrentThreadId();
     AttachThreadInput(foregroundThread, me, true);
     ShowWindow(window, 9);
+    IntoView(window);
     SetWindowPos(window, new IntPtr(-1), 0, 0, 0, 0, 0x0003);
     SetWindowPos(window, new IntPtr(-2), 0, 0, 0, 0, 0x0003);
     BringWindowToTop(window);
@@ -753,6 +763,35 @@ public static class HarnessHost {
     AttachThreadInput(foregroundThread, me, false);
     Thread.Sleep(300);
     return Json("foreground " + (GetForegroundWindow() == window ? "True" : "False") + " (set " + (set ? "True" : "False") + ")");
+  }
+
+  // A window that reaches past its screen's work area is moved inside it,
+  // as far as it fits, keeping its size, since synthetic input is sent to a
+  // point on the screen and the part of a window past the edge, or under the
+  // taskbar, has none. Windows opens each new window a step down and right of
+  // the last, so an app launched again and again ends up partly off a small
+  // screen. A maximized window fills the work area already.
+  static void IntoView(IntPtr window) {
+    if (IsZoomed(window)) return;
+    // The frame as drawn: GetWindowRect counts the invisible borders a window
+    // is resized by, which lie past the edge of a window that is not.
+    RECT frame;
+    if (DwmGetWindowAttribute(window, 9, out frame, Marshal.SizeOf(typeof(RECT))) != 0) GetWindowRect(window, out frame);
+    MONITORINFO monitor = new MONITORINFO();
+    monitor.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+    if (!GetMonitorInfo(MonitorFromWindow(window, 2), ref monitor)) return;
+    int dx = Inside(frame.Left, frame.Right, monitor.rcWork.Left, monitor.rcWork.Right);
+    int dy = Inside(frame.Top, frame.Bottom, monitor.rcWork.Top, monitor.rcWork.Bottom);
+    if (dx == 0 && dy == 0) return;
+    RECT rect;
+    GetWindowRect(window, out rect);
+    SetWindowPos(window, IntPtr.Zero, rect.Left + dx, rect.Top + dy, 0, 0, 0x0015);
+  }
+
+  /** How far a span moves to lie inside another; one longer than it keeps its start at the other's, as a title bar stays on screen. */
+  static int Inside(int start, int end, int from, int to) {
+    if (start < from || end - start >= to - from) return from - start;
+    return end > to ? to - end : 0;
   }
 
   static string Envelope(object id, int ms, string result, string error) {

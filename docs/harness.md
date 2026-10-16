@@ -286,7 +286,12 @@ Windows counts the harness's own input as use, so the driver does not count
 what it sent itself: a second press is not refused because of the first.
 Even then, a click is sent only where the window at its point is the app's,
 and keys only while the app's window is in front, so neither lands in a window
-someone left open.
+someone left open. Windows opens each new window a step down and right of the
+last, so an app launched again and again ends up partly off a small screen.
+Before any synthetic input, a window that reaches past the screen's work area
+is moved inside it as far as it fits, keeping its size, and a click at a
+point still off the screen is refused, since the pointer would stop at the
+edge and press whatever is there.
 Pass `--force` when you know the desk is free, or set `HARNESS_FORCE=1` for
 a device test. A headless browser and a device are not the desktop, so the
 check does not apply to them.
