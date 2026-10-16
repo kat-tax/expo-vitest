@@ -77,7 +77,8 @@ describe('the keeper', () => {
         if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(keeper), '/T', '/F'], {windowsHide: true});
         else process.kill(-keeper, 'SIGKILL');
       }
-      fs.rmSync(folder, {recursive: true, force: true});
+      // Windows holds a process's handles on the folder for a moment after it is gone, and refuses the removal till then.
+      fs.rmSync(folder, {recursive: true, force: true, maxRetries: 20, retryDelay: 100});
     }
   });
 
