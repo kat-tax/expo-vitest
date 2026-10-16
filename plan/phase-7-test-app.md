@@ -1,6 +1,6 @@
 # Phase 7. The test app
 
-Status: done, but for iOS, which runs in CI on a simulator, launching the app and passing its onboarding, and not yet the rest. The app and its suite run from the packed package on web, Android and Windows, on this machine and in this repository's CI, every test passing but those that mark expo-interface's bugs and those a platform skips with its reason. A coding agent wrote a passing test of the app over the MCP server on Windows, and explore and bug bash ran on it there · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
+Status: done, but for iOS, which runs in CI on a simulator, launching the app and passing its onboarding, and waits on expo-interface's iOS form buttons for the rest. The app and its suite run from the packed package on web, Android and Windows, on this machine and in this repository's CI, every test passing but those that mark expo-interface's bugs and those a platform skips with its reason. A coding agent wrote a passing test of the app over the MCP server on Windows, and explore and bug bash ran on it there · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
 
 One app, kept in this repository, that behaves like a typical product app on
 iOS, Android, web and Windows, so that the device layer, the agent, explore,
@@ -71,11 +71,11 @@ build is what holds.
   again; the next run lost every test to the emulator's launcher not
   responding after boot, its dialog over every app, which the job now
   hides, and the run after passed again (38871546118). iOS runs on its
-  simulator (38871546118): the app launches, past iOS's question before it
-  opens the link, and the onboarding passes, but 27 tests fail. Typing on
-  the simulator drops characters, so an email arrives as "ada@examplecom"
-  and signing in fails, and expo-interface's iOS controls lack the roles
-  and names the tests look for, a checkbox among them.
+  simulator: the app launches, past iOS's question before it opens the
+  link, and the onboarding passes, but 27 tests fail. Typing dropped
+  characters until it took a quick typist's pace, and the checkboxes are
+  set and read as iOS draws them; what is left is a press on the form's
+  buttons, which misses, so the suite cannot sign in (38882049624).
 - **What the suite found in the harness, and fixed**, a commit each: an
   option a select lacks fails at once with the options it has; Vitest's
   copies of the evidence go under `.harness/attachments/`; the web tree
@@ -121,6 +121,13 @@ build is what holds.
   - Windows: a `Switch` has no name, its label a text beside it.
   - iOS: a `TextField` is named by its placeholder alone, which iOS does
     not count as a name, so the field has none.
+  - iOS: a `Button` in a form row reports the whole row as its frame, and
+    takes a tap only on what it draws. A tap at the frame's middle, as
+    agent-device makes and Voice Control would, misses a short button:
+    Sign in, Create an account and a checkbox's row miss, and Forgot your
+    password?, long enough to reach the middle, works.
+  - iOS: a `Checkbox` is a button that reads as selected while it is on,
+    with no checkbox role, which the test app's helpers allow for.
 - **What it found in React Native, to report there.** On an Android
   emulator the development build now and then dies as it first draws:
   SIGSEGV, "trying to execute non-executable memory", on the JavaScript
@@ -156,10 +163,9 @@ build is what holds.
   rules, `expo-harness explore` concluded in 7 calls that the app refuses a
   wrong password, and `expo-harness bug-bash` ran the feature map's two
   charters one at a time and confirmed nothing.
-- **Open.** iOS, in CI: typing that drops characters on the simulator, the
-  roles and names of expo-interface's iOS controls, a press on Create an
-  account that leaves sign-in where it was, and iOS's question before a
-  link, which two launches left unanswered. On Android a scroll looks for a
+- **Open.** iOS, in CI, waits on expo-interface's form buttons taking a tap
+  at their middle, and the first launch of a run can bring iOS's question
+  before a link later than the driver's 10 s. On Android a scroll looks for a
   row by agent-device's own labels, so a button named by the tree's reading
   of its text is scrolled to by that text. This machine's emulator slows
   after an hour of runs, its sensors service spinning, and its adb server

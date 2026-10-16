@@ -1,6 +1,6 @@
 # Phase 4. Developer experience
 
-Status: done, but for what needs an account or more iOS work: a provider's hosted device, and an iOS job that runs but does not pass yet · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs an account or a fix in expo-interface: a provider's hosted device, and an iOS job that runs but cannot sign in until the kit's iOS form buttons take a tap at their middle · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
 
 The shared goal, the bar, the compatibility contract and the dependency policy
 are in [README.md](README.md). The shared facts this phase builds on, the
