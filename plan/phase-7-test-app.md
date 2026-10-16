@@ -1,6 +1,6 @@
 # Phase 7. The test app
 
-Status: in progress. The app and its suite are built and run from the packed package: on web every test passes but the two expo-interface bugs mark; on the Android emulator two full runs each passed 19 tests and failed the 8 marked ones as marked, and each lost one test, a different one each time, when the app left for the home screen as the emulator stopped answering adb. An explore and the MCP server drove it on web. Open: Windows, which needs the .NET SDK and PowerShell 7 this machine lacks, and iOS (no Mac) · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
+Status: done, but for iOS, which needs a Mac. The app and its suite run from the packed package on web, Android and Windows, every test passing but those that mark expo-interface's bugs and those a platform skips with its reason, though a whole run on the Android emulator loses a test to the emulator stalling. A coding agent wrote a passing test of the app over the MCP server on Windows, and explore and bug bash ran on it there · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
 
 One app, kept in this repository, that behaves like a typical product app on
 iOS, Android, web and Windows, so that the device layer, the agent, explore,
@@ -18,13 +18,13 @@ build is what holds.
   a row's favourite, archive and delete are the row's own menu
   (`ListItem`'s `swipeActions`), not an `IconToggle` in the row, which on
   web is a button inside a button whose press opened the note too. The filter
-  chips sit in a `NativeHost`. The suite is 28 tests in 9 files in
+  chips sit in a `NativeHost`. The suite is 30 tests in 10 files in
   `testapp/device/`, over helpers for a first launch, a relaunch, a
   signed-in start, a row's own action, a menu item, an alert, a tab, the
   search field and a text field. `bun run test:testapp` copies the app
   outside this folder, installs it from its lockfile, unpacks the packed
   package into it, type-checks it and runs the suite.
-- **Web.** 26 tests pass, and the two that choose from a row's menu fail as
+- **Web.** 28 tests pass, and the two that choose from a row's menu fail as
   marked, from the packed package in Chromium.
 - **Android.** A development build (`expo-dev-client`) made with
   `expo prebuild` and Gradle in `testapp/android/`, which is not kept, and
@@ -37,7 +37,20 @@ build is what holds.
   `-memory 4096`, it lasts most of one. Two full runs on it each passed 19
   tests and failed the 8 marked ones as marked, and each lost one test, a
   different one each time, when the app left for the home screen as the
-  emulator stopped answering adb.
+  emulator stopped answering adb. The two tests added after those runs, the
+  coding agent's and a new note thrown away, pass and fail as marked there,
+  run on their own.
+- **Windows.** The Release exe expo-windows' `ci/build.sh` makes from the
+  app, with its JavaScript bundled in, on the react-native-windows 0.84 line.
+  The build needs PowerShell 7 and a .NET SDK on the PATH, which this machine
+  has not installed, so the run put portable copies, PowerShell 7.6.7 and the
+  .NET 8 SDK, in the ignored `.harness/tools/` and on its own PATH alone.
+  `bun run test:testapp` with `TESTAPP_PLATFORMS=windows`, the exe as
+  `HARNESS_TARGET` and `HARNESS_FORCE=1`, by the owner's leave, passed
+  all 10 files: 26 tests pass, the settings test fails as marked, and three
+  are skipped, the two row menus and going offline, each with its reason. A
+  change to the app reaches the exe by building its Release bundle again,
+  which takes minutes, the native code being built.
 - **What the suite found in the harness, and fixed**, a commit each: an
   option a select lacks fails at once with the options it has; Vitest's
   copies of the evidence go under `.harness/attachments/`; the web tree
@@ -46,10 +59,14 @@ build is what holds.
   Android's tree is read as TalkBack reads it where Compose splits a control
   in two; a press goes to a Compose button's middle where agent-device finds
   no point of its own; an Android field whose testID or name says search is a
-  search box; a wait reads again after a read that fails.
+  search box; a wait reads again after a read that fails; that press finds
+  its node in the tree its ref came from; and a stopped Windows app's state
+  folder is deleted once the process lets go of it.
 - **What it found in the app, and fixed.** The search row sat under the web
   tab bar (`underBar` with content that does not pad itself), and a note's
-  editor under the header (`native header`, now `native underBar`).
+  editor under the header (`native header`, now `native underBar`). The
+  coding agent reported that New note kept an "Untitled note" left without a
+  word; a new note is now thrown away until its first save.
 - **What it found in expo-interface 0.32, to report there.** Each but the
   chip's has a test marked failing on the platform, which fails the run once
   the kit is fixed; the chips sit in a `NativeHost` instead.
@@ -67,6 +84,7 @@ build is what holds.
   - Android: a `Switch`, a `Checkbox` and a `Slider` have their label
     beside the control rather than on it, so nothing names them, and a
     checkbox's label cannot be pressed. The `Picker` draws nothing to press.
+  - Windows: a `Switch` has no name, its label a text beside it.
 - **The agent.** The harness config gives the agent a model of rules,
   `testapp/device/rules.mts`, which explores a sign-in with a wrong
   password. `expo-harness explore` on web took 7 model calls, reported
@@ -80,13 +98,24 @@ build is what holds.
   items and the tab bar's tabs have no role, an alert is a window of its own
   that nothing marks a dialog, a screen's title is no heading, and
   `setNetwork` leaves an emulator on mobile data, so the offline test takes
-  airplane mode there.
-- **Open.** Windows: expo-windows' `ci/build.sh` stops at `expo-windows
-  init`, since the react-native-windows CLI loads its commands through the
-  .NET SDK and PowerShell 7, and this machine has neither. iOS needs a Mac.
-  An explore and the MCP server on Android. On Android a
-  scroll looks for a row by agent-device's own labels, so a button named by
-  the tree's reading of its text is scrolled to by that text.
+  airplane mode there. On Windows a dialog sits in the popup host, its field
+  beside the popup window that holds its text and buttons, neither named by
+  its title; WinUI's pager names its dots "Page 1" and says of none that it
+  is selected; a chip is a toggle button that reads as checked; and a row's
+  own menu is a WinUI flyout in a window of its own, which the tree does not
+  reach.
+- **The agent on Windows.** Claude Code 2.1.299, headless (`claude -p`,
+  Opus 5.5), given the MCP server for Windows alone and the skill, drove the
+  creation of a note over the server and wrote `device/new-note.test.ts` in
+  31 turns and 112 s ($0.76), which passed on its first run on Windows, web
+  and Android: Phase 6's first exit criterion on Windows. With the model of
+  rules, `expo-harness explore` concluded in 7 calls that the app refuses a
+  wrong password, and `expo-harness bug-bash` ran the feature map's two
+  charters one at a time and confirmed nothing.
+- **Open.** iOS needs a Mac. On Android a scroll looks for a row by
+  agent-device's own labels, so a button named by the tree's reading of its
+  text is scrolled to by that text, and the emulator stops answering adb
+  after most of a run.
 
 ## Purpose and the claims it proves
 

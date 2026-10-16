@@ -1,6 +1,6 @@
 # Phase 6. Agent surfaces
 
-Status: done, but for what needs a live model, an app or a machine this one is not: the explore smoke and the cost it prints, the first exit criterion on Windows, which has no example app here, and explore and bug bash on Windows and iOS. On web, Claude Code's own MCP client, with the server and the skill alone, wrote a device test that passed. The server ran on web, on the Android emulator and, reading only, on Windows; explore on web and the emulator, and bug bash on web, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
+Status: done, but for what needs a live model or a Mac: the explore smoke and the cost it prints, and explore and bug bash on iOS. Claude Code's own MCP client, with the server and the skill alone, wrote a device test that passed on web, and on Windows wrote one for the test app (Phase 7) that passed on Windows, web and Android. The server ran on web, on the Android emulator and on Windows; explore on web, the emulator and Windows, and bug bash on web and Windows, with models of rules · Size: M · Depends on: Phase 4, Phase 5 · Unblocks: nothing
 
 The agent of Phase 5 reached from outside a test file: an MCP server a coding
 agent drives the app through, an `explore` command that runs the agent with a
@@ -111,14 +111,17 @@ calls of the server, located each node, closed the session and wrote
 `device/profile.test.ts` with the queries `locate` gave, in 28 turns and
 66 s ($0.44 by the session's count). The test passed on its first run.
 
+The first criterion on Windows, on the test app of Phase 7 built for
+Windows: Claude Code headless, given the server for Windows alone and the
+skill, drove the creation of a note and wrote `device/new-note.test.ts` in
+31 turns and 112 s ($0.76). It passed on its first run on Windows, web and
+the Android emulator, and the agent reported a bug in the app, since fixed.
+Explore and bug bash ran on the same build with the model of rules, by the
+owner's leave to press while the desk is in use.
+
 Not run: the explore smoke, a billed live model with a key this machine
-has not got, so its cost line is not recorded. The first criterion on
-Windows waits for an app: expo-windows has no
-example app here (its `fixture/` is a manifest that does not run), and the
-Windows apps built on this machine are its owner's, whose debug build
-would load from the owner's dev server on 8081. Explore and bug bash have
-not run on Windows, where they would press controls in the apps on this
-machine's desk, nor on iOS.
+has not got, so its cost line is not recorded, and explore and bug bash on
+iOS, which needs a Mac.
 
 ## Purpose and the claims it proves
 
