@@ -661,6 +661,7 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(device.setAirplaneMode).toEqualTypeOf<(on: boolean) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.setPermission).toEqualTypeOf<(permission: string, state: 'grant' | 'deny' | 'reset') => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.setLocation).toEqualTypeOf<(where: {latitude: number; longitude: number}) => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.travel).toEqualTypeOf<(places: {latitude: number; longitude: number}[], options?: {speed?: number}) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.clearLocation).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.setBiometrics).toEqualTypeOf<(sensor: 'faceid' | 'touchid' | 'fingerprint', result: 'match' | 'nonmatch') => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.enrollBiometrics).toEqualTypeOf<(sensor: 'faceid' | 'touchid', enrolled: boolean) => Promise<'done' | 'skipped'>>();

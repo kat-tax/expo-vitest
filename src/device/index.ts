@@ -31,6 +31,8 @@ import type {Capability, Circumstances} from './capabilities.ts';
 import {cannotSentence, capabilitiesOf, knownFacts} from './capabilities.ts';
 import type {AppConfig, CommandConfig, HarnessConfig, Permission, ResolvedRun} from './config.ts';
 import {configFromRun, currentRun, defineHarness} from './config.ts';
+import type {Place} from './travel.ts';
+import {checkRoute, route} from './travel.ts';
 import type {Claim} from './pool.ts';
 import {claimDevice, sessionName} from './pool.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
@@ -486,6 +488,35 @@ class Device {
   /** Where the device says it is. */
   async setLocation(where: {latitude: number; longitude: number}): Promise<'done' | 'skipped'> {
     return doneOrSkipped(await this.control({name: 'setLocation', latitude: where.latitude, longitude: where.longitude}));
+  }
+
+  /**
+   * The device moved along a route of places at `speed` metres a second, 100
+   * by default, as Maestro's `travel` moves it: put at a position on the way
+   * each second, through `setLocation`, and at the last place at the end.
+   * One step in the trace, where it is skipped as `setLocation` is.
+   */
+  async travel(places: Place[], options: {speed?: number} = {}): Promise<'done' | 'skipped'> {
+    const speed = options.speed ?? 100;
+    checkRoute(places, speed, this.platform);
+    const positions = route(places, speed);
+    const result = await this.journal.run(
+      {event: 'control', what: `travel through ${places.length} places at ${speed} m/s`},
+      async (): Promise<ControlResult> => {
+        const driver = await this.ready();
+        for (const [index, at] of positions.entries()) {
+          if (index > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+          const request: ControlRequest = {name: 'setLocation', latitude: at.latitude, longitude: at.longitude};
+          const answer = driver.control ? await driver.control(request) : elsewhere(request.name, this.platform);
+          if (!answer.ok) throw failure(answer, this.platform, 'ACTION_FAILED');
+          if (answer.skipped) return answer;
+        }
+        return ok(`travelled through ${places.length} places, ${positions.length} positions a second apart`);
+      },
+      answer => ({result: answer.skipped ? 'skipped' : 'ok', message: answer.message}),
+    );
+    this.lastSkip = result.skipped ? result.message : null;
+    return doneOrSkipped(result);
   }
 
   /** No location to read: off on a device, unavailable to the page on web. */

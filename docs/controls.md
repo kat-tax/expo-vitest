@@ -59,6 +59,7 @@ afterEach(async () => {
 | `setAirplaneMode(on)` | Android: airplane mode. iOS: skipped | Skipped | Skipped |
 | `setPermission(name, state)` | The app's permission set to `grant`, `deny` or `reset` | `grant` granted to the context, and `reset` clears every grant. `deny` is skipped | Skipped |
 | `setLocation({latitude, longitude})` | Where the device says it is | Where the page's geolocation says it is, with the permission granted | Skipped |
+| `travel(places, {speed})` | The device moved along a route of two places or more, at `speed` metres a second, 100 by default: put at a position on the way each second, through `setLocation`, and on the last place at the end | The page moved the same way | Skipped |
 | `clearLocation()` | Location off: on Android for the whole device, on an iOS simulator for the app | No position for the page to read | Skipped |
 | `setBiometrics(sensor, result)` | The next prompt answered with a `match` or a `nonmatch`: `faceid` or `touchid` on an iOS simulator, `fingerprint` on an Android emulator. Another sensor is skipped | Skipped | Skipped |
 | `enrollBiometrics(sensor, enrolled)` | iOS simulator: Face ID or Touch ID enrolled or not. Android: skipped | Skipped | Skipped |

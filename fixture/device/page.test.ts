@@ -150,6 +150,17 @@ it('keeps a signed-in session when the app ends, and starts from it after a rest
   await expect(screen.getByText('Signed out')).toBeVisible();
 });
 
+it('travels a route, a place a second, and ends on the last', async () => {
+  await device.open('/place');
+  expect(await device.setLocation({latitude: 51.5, longitude: -0.12})).toBe('done');
+  await screen.getByRole('button', {name: 'Follow'}).press();
+  await expect(screen.getByText('At 51.5000,-0.1200')).toBeVisible();
+  // About 22 m at 10 m a second: three seconds on the way.
+  expect(await device.travel([{latitude: 51.5, longitude: -0.12}, {latitude: 51.5002, longitude: -0.12}], {speed: 10})).toBe('done');
+  await expect(screen.getByText('At 51.5002,-0.1200')).toBeVisible();
+  await expect(screen.getByTestId('seen')).toHaveText(/^Seen ([3-9]|\d{2,}) places$/);
+});
+
 it('names its own steps', async () => {
   await step('Open the profile', async () => {
     await device.open('/');

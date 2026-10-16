@@ -138,7 +138,8 @@ A flow is a test file, and each command a line of it.
 | `http.get`, `http.post`, `json()` | `fetch` | by design |
 | `onFlowStart`, `onFlowComplete` | `beforeEach`, `afterEach` | renamed |
 | platform-specific selectors | `onlyOn`, and the [file-name rule](projects.md) | renamed |
-| `clearKeychain`, `addMedia`, `travel` | | not yet |
+| `travel` | `device.travel(places, {speed})`, the speed in metres a second | renamed |
+| `clearKeychain`, `addMedia` | | not yet |
 | `assertWithAI`, `assertNoDefectsWithAI`, `extractTextWithAI` | [`agent.assert`](agent.md), with `vision` for what only a picture shows, and `agent.extract` | renamed |
 
 ## From Playwright
