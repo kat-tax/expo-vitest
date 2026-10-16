@@ -50,6 +50,10 @@ it was given `{hidden: true}`.
 Each takes `{timeout}` as its last argument, over the run's
 `assertionTimeout`: `toBeChecked(false, {timeout: 10_000})`.
 
+A reading that fails, as a device's can while its screen changes under it, is
+no reading: the matcher reads again, and fails with that error only once its
+time is up.
+
 ## Waiting for something to be gone
 
 A wait for something to be gone, `toBeHidden`, `toBeDetached`,

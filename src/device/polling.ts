@@ -134,7 +134,19 @@ export async function poll<T>(read: (snapshot: Snapshot) => T, passes: (value: T
   const readings: Reading<T>[] = [];
   let heldSince: number | null = null;
   for (let polls = 1; ; polls++) {
-    const value = read(await options.feed.next());
+    let snapshot: Snapshot;
+    try {
+      snapshot = await options.feed.next();
+    } catch (error) {
+      // A read that fails, as a device's can while the screen changes under
+      // it, is no reading: the wait reads again, and fails with the error
+      // only once its time is up.
+      const gap = Math.min(options.interval ?? gapAfter(polls), options.timeout - (clock.now() - started));
+      if (gap <= 0 || options.signal?.aborted) throw error;
+      await clock.sleep(gap);
+      continue;
+    }
+    const value = read(snapshot);
     const at = clock.now() - started;
     readings.push({value, at});
     const done = (pass: boolean): PollResult<T> => ({pass, last: value, polls, readings, elapsed: at});

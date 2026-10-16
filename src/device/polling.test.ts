@@ -154,6 +154,29 @@ describe('poll', () => {
     expect(stopped).toMatchObject({pass: false, polls: 1});
   });
 
+  it('reads again after a read that fails, and throws its error only once the time is up', async () => {
+    const clock = fakeClock();
+    let reads = 0;
+    const flaky: SnapshotFeed = {
+      next: async () => {
+        reads++;
+        if (reads < 3) throw new Error('Android snapshot helper returned insufficient foreground app content');
+        return {platform: 'android', nodes: [spinner]};
+      },
+      invalidate: () => {},
+    };
+    expect(await poll(visible, shown => shown, options(clock, flaky))).toMatchObject({pass: true, polls: 3, elapsed: 250});
+    clock.at = 0;
+    const gone: SnapshotFeed = {next: () => Promise.reject(new Error('no device')), invalidate: () => {}};
+    await expect(poll(visible, shown => shown, options(clock, gone, {timeout: 300, interval: 100}))).rejects.toThrow('no device');
+    expect(clock.at).toBe(300);
+    const controller = new AbortController();
+    controller.abort();
+    clock.at = 0;
+    await expect(poll(visible, shown => shown, options(clock, gone, {signal: controller.signal}))).rejects.toThrow('no device');
+    expect(clock.at).toBe(0);
+  });
+
   it('waits on the real clock by default', async () => {
     const feed: SnapshotFeed = {next: async () => ({platform: 'web', nodes: []}), invalidate: () => {}};
     const result = await poll(visible, shown => shown, {timeout: 0, stable: 0, negated: false, feed});
