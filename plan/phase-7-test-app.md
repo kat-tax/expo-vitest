@@ -18,13 +18,13 @@ build is what holds.
   a row's favourite, archive and delete are the row's own menu
   (`ListItem`'s `swipeActions`), not an `IconToggle` in the row, which on
   web is a button inside a button whose press opened the note too. The filter
-  chips sit in a `NativeHost`. The suite is 30 tests in 10 files in
+  chips sit in a `NativeHost`. The suite is 31 tests in 11 files in
   `testapp/device/`, over helpers for a first launch, a relaunch, a
   signed-in start, a row's own action, a menu item, an alert, a tab, the
   search field and a text field. `bun run test:testapp` copies the app
   outside this folder, installs it from its lockfile, unpacks the packed
   package into it, type-checks it and runs the suite.
-- **Web.** 28 tests pass, and the two that choose from a row's menu fail as
+- **Web.** 29 tests pass, and the two that choose from a row's menu fail as
   marked, from the packed package in Chromium.
 - **Android.** A development build (`expo-dev-client`) made with
   `expo prebuild` and Gradle in `testapp/android/`, which is not kept, and
@@ -37,9 +37,9 @@ build is what holds.
   `-memory 4096`, it lasts most of one. Two full runs on it each passed 19
   tests and failed the 8 marked ones as marked, and each lost one test, a
   different one each time, when the app left for the home screen as the
-  emulator stopped answering adb. The two tests added after those runs, the
-  coding agent's and a new note thrown away, pass and fail as marked there,
-  run on their own.
+  emulator stopped answering adb. The three tests added after those runs,
+  the coding agent's, a new note thrown away and the agent's act step, pass
+  and fail as marked there, run on their own.
 - **Windows.** The Release exe expo-windows' `ci/build.sh` makes from the
   app, with its JavaScript bundled in, on the react-native-windows 0.84 line.
   The build needs PowerShell 7 and a .NET SDK on the PATH, which this machine
@@ -47,7 +47,7 @@ build is what holds.
   .NET 8 SDK, in the ignored `.harness/tools/` and on its own PATH alone.
   `bun run test:testapp` with `TESTAPP_PLATFORMS=windows`, the exe as
   `HARNESS_TARGET` and `HARNESS_FORCE=1`, by the owner's leave, passed
-  all 10 files: 26 tests pass, the settings test fails as marked, and three
+  all 11 files: 27 tests pass, the settings test fails as marked, and three
   are skipped, the two row menus and going offline, each with its reason. A
   change to the app reaches the exe by building its Release bundle again,
   which takes minutes, the native code being built.
@@ -86,8 +86,9 @@ build is what holds.
     checkbox's label cannot be pressed. The `Picker` draws nothing to press.
   - Windows: a `Switch` has no name, its label a text beside it.
 - **The agent.** The harness config gives the agent a model of rules,
-  `testapp/device/rules.mts`, which explores a sign-in with a wrong
-  password. `expo-harness explore` on web took 7 model calls, reported
+  `testapp/device/rules.mts`, which acts and explores a sign-in with a wrong
+  password. `device/agent.test.ts` is its `act` step, which passes on web,
+  Android and Windows. `expo-harness explore` on web took 7 model calls, reported
   nothing and concluded that the app said the password was wrong; the model
   waits two seconds before its look after the press, as a real model's answer
   would take, since the pretend server answers after 700 ms. A scripted MCP
