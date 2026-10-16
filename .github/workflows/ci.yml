@@ -50,3 +50,35 @@ jobs:
         run: bun run test:fixture
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+  windows:
+    # The unit tests start real processes, which end differently on Windows,
+    # and the Windows driver's host is compiled only where it runs.
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun store
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Test
+        run: bun run test:coverage
+      - name: Compile the Windows host
+        # host.ps1 compiles host.cs, then answers a line of JSON at a time
+        # until its input ends: a hello, whose answer must be ok.
+        shell: pwsh
+        run: |
+          $answer = '{"id":1,"op":"hello"}' | powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File src/harness/windows/host.ps1
+          if ($LASTEXITCODE -ne 0 -or "$answer" -notmatch '"ok":true') { throw "The host did not compile, or did not answer: $answer" }
+          $answer

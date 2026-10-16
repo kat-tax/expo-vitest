@@ -154,9 +154,6 @@ These wait on an API key, and the runs are billed.
 
 - Platforms side by side in one run. Vitest holds one file at a time for
   the whole run, so the platforms take turns; separate runs go side by side.
-- This repository's unit tests, and a compile of the Windows host, on a
-  Windows runner on every push. Today only the test app's Windows job
-  compiles the host, on pull requests.
 
 ### Open questions
 
