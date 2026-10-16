@@ -4,7 +4,8 @@ Vitest for Expo code on iOS, Android, web and Windows: a project per platform
 picked by a test file's name, helpers for the tests, and a harness that drives
 a running app. Built on `vitest-expo` and `vitest-native`. The README is the front
 page: onboarding, then a summary of the features that links into `docs/`, one
-page per topic. A change to a feature changes its page.
+page per topic. A change to a feature changes its page. What is left to build
+is in `ROADMAP.md`, and a change that finishes an item there takes it out.
 
 | Path | What |
 | --- | --- |
