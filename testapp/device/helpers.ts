@@ -37,8 +37,8 @@ const BY_ITSELF = 15_000;
 
 /**
  * The next launch, which keeps what was saved, until `first` shows: the app
- * restarted on a device, and the page loaded again on web, since a restart
- * there is a new browser context with no storage at all. A development build
+ * restarted on a device and on Windows, and the page loaded again on web,
+ * since a restart there is a new browser context with no storage at all. A development build
  * may open the server it last loaded by itself as it restarts, and a link
  * sent then starts a second load over the first, which React Native does not
  * survive ("runtime not ready"), so the link goes only where the app has not
@@ -50,8 +50,12 @@ export async function relaunch(first: Locator): Promise<void> {
     if (await first.isVisible().catch(() => false)) return;
     await new Promise(resolve => setTimeout(resolve, BY_ITSELF));
     if (await first.isVisible().catch(() => false)) return;
+    await launch();
+  } else if (device.platform === 'windows') {
+    await device.restart();
+  } else {
+    await launch();
   }
-  await launch();
   await expect(first).toBeVisible({timeout: UP});
 }
 
@@ -103,15 +107,19 @@ export async function rowAction(row: Locator, action: string): Promise<void> {
 /**
  * An alert by its title, to look inside. On Android an alert is a window of
  * its own, the only one read while it shows, and nothing in it says it is a
- * dialog, so the screen is the alert there.
+ * dialog, so the screen is the alert there. On Windows it sits in the popup
+ * host over the screen, its field beside the popup window that holds its
+ * text and buttons, and neither is named by its title.
  */
 export function alert(title: string): Queries {
-  return device.platform === 'android' ? screen : within(screen.getByRole('dialog', {name: title}));
+  if (device.platform === 'android') return screen;
+  if (device.platform === 'windows') return within(screen.getByRole('pane', {name: 'PopupHost'}));
+  return within(screen.getByRole('dialog', {name: title}));
 }
 
-/** What shows while an alert does: its dialog, or on Android its title. */
+/** What shows while an alert does: its dialog, or its title where nothing names a dialog. */
 export function alertTitle(title: string): Locator {
-  return device.platform === 'android' ? screen.getByText(title) : screen.getByRole('dialog', {name: title});
+  return device.platform === 'android' || device.platform === 'windows' ? screen.getByText(title) : screen.getByRole('dialog', {name: title});
 }
 
 /**

@@ -14,7 +14,9 @@ const search = searchField;
 // expo-interface 0.32 the menu sits inside the row's clickable wrapper, and
 // the item's click bubbles up to it. Marked as failing there until that is
 // fixed, when the mark fails the run and comes off.
-const rowMenu = device.platform === 'web' || device.platform === 'android' ? it.fails : it;
+// On Windows the row's menu is a WinUI flyout, in a window of its own that
+// the tree does not reach, so there is nothing to choose from.
+const rowMenu = device.platform === 'windows' ? it.skip : device.platform === 'web' || device.platform === 'android' ? it.fails : it;
 
 // On Android a List of expo-interface 0.32 throws as its rows change, as a
 // search or a filter narrows them: "The specified child already has a
@@ -23,9 +25,10 @@ const rowMenu = device.platform === 'web' || device.platform === 'android' ? it.
 const listChanges = device.platform === 'android' ? it.fails : it;
 
 // A filter by its name, which every platform draws as a control that can be
-// on: a pressed button on web, a checkbox on Android.
+// on: a pressed button on web, a checkbox on Android, and on Windows a toggle
+// button, which reads as checked.
 const filter = (name: string) => screen.getByLabelText(name);
-const expectOn = (name: string) => (device.platform === 'android' ? expect(filter(name)).toBeChecked() : expect(filter(name)).toBePressed());
+const expectOn = (name: string) => (device.platform === 'web' ? expect(filter(name)).toBePressed() : expect(filter(name)).toBeChecked());
 
 beforeEach(signedIn);
 

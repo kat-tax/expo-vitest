@@ -26,9 +26,10 @@ async function press(label: string): Promise<void> {
 
 // expo-interface on Android draws a switch's, a checkbox's and a slider's
 // label beside the control rather than on it, so nothing names them there,
-// and draws the picker with nothing to press. Marked failing on Android
-// until the kit names them.
-(device.platform === 'android' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
+// and draws the picker with nothing to press. On Windows its switch has no
+// name either, its label a text beside it. Marked failing on both until the
+// kit names them.
+(device.platform === 'android' || device.platform === 'windows' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
   await name().fill('Ada L.');
   await screen.getByRole('switch', {name: 'Push notifications'}).uncheck();
   await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toBeDisabled();

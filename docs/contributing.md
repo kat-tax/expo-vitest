@@ -145,6 +145,23 @@ emulator with 4 GB (`emulator -avd <name> -memory 4096`). The tests that
 show expo-interface's Android bugs are marked failing there, as two are on
 web.
 
+On Windows the suite drives the Release build that expo-windows' own build
+script makes from the app, with its JavaScript bundled in:
+
+```sh
+APP_SOURCE="$PWD/testapp" \
+EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.32.0" \
+EXPECT_LINKED=ExpoInterface \
+  bash path/to/expo-windows/ci/build.sh .harness/win
+TESTAPP_PLATFORMS=windows HARNESS_TARGET="$(cygpath -aw .harness/win/WinCi/windows/x64/Release/TestApp.exe)" bun run test:testapp
+```
+
+The build needs what react-native-windows needs: Visual Studio with the C++
+workload and the Windows 11 SDK, and PowerShell 7 and a .NET SDK on the PATH.
+The app keeps its storage in `%LOCALAPPDATA%/TestApp`, which `clearState`
+deletes. A step that needs synthetic input waits for a quiet desk, or goes
+ahead with `HARNESS_FORCE=1`.
+
 Its harness config gives the agent a model of rules, `testapp/device/rules.mts`,
 which explores a sign-in with a wrong password, so `expo-harness explore`
 runs against the app with no key, as `expo-harness mcp` serves it to a
