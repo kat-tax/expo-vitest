@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -102,6 +102,18 @@ describe('targets', () => {
     expect(toAgentTarget({role: 'button'})).toBe('role="button"');
     expect(toAgentTarget({contains: 'Sav'})).toBe('label="Sav"');
     expect(toAgentTarget({})).toBe('=""');
+  });
+
+  it('go to agent-device as they are only where it reads them as the harness does', () => {
+    expect(readsAlike({x: 10, y: 20})).toBe(true);
+    expect(readsAlike('@e3')).toBe(true);
+    expect(readsAlike({testId: 'save'})).toBe(true);
+    expect(readsAlike({testId: 'save', role: 'button'})).toBe(true);
+    expect(readsAlike({label: 'Save'})).toBe(false);
+    expect(readsAlike('label="Save"')).toBe(false);
+    expect(readsAlike({contains: 'Sav'})).toBe(false);
+    expect(readsAlike({role: 'button'})).toBe(false);
+    expect(readsAlike({role: 'button', label: 'Save'})).toBe(false);
   });
 
   it('give the command line a point as two arguments, and anything else as one', () => {

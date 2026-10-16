@@ -261,6 +261,19 @@ export function parsePayload(stdout: string): unknown {
   }
 }
 
+/**
+ * Whether agent-device reads a target as the harness does, so the target
+ * can go to it as it is: a point, a ref, or a testID, which both take
+ * exactly. A label, a role or a part of a name cannot. agent-device matches
+ * a label whole and reads one key of a selector alone, where the harness,
+ * on every platform, matches a name whole, then in any case, then by a
+ * part, and a role and a name together (`findNode`).
+ */
+export function readsAlike(what: Target): boolean {
+  const selector = asSelector(what);
+  return isPoint(selector) || selector.ref !== undefined || selector.testId !== undefined;
+}
+
 /** A target in the spelling agent-device's command line takes. */
 export function toAgentTarget(what: Target): string {
   const selector = asSelector(what);

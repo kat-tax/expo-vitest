@@ -3,13 +3,13 @@ import path from 'node:path';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, centreOf, describeTarget, findNode, follow, isPoint} from '../lib/snapshot.ts';
+import {asSelector, centreOf, describeTarget, findNode, follow, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, readsAlike, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -78,8 +78,32 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     const tree = await snapshot({interactive: false});
     const selector = asSelector(what);
     const node = isPoint(selector) ? undefined : findNode(tree, selector);
-    if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)`, {platform});
+    if (!node) {
+      const instead = isPoint(selector) ? '' : seenInstead(tree, selector);
+      throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)${instead ? `; ${instead}` : ''}`, {platform});
+    }
     return node;
+  }
+
+  /**
+   * A target as agent-device is given it. One it reads as the harness does
+   * goes as it is (`readsAlike`). Any other is found in a fresh tree by the
+   * harness's own rules, as web and Windows find it, and the step is done on
+   * that node's ref, which agent-device keeps until its next read.
+   */
+  async function resolved(what: Target): Promise<Target> {
+    return readsAlike(what) ? what : {ref: (await nodeOf(what)).ref};
+  }
+
+  /** A step on what a target names, failed as the step itself is where nothing does. */
+  async function resolving(what: Target, failing: string, work: (at: Target) => Promise<StepResult>): Promise<StepResult> {
+    let at: Target;
+    try {
+      at = await resolved(what);
+    } catch (error) {
+      return failed(`${failing}: ${(error as Error).message}`, codeOf(error));
+    }
+    return work(at);
   }
 
   /**
@@ -196,16 +220,16 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     snapshot,
 
     press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
-      return pressing(what, `pressed ${describeTarget(what)}`, 'press failed', (current, at) => current.press(at, waitFrom(pressOptions)));
+      return resolving(what, 'press failed', at => pressing(at, `pressed ${describeTarget(what)}`, 'press failed', (current, target) => current.press(target, waitFrom(pressOptions))));
     },
 
-    async fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
+    fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
       const filling = (at: Target) => step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(at, text, waitFrom(fillOptions)));
-      return (await atRest(what, filling)).result;
+      return resolving(what, 'fill failed', async at => (await atRest(at, filling)).result);
     },
 
     longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
-      return pressing(what, `held ${describeTarget(what)}`, 'long press failed', (current, at) => current.longPress(at, pressOptions.duration, waitFrom(pressOptions)));
+      return resolving(what, 'long press failed', at => pressing(at, `held ${describeTarget(what)}`, 'long press failed', (current, target) => current.longPress(target, pressOptions.duration, waitFrom(pressOptions))));
     },
 
     async focus(what: Target): Promise<StepResult> {

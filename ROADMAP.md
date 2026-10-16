@@ -113,9 +113,6 @@ These wait on an API key, and the runs are billed.
   or `scroll_to` there.
 - A menu flyout in the Windows tree, by reading the app's other top-level
   windows. Two of the test app's tests are skipped on Windows for it.
-- `by.text` on iOS and Android matches loosely for `.node()`, but a press or
-  a fill by it goes to agent-device as `label="…"`, which takes the whole
-  label. Make the two agree, as they do on web and Windows.
 
 ### The agent and the MCP server
 

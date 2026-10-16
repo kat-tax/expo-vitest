@@ -263,9 +263,14 @@ await element(by.testID('save')).press();
 | --- | --- |
 | `by.testID(id)` | The `testID` the component was given. It reaches `data-testid` on web and `AutomationId` on Windows. |
 | `by.label(name)` | The accessible name, exactly first, then in any case, then as a part of it. |
-| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. On iOS and Android a press or a fill by it goes to agent-device as a label, which has to match whole. |
+| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. |
 | `by.role(role)` | What it is: the platform's own word (`Button`, `TabItem`, `link`), or its kind (`button`, `tab`, `switch`). |
 | `by.ref(ref)` | A ref from a snapshot (`@e7`). Good for that snapshot only. |
+
+Each platform matches a selector by the same rules. On iOS and Android a
+label, a role or a part of a name is found in a fresh tree first, as it is on
+web and Windows, and the step goes to that node, since agent-device matches a
+label only whole and one key of a selector alone.
 
 Prefer `by.testID`. A label is copy and changes with wording and language, a
 ref is only good for one snapshot, and a role finds every button on the screen.
