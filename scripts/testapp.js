@@ -5,7 +5,11 @@
 // HARNESS_TARGET names (docs/contributing.md, The test app).
 //
 //   node scripts/testapp.js
+//   node scripts/testapp.js device/sign-in device/sign-up
 //   node scripts/testapp.js --update-lockfile
+//
+// Anything else on the command line goes to Vitest, which runs only the test
+// files whose paths it matches.
 //
 // `TESTAPP_RESULTS` names a folder the copy's `.harness/` is kept in, as CI
 // uploads it; it goes with the copy otherwise.
@@ -24,6 +28,7 @@ import {fileURLToPath} from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = path.join(root, 'testapp');
 const update = process.argv.includes('--update-lockfile');
+const filters = process.argv.slice(2).filter(arg => arg !== '--update-lockfile');
 const shell = process.platform === 'win32';
 // The real path, since a temporary folder is often reached through a link and the engine compares paths.
 const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'expo-vitest-testapp-'));
@@ -66,7 +71,7 @@ try {
   run(process.execPath, [path.join(modules, 'typescript', 'bin', 'tsc'), '--noEmit']);
 
   console.log(`==== The device tests, on ${process.env.TESTAPP_PLATFORMS ?? 'web'}`);
-  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts']);
+  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts', ...filters]);
 } finally {
   const kept = path.join(scratch, '.harness');
   if (process.env.TESTAPP_RESULTS && fs.existsSync(kept)) fs.cpSync(kept, process.env.TESTAPP_RESULTS, {recursive: true, force: true});

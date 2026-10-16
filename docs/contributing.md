@@ -119,6 +119,7 @@ for it.
 ```sh
 bun run test:testapp                                  # on web
 TESTAPP_PLATFORMS=android,web bun run test:testapp    # and on a device
+bun run test:testapp device/sign-in                   # the files whose paths match
 ```
 
 As with the fixture, the app is copied outside the package and installed
