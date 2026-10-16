@@ -74,8 +74,6 @@ export const CANNOT = {
   windowsInstall: 'only an .msix is installed on Windows',
   webDeny: 'Chromium has no deny through Playwright; reset clears what was granted',
   webPermission: 'Chromium has no permission of that name',
-  windowsClipboard: 'a PowerShell script per step cannot reach the clipboard; the host can',
-  windowsForeground: 'a PowerShell script per step cannot tell which window is in front; the host can',
 } as const;
 
 /** The biometric sensors a platform's simulator or emulator has. */

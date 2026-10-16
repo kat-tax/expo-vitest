@@ -124,14 +124,6 @@ export function runBinary(command: string, args: string[], options: {cwd?: strin
   };
 }
 
-/**
- * Runs one of the harness's own PowerShell scripts by path. `-File` keeps the
- * arguments intact; a `-Command` string handed through a shell loses its quotes.
- */
-export function powershell(script: string, args: string[] = []): Ran {
-  return run('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, ...args]);
-}
-
 /** Makes sure a file's directory exists, and answers with the file. */
 export function prepare(file: string): string {
   fs.mkdirSync(path.dirname(path.resolve(file)), {recursive: true});

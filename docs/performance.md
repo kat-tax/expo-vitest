@@ -66,8 +66,8 @@ Through the host, one PowerShell process the harness keeps for the run:
   screenshot        43.0     34.7     38.3     31.7     39.4
 ```
 
-Through a PowerShell script per step, which `HARNESS_WINDOWS_HOST=0` picks,
-measured straight after on the same screen:
+A PowerShell process started for each step instead, measured straight after
+on the same screen:
 
 ```
   operation         cold      p50      p95      min      max
@@ -77,13 +77,12 @@ measured straight after on the same screen:
 ```
 
 Someone was using the machine for both, so the driver refused the press and
-every number carries that load. With the desk left alone and `--force`, a
-press on the tab already selected took 2227 ms at p50 through the scripts.
+every number carries that load.
 
-A script per step starts a PowerShell process, which loads UI Automation and
-compiles the C# it needs, and walks the tree with a call across to the app
-for each element and each property. The host starts and compiles once, in
-about half a second, and fetches the whole tree in one request. Where the
+A process for each step loads UI Automation and compiles the C# it needs,
+and walks the tree with a call across to the app for each element and each
+property. The host starts and compiles once, in about half a second, and
+fetches the whole tree in one request. Where the
 managed UI Automation client cannot read that cached tree back, as on some
 react-native-windows screens, the host walks the same tree an element at a
 time instead, which took 359 ms for the 94 nodes in one reading. What is left
@@ -92,7 +91,7 @@ element, which is most of the time here.
 
 A screenshot is the window drawing itself, so a window over it is not in the
 picture. That costs what copying the screen did: 35 ms at p50 in a run of
-ten, through either backend.
+ten.
 
 ## Android
 

@@ -185,8 +185,7 @@ Playwright does.
 | `key` | the keyboard | the keyboard | `'skipped'` |
 
 On Windows, the pointer and the keyboard are synthetic input, which waits
-for a quiet desk; a pattern needs none. With `HARNESS_WINDOWS_HOST=0`, a long
-press, a hover, the focus and scrolling are not to be had, and answer so.
+for a quiet desk; a pattern needs none.
 
 ### Scrolling
 

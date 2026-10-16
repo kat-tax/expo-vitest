@@ -99,8 +99,6 @@ is one this device lacks:
 - `fold` on a phone or simulator whose name does not say it folds;
 - `setAirplaneMode` on Android before 11;
 - biometrics on a physical device;
-- on Windows, a long press, a hover, the focus, a scroll, the clipboard and
-  the app in front, with a PowerShell script per step rather than the host;
 - on Windows, `installApp` without an `.msix`, and `clearState` without a
   `stateDir`.
 

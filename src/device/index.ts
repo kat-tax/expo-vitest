@@ -209,13 +209,12 @@ class Device {
     return this.config.platform;
   }
 
-  /** What decides a capability beyond the platform: the device found, by this driver or the warm-up, the app, and how Windows is driven. */
+  /** What decides a capability beyond the platform: the device found, by this driver or the warm-up, the app, and the browser. */
   private circumstances(): Circumstances {
     const device = this.facts ?? knownFacts();
     return {
       ...(device ? {device} : {}),
       ...(this.config.app ? {app: this.config.app} : {}),
-      host: process.env.HARNESS_WINDOWS_HOST !== '0',
       ...(this.platform === 'web' ? {browser: modeFrom(process.env).browser} : {}),
     };
   }

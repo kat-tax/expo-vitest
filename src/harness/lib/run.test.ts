@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {firstLine, installed, numbered, powershell, prepare, run, runAsync, runBinary} from './run.ts';
+import {firstLine, installed, numbered, prepare, run, runAsync, runBinary} from './run.ts';
 
 // Every program here is this Node, so the cases run the same on every CI machine.
 const node = process.execPath;
@@ -106,15 +106,6 @@ describe('installed', () => {
     expect(installed(node)).toBe(true);
     expect(installed(node, ['-e', '0'])).toBe(true);
     expect(installed(MISSING)).toBe(false);
-  });
-});
-
-describe('powershell', () => {
-  it('fails plainly for a script that is not there', () => {
-    // On Windows PowerShell says the file does not exist; elsewhere PowerShell itself is missing.
-    const script = path.join(os.tmpdir(), 'expo-vitest-no-such-script.ps1');
-    expect(powershell(script).ok).toBe(false);
-    expect(powershell(script, ['-Flag', 'value']).ok).toBe(false);
   });
 });
 

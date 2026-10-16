@@ -29,9 +29,9 @@ the app under test.
   while someone is using it, unless it was made with `force` (`--force`,
   `HARNESS_FORCE`). Its own input is not counted as someone's
   (`src/harness/lib/quiet.ts`). Do not add synthetic input to the driver
-  without that check. The host and the scripts also send a click only where
-  the window at its point is the app's and the point is on a screen, and keys
-  only while the app's window is in front. Raising the window moves it inside
+  without that check. The host also sends a click only where the window at
+  its point is the app's and the point is on a screen, and keys only while
+  the app's window is in front. Raising the window moves it inside
   the screen's work area when it reaches past it. A pattern call is not
   synthetic input: a press goes through a control's UI Automation pattern
   where it has one, and stands only where the control's state shows it
@@ -73,8 +73,7 @@ driver by `host.ps1` and kept running for the driver's life, answering JSON
 lines. It reads the tree in one cached request over the window's subtree,
 or an element at a time where the managed client's reader of that cache
 throws, as it does on some react-native-windows screens.
-The per-step scripts beside it are what `HARNESS_WINDOWS_HOST=0` runs, and
-must read the same tree; a change to the walk goes in both. Title bars are
+Title bars are
 left out with everything in them, since a cached read hands back ones a walk
 never reached. The tree walks the descendants of the app's main window, and
 a WinUI `MenuFlyout` opens in a separate top-level window, so a menu plainly

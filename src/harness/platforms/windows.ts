@@ -7,13 +7,12 @@ import type {PatternAnswer} from '../lib/patterns.ts';
 import {afterFill, afterPress, chooseFill, choosePress} from '../lib/patterns.ts';
 import {desk, fileStore, refusal} from '../lib/quiet.ts';
 import {kindOnWindows, withKinds} from '../lib/roles.ts';
-import type {Ran} from '../lib/run.ts';
-import {firstLine, powershell, prepare, run} from '../lib/run.ts';
+import {firstLine, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
-import {elsewhere, failed, ok} from '../lib/types.ts';
+import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
 import type {HostChild} from './windows-host.ts';
@@ -45,56 +44,49 @@ function script(name: string): string {
   return path.join(SCRIPTS, name);
 }
 
-/** The tree as the host or `snapshot.ps1` writes it. */
+/** The tree as the host writes it. */
 interface RawTree {
   process: string;
   nodes?: Record<string, unknown>[];
 }
 
 /**
- * What the driver needs done on the desktop, by one of two means: the host, a
- * PowerShell process kept for the driver's life that reads the tree in one
- * cached request, or a PowerShell script started for each step, which
- * `HARNESS_WINDOWS_HOST=0` picks. Each throws with the reason when a step
- * fails, and the driver words the result.
+ * What the driver needs done on the desktop, by the host: a PowerShell
+ * process kept for the driver's life, which reads the tree in one cached
+ * request and keeps the newest snapshot to act on. Each throws with the
+ * reason when a step fails, and the driver words the result.
  */
 interface Backend {
   readonly description: string;
-  /**
-   * Whether this is the host, which keeps the newest snapshot to act on and
-   * can hold a press, move the pointer alone and give the focus. A script per
-   * step can do none of those, so they are skipped on it.
-   */
-  readonly host: boolean;
-  /** Whether the app has a window; throws only when the means itself cannot run. */
+  /** Whether the app has a window; throws only when the host itself cannot run. */
   hasWindow(): Promise<boolean>;
   snapshot(interactive: boolean): Promise<RawTree>;
   raise(): Promise<string>;
   /** A press at a point in the window's own pixels. */
   click(point: Point): Promise<string>;
-  /** A press held at a point for `ms`; null where the means cannot hold one. */
-  hold(point: Point, ms: number): Promise<string | null>;
-  /** The pointer moved to a point, without a press; null where the means cannot. */
-  move(point: Point): Promise<string | null>;
+  /** A press held at a point for `ms`. */
+  hold(point: Point, ms: number): Promise<string>;
+  /** The pointer moved to a point, without a press. */
+  move(point: Point): Promise<string>;
   keys(keys: string): Promise<string>;
   screen(out: string): Promise<string>;
-  idle(): Promise<number | null>;
+  idle(): Promise<number>;
   /**
    * A control of the newest snapshot driven through a UI Automation pattern,
-   * with whether its state was seen to change. Null where the means has no
-   * patterns to offer or the call failed: the press then uses the pointer.
+   * with whether its state was seen to change. Null where the call failed:
+   * the press then uses the pointer.
    */
   act(ref: string, way: 'invoke' | 'toggle' | 'select' | 'scrollInto'): Promise<PatternAnswer | null>;
-  /** The keyboard focus given to a control of the newest snapshot, with whether it took it; null as for `act`. */
-  focus(ref: string): Promise<PatternAnswer | null>;
+  /** The keyboard focus given to a control of the newest snapshot, with whether it took it. */
+  focus(ref: string): Promise<PatternAnswer>;
   /** Text set through a field's Value pattern, with what it reads back after; null as for `act`. */
   setValue(ref: string, text: string): Promise<PatternAnswer | null>;
-  /** The name of the process whose window is in front; null where the means cannot tell. */
-  foreground(): Promise<string | null>;
-  /** The text on the clipboard; null where the means cannot reach it. */
-  clipboard(): Promise<string | null>;
-  /** Puts text on the clipboard, and answers whether the means could. */
-  setClipboard(text: string): Promise<boolean>;
+  /** The name of the process whose window is in front. */
+  foreground(): Promise<string>;
+  /** The text on the clipboard. */
+  clipboard(): Promise<string>;
+  /** Puts text on the clipboard. */
+  setClipboard(text: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -110,7 +102,6 @@ function hostBackend(processName: string): Backend {
   const windowed = processName ? {process: processName} : {};
   return {
     description: 'the Windows host',
-    host: true,
     async hasWindow() {
       // The first request starts the host and compiles it, which is the one slow step.
       await host.request('hello', {}, 60_000);
@@ -142,61 +133,8 @@ function hostBackend(processName: string): Backend {
     clipboard: () => host.request<string>('clipboard'),
     async setClipboard(text) {
       await host.request<string>('setClipboard', {text});
-      return true;
     },
     close: () => host.close(),
-  };
-}
-
-function scriptBackend(processName: string): Backend {
-  /** The script's reason, or its output when it gave none. */
-  function said(ran: Ran): string {
-    return firstLine(ran.stderr) || firstLine(ran.stdout);
-  }
-  function check(ran: Ran, otherwise?: string): string {
-    if (!ran.ok) throw new Error(said(ran) || otherwise || 'the script failed');
-    return firstLine(ran.stdout);
-  }
-  const windowed = processName ? ['-Process', processName] : [];
-  return {
-    description: 'a PowerShell script per step',
-    host: false,
-    async hasWindow() {
-      const result = run('powershell', ['-NoProfile', '-Command', `@(Get-Process -Name '${processName}' -ErrorAction SilentlyContinue).Count`]);
-      return Number(firstLine(result.stdout)) > 0;
-    },
-    async snapshot(interactive) {
-      const result = powershell(script('snapshot.ps1'), ['-Process', processName, ...(interactive ? ['-Interactive'] : [])]);
-      check(result);
-      return JSON.parse(result.stdout) as RawTree;
-    },
-    async raise() {
-      return check(powershell(script('raise.ps1'), ['-Process', processName]), 'could not raise the window');
-    },
-    async click(point) {
-      return check(powershell(script('input.ps1'), ['-Points', `${point.x},${point.y}`, ...windowed]));
-    },
-    async keys(keys) {
-      return check(powershell(script('input.ps1'), ['-Keys', keys, ...windowed]));
-    },
-    async screen(out) {
-      return check(powershell(script('screen.ps1'), ['-Out', out, ...windowed]));
-    },
-    async idle() {
-      const seconds = Number(firstLine(powershell(script('idle.ps1')).stdout));
-      return Number.isFinite(seconds) ? seconds : null;
-    },
-    // A script per step keeps no snapshot to act on, so every press is synthetic.
-    act: async () => null,
-    setValue: async () => null,
-    focus: async () => null,
-    // Nor does input.ps1 hold a press or move the pointer alone, or any script read which window is in front or the clipboard.
-    hold: async () => null,
-    move: async () => null,
-    foreground: async () => null,
-    clipboard: async () => null,
-    setClipboard: async () => false,
-    async close() {},
   };
 }
 
@@ -239,7 +177,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
   const isExe = target.toLowerCase().endsWith('.exe');
   const exe = isExe ? path.resolve(options.root, target) : '';
   const processName = isExe ? path.basename(exe, '.exe') : target;
-  const backend = process.env.HARNESS_WINDOWS_HOST === '0' ? scriptBackend(processName) : hostBackend(processName);
+  const backend = hostBackend(processName);
   // Kept under .harness/ too, since each device test file makes a driver of its own.
   const quiet = desk(fileStore(path.join(options.root, '.harness', 'windows-desk.json')));
 
@@ -389,7 +327,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
       try {
         running = await backend.hasWindow();
       } catch (error) {
-        return {ready: false, reason: `${(error as Error).message}; HARNESS_WINDOWS_HOST=0 drives the app with a PowerShell script per step instead`};
+        return {ready: false, reason: (error as Error).message};
       }
       if (!running) {
         const where = exe ? path.relative(options.root, exe) : processName;
@@ -431,16 +369,14 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
             return await openRoute(request.url);
           case 'foregroundApp': {
             const name = await backend.foreground();
-            if (!name) return cannot(request, 'windows', CANNOT.windowsForeground);
             return {...ok(`${name} is in front`), value: name};
           }
           case 'clipboard': {
             const read = await backend.clipboard();
-            if (read === null) return cannot(request, 'windows', CANNOT.windowsClipboard);
             return {...ok(`read ${read.length} characters from the clipboard`), value: read};
           }
           case 'setClipboard':
-            if (!(await backend.setClipboard(request.text))) return cannot(request, 'windows', CANNOT.windowsClipboard);
+            await backend.setClipboard(request.text);
             return ok(`put ${request.text.length} characters on the clipboard`);
           default:
             return failed(`${request.name} is not a control the windows harness knows`, 'INVALID_ARGUMENT');
@@ -483,7 +419,6 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     },
 
     async longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
-      if (!backend.host) return elsewhere('a long press', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
       try {
         const {point, note} = await pointFor(what);
         const refusing = await refused('a long press');
@@ -499,7 +434,6 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     },
 
     async hover(what: Target): Promise<StepResult> {
-      if (!backend.host) return elsewhere('a hover', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
       try {
         const {point, note} = await pointFor(what);
         const refusing = await refused('moving the pointer');
@@ -513,20 +447,18 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     },
 
     async focus(what: Target): Promise<StepResult> {
-      if (!backend.host) return elsewhere('giving the focus', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
       try {
         // Through UI Automation, which needs no quiet desk and no window in front.
         const {note, node} = await pointFor(what);
         if (!node) return failed(`a point cannot be given the focus; name a node`, 'INVALID_ARGUMENT');
         const answer = await backend.focus(node.ref);
-        return answer?.changed ? {...ok(`focused ${note}`), verified: true} : failed(`${note} did not take the focus`, 'NOT_ACTIONABLE');
+        return answer.changed ? {...ok(`focused ${note}`), verified: true} : failed(`${note} did not take the focus`, 'NOT_ACTIONABLE');
       } catch (error) {
         return failed(`focus failed: ${(error as Error).message}`, 'NOT_ACTIONABLE');
       }
     },
 
     async scrollIntoView(what: Target): Promise<StepResult> {
-      if (!backend.host) return elsewhere('scrolling a control into view', 'windows', 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
       try {
         // Through the control's ScrollItem pattern, which every react-native-windows view offers.
         const {note, node} = await pointFor(what).catch(error => {

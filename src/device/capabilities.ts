@@ -25,15 +25,10 @@ const CONTROLS = Object.keys(CHANGES_SCREEN) as ControlName[];
 /** Every capability, steps first, then the controls, each once. */
 export const CAPABILITIES: Capability[] = [...new Set([...ACTIONS.web, ...ACTIONS.windows, ...ACTIONS.android, ...ACTIONS.ios, ...CONTROLS])];
 
-/** The Windows steps that need the host, which `HARNESS_WINDOWS_HOST=0` turns off. */
-const NEEDS_HOST: Capability[] = ['longPress', 'hover', 'focus', 'scrollIntoView', 'foregroundApp', 'clipboard', 'setClipboard'];
-
-/** What decides a capability beyond the platform: the device the driver found, the app, and how Windows is driven. */
+/** What decides a capability beyond the platform: the device the driver found, the app, and the browser. */
 export interface Circumstances {
   device?: DeviceFacts;
   app?: AppOptions;
-  /** Windows: whether the host drives, rather than a script per step. */
-  host?: boolean;
   /** Web: the browser the run drives. */
   browser?: BrowserName;
 }
@@ -46,8 +41,7 @@ export function absentBecause(capability: Capability, platform: Platform, circum
   if (!control && !ACTIONS[platform].includes(capability)) return `the ${platform} harness has no ${capability}`;
   const lacks = control ? LACKS[platform][capability as ControlName] : undefined;
   if (lacks) return lacks;
-  const {device = {}, app = {}, host = true, browser = 'chromium'} = circumstances;
-  if (platform === 'windows' && !host && NEEDS_HOST.includes(capability)) return 'it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off';
+  const {device = {}, app = {}, browser = 'chromium'} = circumstances;
   if (capability === 'fold' && !/fold|flip|duo/i.test(device.name ?? '')) return `${device.name ?? 'the device'} does not fold`;
   if (capability === 'setAirplaneMode' && platform === 'android' && major(device.osVersion) < 11) return `airplane mode needs Android 11 or later, and this is Android ${device.osVersion}`;
   if ((capability === 'setBiometrics' || capability === 'enrollBiometrics') && device.kind === 'device') return `a physical ${platform} device answers its own biometric prompts`;

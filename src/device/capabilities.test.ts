@@ -28,11 +28,8 @@ describe('the capabilities', () => {
     expect(absentBecause('setNetwork', 'android')).toBeNull();
   });
 
-  it('need the Windows host for the steps a script per step cannot take', () => {
-    expect(absentBecause('hover', 'windows', {host: false})).toBe('it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
-    expect(absentBecause('clipboard', 'windows', {host: false})).toBe('it needs the Windows host, which HARNESS_WINDOWS_HOST=0 turns off');
-    expect(absentBecause('hover', 'windows')).toBeNull();
-    expect(absentBecause('press', 'windows', {host: false})).toBeNull();
+  it('on Windows, are every step and control the host takes', () => {
+    for (const each of ['longPress', 'hover', 'focus', 'scrollIntoView', 'foregroundApp', 'clipboard', 'setClipboard'] as const) expect(absentBecause(each, 'windows')).toBeNull();
   });
 
   it('fold only on a device whose name says it folds', () => {
