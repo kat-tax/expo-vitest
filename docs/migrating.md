@@ -153,7 +153,7 @@ since a test here runs on a phone as well as a page.
 | `page.getByRole(role, {name})` | `screen.getByRole(role, {name})` | same |
 | `getByText`, `getByTestId` | `getByText`, `getByTestId` | same |
 | `getByLabel`, `getByPlaceholder` | `getByLabelText`, `getByPlaceholderText` | renamed |
-| `getByAltText`, `getByTitle` | | not yet: the web tree names a node by its ARIA label, its labels and its text, not by `alt` or `title` |
+| `getByAltText`, `getByTitle` | `getByAltText`, `getByTitle`: on a device an image is found by its name, and nothing has a title | same |
 | `locator.click()` | `.press()` | renamed |
 | `.fill`, `.check`, `.uncheck`, `.hover`, `.focus` | the same | same |
 | `.press('Enter')` | `.key('Enter')` | renamed |

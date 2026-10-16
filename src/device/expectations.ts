@@ -45,7 +45,7 @@ interface Expectation {
 }
 
 /** The tree fields `toHaveAttribute` reads. */
-export const ATTRIBUTES = ['help', 'inSet', 'heading', 'live', 'status', 'dialog', 'testId', 'placeholder', 'role', 'kind'] as const;
+export const ATTRIBUTES = ['help', 'inSet', 'heading', 'live', 'status', 'dialog', 'testId', 'placeholder', 'alt', 'title', 'role', 'kind'] as const;
 
 export type Attribute = (typeof ATTRIBUTES)[number];
 

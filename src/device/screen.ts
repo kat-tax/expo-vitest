@@ -1,5 +1,6 @@
 /**
- * React Native Testing Library's queries, over the device's tree: seven
+ * React Native Testing Library's queries, over the device's tree, and
+ * Testing Library's two for an image's text alternative and a title: nine
  * predicates, each in RNTL's six families, with RNTL's names and rules.
  *
  * | Family | Matches | Returns | Fails |
@@ -24,8 +25,8 @@ import {duration, poll} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
 import {ambiguity, describeQuery, inside, resolve, suggestions} from './queries.ts';
 
-/** RNTL's word for each predicate, as its query names spell it. */
-const PREDICATES = {Role: 'role', Text: 'text', LabelText: 'label', PlaceholderText: 'placeholder', DisplayValue: 'value', TestId: 'testId', HintText: 'hint'} as const satisfies Record<string, Predicate>;
+/** The word for each predicate, as the query names spell it. */
+const PREDICATES = {Role: 'role', Text: 'text', LabelText: 'label', PlaceholderText: 'placeholder', DisplayValue: 'value', TestId: 'testId', HintText: 'hint', AltText: 'altText', Title: 'title'} as const satisfies Record<string, Predicate>;
 
 type Word = keyof typeof PREDICATES;
 
@@ -46,7 +47,7 @@ export interface FindOptions {
 
 type OptionsOf<W extends Word> = W extends 'Role' ? RoleQueryOptions : TextQueryOptions;
 
-/** The forty-two queries, `getByRole` to `findAllByHintText`, and the tree they read as text. */
+/** The fifty-four queries, `getByRole` to `findAllByTitle`, and the tree they read as text. */
 export type Queries = {
   /**
    * The tree as text, a node a line, as `expo-harness tree` prints it but

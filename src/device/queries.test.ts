@@ -97,6 +97,21 @@ describe('resolve', () => {
     expect(refs(resolve(query('hint', 'Turns Wi-Fi on'), tree))).toEqual(['@e6']);
   });
 
+  it("finds an image by its text alternative, a page's alt and a device's name, and a title by its own field", () => {
+    const page: Snapshot = {
+      platform: 'web',
+      nodes: [node('@e1', 'img', 'Logo', {kind: 'image', alt: 'Logo'}), node('@e2', 'div', 'Chart', {kind: 'image'}), node('@e3', 'button', '×', {kind: 'button', interactive: true, title: 'Delete the draft'})],
+    };
+    expect(refs(resolve(query('altText', 'Logo'), page))).toEqual(['@e1']);
+    // A page's image named some other way has no alt to find it by.
+    expect(refs(resolve(query('altText', 'Chart'), page))).toEqual([]);
+    expect(refs(resolve(query('title', 'Delete the draft'), page))).toEqual(['@e3']);
+    expect(refs(resolve(query('title', 'delete', {exact: false}), page))).toEqual(['@e3']);
+    const phone: Snapshot = {platform: 'android', nodes: [node('@e1', 'ImageView', 'Logo', {kind: 'image'}), node('@e2', 'TextView', 'Logo', {kind: 'text'})]};
+    expect(refs(resolve(query('altText', 'Logo'), phone))).toEqual(['@e1']);
+    expect(refs(resolve(query('title', 'Logo'), phone))).toEqual([]);
+  });
+
   it('leaves out what is off screen unless told to take it', () => {
     expect(refs(resolve(query('label', 'Gone'), tree))).toEqual([]);
     expect(refs(resolve(query('label', 'Gone', {hidden: true}), tree))).toEqual(['@e12']);
@@ -256,6 +271,20 @@ describe('suggestions', () => {
     expect(suggestions(query('hint', 'Opens'), screen)).toBe('the hints there: "Where we write"');
     expect(suggestions(query('testId', 'save'), {platform: 'web', nodes: [node('@e1', 'Custom', '')]})).toBe('no node has a testID');
   });
+
+  it("name a page's alt texts and titles, a device's images by name, and say that only a page gives a title", () => {
+    const page: Snapshot = {platform: 'web', nodes: [node('@e1', 'img', 'Logo', {kind: 'image', alt: 'Logo'}), node('@e2', 'button', '×', {kind: 'button', title: 'Close'})]};
+    expect(suggestions(query('altText', 'Banner'), page)).toBe('the alt texts there: "Logo"');
+    expect(suggestions(query('title', 'Open'), page)).toBe('the titles there: "Close"');
+    const bare: Snapshot = {platform: 'web', nodes: [node('@e1', 'Custom', '')]};
+    expect(suggestions(query('altText', 'Banner'), bare)).toBe('no node has an alt text');
+    expect(suggestions(query('title', 'Open'), bare)).toBe('no node has a title');
+    const phone: Snapshot = {platform: 'ios', nodes: [node('@e1', 'Image', 'Logo', {kind: 'image'}), node('@e2', 'Image', '', {kind: 'image'})]};
+    expect(suggestions(query('altText', 'Banner'), phone)).toBe('the images there are named "Logo"');
+    expect(suggestions(query('altText', 'Banner'), {platform: 'ios', nodes: [node('@e1', 'Image', '', {kind: 'image'})]})).toBe('no image there has a name');
+    expect(suggestions(query('altText', 'Banner'), {platform: 'ios', nodes: [node('@e1', 'Button', 'OK', {kind: 'button'})]})).toBe('there is no image');
+    expect(suggestions(query('title', 'Open'), phone)).toBe('no node has a title, which only a page gives');
+  });
 });
 
 describe('the messages', () => {
@@ -269,6 +298,8 @@ describe('the messages', () => {
     expect(describeQuery(query('placeholder', 'Email'))).toBe('getByPlaceholderText("Email")');
     expect(describeQuery(query('value', 'Ada'))).toBe('getByDisplayValue("Ada")');
     expect(describeQuery(query('hint', 'Opens'))).toBe('getByHintText("Opens")');
+    expect(describeQuery(query('altText', 'Logo'))).toBe('getByAltText("Logo")');
+    expect(describeQuery(query('title', 'Close', {}, [], 'many'))).toBe('getAllByTitle("Close")');
   });
 
   it('list the candidates of an ambiguous query, and the ways out', () => {

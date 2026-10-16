@@ -196,7 +196,7 @@ describe('toHaveAttribute', () => {
   it('reads only the fields it names', async () => {
     const {locate} = rig(() => [heading]);
     await expect(expect(locate(query('testId', 'title'))).toHaveAttribute('value' as never)).rejects.toThrow(
-      expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'toHaveAttribute reads help, inSet, heading, live, status, dialog, testId, placeholder, role, kind; "value" is not one of them'}),
+      expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'toHaveAttribute reads help, inSet, heading, live, status, dialog, testId, placeholder, alt, title, role, kind; "value" is not one of them'}),
     );
   });
 });

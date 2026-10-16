@@ -32,8 +32,8 @@ export interface QueryOptions extends TextMatchOptions {
   disabled?: boolean;
 }
 
-/** What a query reads: role, text, label, placeholder, display value, testID, hint. */
-export type Predicate = 'role' | 'text' | 'label' | 'placeholder' | 'value' | 'testId' | 'hint';
+/** What a query reads: role, text, label, placeholder, display value, testID, hint, an image's text alternative, a title. */
+export type Predicate = 'role' | 'text' | 'label' | 'placeholder' | 'value' | 'testId' | 'hint' | 'altText' | 'title';
 
 export type Refinement = {first: true} | {last: true} | {nth: number} | {hasText: TextMatch} | {has: LocatorQuery};
 
@@ -194,6 +194,12 @@ function fits(node: SnapshotNode, query: LocatorQuery, snapshot: Snapshot): bool
       return matches(node.testId, match, options);
     case 'hint':
       return matches(node.help, match, options);
+    case 'altText':
+      // A page keeps an image's alt. On a device an Image's alt is its label,
+      // and there is nothing else to tell it by, so an image is found by its name.
+      return snapshot.platform === 'web' ? matches(node.alt, match, options) : node.kind === 'image' && matches(ownName(node, snapshot), match, options);
+    case 'title':
+      return matches(node.title, match, options);
   }
 }
 
@@ -307,17 +313,23 @@ export function suggestions(query: LocatorQuery, snapshot: Snapshot): string {
     const near = typeof match === 'string' ? names.filter(name => like(name, match.toLowerCase())) : [];
     return near.length > 0 ? `names like it: ${few(near)}` : `the names there: ${few(names)}`;
   }
-  const field = {placeholder: 'placeholder', value: 'value', testId: 'testId', hint: 'help'} as const;
-  const what = {placeholder: 'placeholders', value: 'values', testId: 'testIDs', hint: 'hints'} as const;
+  const web = snapshot.platform === 'web';
+  if (predicate === 'altText' && !web) {
+    const images = nodes.filter(node => node.kind === 'image').map(node => ownName(node, snapshot));
+    return images.some(Boolean) ? `the images there are named ${few(images.filter(Boolean))}` : images.length > 0 ? 'no image there has a name' : 'there is no image';
+  }
+  const field = {placeholder: 'placeholder', value: 'value', testId: 'testId', hint: 'help', altText: 'alt', title: 'title'} as const;
+  const what = {placeholder: 'placeholders', value: 'values', testId: 'testIDs', hint: 'hints', altText: 'alt texts', title: 'titles'} as const;
+  const none = {placeholder: 'a placeholder', value: 'a value', testId: 'a testID', hint: 'a hint', altText: 'an alt text', title: web ? 'a title' : 'a title, which only a page gives'} as const;
   const values = nodes.flatMap(node => {
     const value = node[field[predicate]];
     return typeof value === 'string' && value !== '' ? [value] : [];
   });
-  return values.length > 0 ? `the ${what[predicate]} there: ${few(values)}` : `no node has a ${what[predicate].slice(0, -1)}`;
+  return values.length > 0 ? `the ${what[predicate]} there: ${few(values)}` : `no node has ${none[predicate]}`;
 }
 
-/** Each predicate's word in RNTL's query names. */
-const WORDS: Record<Predicate, string> = {role: 'Role', text: 'Text', label: 'LabelText', placeholder: 'PlaceholderText', value: 'DisplayValue', testId: 'TestId', hint: 'HintText'};
+/** Each predicate's word in the query names: RNTL's, and Testing Library's for an image's text alternative and a title. */
+const WORDS: Record<Predicate, string> = {role: 'Role', text: 'Text', label: 'LabelText', placeholder: 'PlaceholderText', value: 'DisplayValue', testId: 'TestId', hint: 'HintText', altText: 'AltText', title: 'Title'};
 
 /** The query as it was written, for a message: `getByRole("button", {name: "Save"})`. */
 export function describeQuery(query: LocatorQuery): string {

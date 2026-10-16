@@ -95,6 +95,14 @@ export interface SnapshotNode {
   value?: string;
   /** The hint an empty field shows. */
   placeholder?: string;
+  /**
+   * An image's text alternative as a page wrote it: the `alt` of an `<img>`
+   * or an image button. Web only: on a device React Native makes an Image's
+   * `alt` its label, which is the node's name.
+   */
+  alt?: string;
+  /** The `title` an element was given on web, or the `<title>` an SVG holds: what a browser shows over it. Web only. */
+  title?: string;
   /** A field whose text is hidden, such as a password. */
   secure?: true;
   /** In the window's own pixels from its top left; absent when the platform did not say. */

@@ -176,6 +176,19 @@ it('names an image by its alt, an SVG by its title, and anything else by its tit
   expect(await screen.tree()).not.toContain('svg ""');
 });
 
+it("finds an image by its alt and anything by its title, as Testing Library's queries do", async () => {
+  await device.open('/names');
+  await expect(screen.getByAltText('A red square')).toBeVisible();
+  await expect(screen.getByAltText('Search')).toHaveRole('button');
+  await expect(screen.getByAltText('A red square')).toHaveAttribute('alt', 'A red square');
+  await expect(screen.getByTitle('Delete the draft')).toHaveAccessibleName('×');
+  await expect(screen.getByTitle('Close')).toHaveRole('image');
+  await expect(screen.getByTitle(/^On/)).toHaveText('●');
+  // The image inside role="img" is part of the picture: only the outer one is found, and not by an alt it does not have.
+  expect(await screen.queryByAltText('Chart')).toBeNull();
+  await expect(screen.findByTitle('Open', {}, {timeout: 0})).rejects.toThrow('the titles there: "Close", "Delete the draft", "Online"');
+});
+
 it('names its own steps', async () => {
   await step('Open the profile', async () => {
     await device.open('/');

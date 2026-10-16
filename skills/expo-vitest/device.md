@@ -38,7 +38,8 @@ An environment variable beats the file: `HARNESS_URL`, `HARNESS_TARGET`,
 
 `screen` has React Native Testing Library's queries: `getByRole`, `getByText`,
 `getByLabelText`, `getByPlaceholderText`, `getByDisplayValue`, `getByTestId`
-and `getByHintText`, each in the `getAllBy`, `queryBy`, `findBy` families too.
+and `getByHintText`, and Testing Library's `getByAltText` and `getByTitle`,
+each in the `getAllBy`, `queryBy`, `findBy` families too.
 `within(locator)` scopes the queries to one node.
 
 `getByRole('button', {name: 'Save'})` reads the node's kind, the same word on

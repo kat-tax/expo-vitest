@@ -276,6 +276,8 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `pressed` | A toggle button: whether it is pressed in, or `'mixed'`. `aria-pressed` on web; on Windows, `ToggleState` on a `Button` that also invokes. |
 | `value` | What a field holds, or a slider's value. Never set on a secure field. |
 | `placeholder` | The hint an empty field shows. Not on Windows, where react-native-windows does not report it. |
+| `alt` | An image's text alternative as a page wrote it: the `alt` of an `<img>` or an image button. Web only: on a device React Native makes an Image's `alt` its label, which is the node's `name`. |
+| `title` | The `title` an element was given, or the `<title>` an SVG holds: what a browser shows over it. Web only. |
 | `secure` | `true` on a field whose text is hidden, such as a password. |
 | `bounds` | The rectangle, in the window's own pixels from its top left. |
 | `patterns` | The UI Automation patterns a Windows control implements, each a way to drive it without a pointer: `Invoke`, `Toggle`, `SelectionItem`, `Value`, `ScrollItem`, `ExpandCollapse`. Windows only. |
@@ -284,7 +286,8 @@ The fields from `help` down are absent unless the platform reported them, and
 the absence is a finding: a control that sets none reads differently to a
 screen reader from one that sets them, and a missing `live` or `inSet` is
 invisible in a unit test and obvious to a user. Windows fills all of
-them but `placeholder`. The other platforms fill what their own trees carry.
+them but `placeholder`, `alt` and `title`. The other platforms fill what
+their own trees carry.
 
 On web, what a screen reader is told to pass over, under `aria-hidden="true"`,
 is not in the tree, as it is not on a device.

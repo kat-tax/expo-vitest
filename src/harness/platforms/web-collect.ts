@@ -188,6 +188,8 @@ export const COLLECT = `((last, options) => {
       ...(placeholder ? {placeholder} : null),
       ...(secure ? {secure: true} : null),
       ...(help ? {help} : null),
+      ...(alt ? {alt} : null),
+      ...(titled ? {title: titled} : null),
       ...(level ? {heading: Number(level)} : null),
       ...(ariaRole ? {ariaRole} : null),
       ...(leaf ? {leaf: true} : null),

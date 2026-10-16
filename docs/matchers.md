@@ -38,7 +38,7 @@ device](#on-a-snapshot-or-the-device).
 | `toHaveAccessibleName(match?)` | the node's name matches, or it has one when none is given | waits |
 | `toHaveRole(role)` | the node's role or kind is `role`, in any case, or matches a pattern | waits |
 | `toHaveCount(count)` | the locator names `count` nodes | passes for `0` |
-| `toHaveAttribute(name, match?)` | the tree field `name` is there, and matches: `help`, `inSet`, `heading`, `live`, `status`, `dialog`, `testId`, `placeholder`, `role` or `kind` | waits |
+| `toHaveAttribute(name, match?)` | the tree field `name` is there, and matches: `help`, `inSet`, `heading`, `live`, `status`, `dialog`, `testId`, `placeholder`, `alt`, `title`, `role` or `kind` | waits |
 
 A node's name is worked out [as a role's is](locators.md#what-a-node-is-called):
 its own, or for a control with none, the text inside it. A matcher about one

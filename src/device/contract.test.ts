@@ -321,9 +321,9 @@ describe('screen', () => {
     await expect(render(null as never)).rejects.toThrow(failure('INVALID_ARGUMENT', 'render mounts a component in a unit test; a device test drives the running app, and opens a route of it with device.open'));
   });
 
-  it("has RNTL's forty-two queries and the tree they read, and within the same", () => {
+  it("has RNTL's forty-two queries, Testing Library's twelve for an image's text alternative and a title, and the tree they read, and within the same", () => {
     const families = ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy'];
-    const words = ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText'];
+    const words = ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText', 'AltText', 'Title'];
     const expected = [...families.flatMap(family => words.map(word => `${family}${word}`)), 'tree'].sort();
     expect(Object.keys(screen).sort()).toEqual(expected);
     expect(Object.keys(within(screen.getByRole('dialog'))).sort()).toEqual(expected);
@@ -696,6 +696,8 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(expect(locator).toHaveText).toBeCallableWith(['a', /b/], {timeout: 1, exact: false});
     expectTypeOf(expect(locator).toHaveCount).toBeCallableWith(2, {timeout: 1});
     expectTypeOf(expect(locator).toHaveAttribute).toBeCallableWith('heading', '2', {timeout: 1});
+    expectTypeOf(expect(locator).toHaveAttribute).toBeCallableWith('alt', 'Logo');
+    expectTypeOf(expect(locator).toHaveAttribute).toBeCallableWith('title', /Close/);
 
     expectTypeOf(deviceConfig).returns.toEqualTypeOf<ViteUserConfig>();
     expectTypeOf<NonNullable<Parameters<typeof deviceConfig>[0]>>().toMatchObjectType<{

@@ -35,12 +35,12 @@ const ok = node('@e2', 'button', 'OK', {kind: 'button', parent: '@e1', testId: '
 const outside = node('@e3', 'button', 'OK', {kind: 'button', testId: 'ok-outside'});
 
 describe('the queries', () => {
-  it("are RNTL's six families of seven predicates", () => {
+  it("are RNTL's six families of nine predicates, Testing Library's AltText and Title among them", () => {
     const {queries} = rig(() => []);
     const names = Object.keys(queries).filter(name => name !== 'tree').sort();
-    expect(names).toHaveLength(42);
+    expect(names).toHaveLength(54);
     for (const family of ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy']) {
-      for (const word of ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText']) expect(names).toContain(`${family}${word}`);
+      for (const word of ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText', 'AltText', 'Title']) expect(names).toContain(`${family}${word}`);
     }
   });
 

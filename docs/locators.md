@@ -28,10 +28,10 @@ A test that imports React Native Testing Library's or Testing Library's
 
 ## The queries
 
-Seven predicates, each in RNTL's six families: `getByRole`, `getAllByRole`,
+Nine predicates, each in RNTL's six families: `getByRole`, `getAllByRole`,
 `queryByRole`, `queryAllByRole`, `findByRole`, `findAllByRole`, and the same
-for `Text`, `LabelText`, `PlaceholderText`, `DisplayValue`, `TestId` and
-`HintText`.
+for `Text`, `LabelText`, `PlaceholderText`, `DisplayValue`, `TestId`,
+`HintText`, and Testing Library's `AltText` and `Title`.
 
 | Family | Matches | Gives | Fails |
 | --- | --- | --- | --- |
@@ -56,6 +56,8 @@ between readings in place of the growing one.
 | `DisplayValue` | `value` | What a field holds. A secure field never has one. |
 | `TestId` | `testId` | The `testID` the component was given. |
 | `HintText` | `help` | The hint: `HelpText` on Windows; on web, what `aria-describedby` points at, `aria-description`, or a `title` that does not name the node; in a unit test, `accessibilityHint`. On a device on iOS and Android it matches nothing. |
+| `AltText` | `alt` on web, an image's `name` elsewhere | An image's text alternative. On web, the `alt` of an `<img>` or an image button; react-native-web writes an Image's `accessibilityLabel` there, and not its `alt`. On iOS, Android and Windows, React Native makes an Image's `alt` its label, so an image is found by its name. |
+| `Title` | `title` | The `title` an element was given, or the `<title>` an SVG holds. Only a page gives one, so elsewhere it matches nothing. |
 
 Every predicate leaves out a node that is off screen, unless the query is
 given `{hidden: true}`. RNTL's spelling, `includeHiddenElements`, works too.

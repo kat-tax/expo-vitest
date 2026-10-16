@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Platform, Pressable, Switch, Text, TextInput, View} from 'react-native';
+import {Image, Platform, Pressable, Switch, Text, TextInput, View} from 'react-native';
 import {device, render, screen, within} from 'expo-vitest';
 
 function Settings() {
@@ -45,6 +45,12 @@ describe('a unit test', () => {
     await expect(within(screen.getByRole('button', {name: 'Save'})).getByText('Save')).toBeVisible();
     expect(device.platform).toBe(Platform.OS);
     expect(await screen.tree()).toMatchSnapshot();
+  });
+
+  it('finds an image by its text alternative on every platform, and nothing by a title, which only a page gives', async () => {
+    await render(<Image accessibilityLabel="Logo" source={{uri: 'https://example.com/logo.png'}} style={{width: 32, height: 32}}/>);
+    await expect(screen.getByAltText('Logo')).toBeVisible();
+    expect(await screen.queryByTitle('Logo')).toBeNull();
   });
 
   it('presses as the first thing a test does, with nothing focused', async () => {
