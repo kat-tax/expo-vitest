@@ -20,7 +20,7 @@ what this machine can drive:
                 firefox  installed, firefox-1543
                 webkit   not installed: run `npx playwright-core install webkit`
   no   windows  no app to drive: build one (`expo-windows run`) and pass --target <exe or process name>
-  yes  android  1 device: 2B221FDH3S0HDK
+  yes  android  1 device: emulator-5554
   no   ios      the iOS simulator only runs on macOS
 
 nothing here changes your machine; a "no" says what is missing.
