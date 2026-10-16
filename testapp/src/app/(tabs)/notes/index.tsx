@@ -3,7 +3,7 @@
 // press on Android and Windows, a swipe on iOS), an empty state for a search
 // that finds nothing, and a new note from the floating button.
 import {router} from 'expo-router';
-import {Chip, EmptyState, Fab, Icon, List, ListItem, Screen, SearchField, useToast} from 'expo-interface';
+import {Chip, EmptyState, Fab, Icon, List, ListItem, NativeHost, Screen, SearchField, useToast} from 'expo-interface';
 import {useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {OfflineBanner} from '../../../components/offline';
@@ -39,11 +39,11 @@ export default function Notes() {
       <View style={styles.top}>
         <OfflineBanner />
         <SearchField value={query} onChangeText={setQuery} placeholder="Search notes" testID="notes-search" />
-        <View style={styles.filters}>
+        <NativeHost fit direction="row" spacing={8}>
           {FILTERS.map(each => (
             <Chip key={each.value} label={each.label} selected={filter === each.value} onPress={() => setFilter(each.value)} testID={`notes-filter-${each.value}`} />
           ))}
-        </View>
+        </NativeHost>
       </View>
       <List
         data={shown}
@@ -79,6 +79,5 @@ export default function Notes() {
 
 const styles = StyleSheet.create({
   top: {gap: 12, paddingHorizontal: 16, paddingBottom: 8},
-  filters: {flexDirection: 'row', gap: 8},
   list: {flex: 1},
 });
