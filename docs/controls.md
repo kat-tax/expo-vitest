@@ -11,7 +11,7 @@ for one answers `'skipped'` rather than failing, and `device.lastSkip` says
 why, so one test runs on all four platforms and says what it could not do.
 
 ```ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('starts signed out once its state is cleared', async () => {
   await device.clearState();
@@ -108,7 +108,7 @@ warm-up of a project per platform.
 Three wrappers make a block of tests depend on it:
 
 ```ts
-import {onlyOn, requires, skipOn} from 'expo-vitest/device';
+import {onlyOn, requires, skipOn} from 'expo-vitest';
 
 onlyOn(['windows', 'web'], () => {
   it('has a menu bar', async () => {});

@@ -1,7 +1,7 @@
 // The connection: a banner over the notes while there is none, which goes
 // when it comes back. Where a device cannot be taken offline the step is
 // skipped, and the test says so rather than passing on nothing.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {signedIn} from './helpers';
 
 /**

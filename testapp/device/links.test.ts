@@ -1,6 +1,6 @@
 // Links into the app: one to a note opens that note, one to a note that is
 // gone says so, and one into the app without an account goes to sign-in.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {firstLaunch, signedIn} from './helpers';
 
 it('opens the note a link names', async () => {

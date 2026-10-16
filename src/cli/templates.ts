@@ -28,7 +28,7 @@ export function devicePlatforms(choices: Choices): Platform[] {
 /** `vitest.config.mts`: a project per platform. */
 export function vitestConfig(choices: Choices): string {
   return `import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects({platforms: ${quoted(ordered(choices.platforms))}})},
@@ -39,7 +39,7 @@ export default defineConfig({
 /** `vitest.config.device.mts`: the device tests, a project per platform. */
 export function deviceVitestConfig(choices: Choices): string {
   return `import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig({platforms: ${quoted(devicePlatforms(choices))}}));
 `;
@@ -65,7 +65,7 @@ export function harnessConfig(detection: Detection, choices: Choices): string {
   if (choices.platforms.includes('ios')) entries.push(`${identity.bundleId ? '' : placeholder}    ios: {bundleId: '${identity.bundleId ?? 'com.example.app'}'${scheme}},`);
   // A Windows app is found as the exe under windows/x64, so only a scheme is worth saying.
   if (choices.platforms.includes('windows') && identity.scheme) entries.push(`    windows: {scheme: '${identity.scheme}'},`);
-  return `import {defineHarness} from 'expo-vitest/device';
+  return `import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {
@@ -87,7 +87,7 @@ it('knows its platform', () => {
 
 /** `device/example.test.ts`: a device test that opens the app and reads what it drew. */
 export function deviceExampleTest(): string {
-  return `import {device} from 'expo-vitest/device';
+  return `import {device} from 'expo-vitest';
 
 it('opens the app and reads what it drew', async () => {
   await device.open('/');

@@ -59,7 +59,7 @@ named for it.
 ## Write a device test
 
 ```ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('saves the profile', async () => {
   await device.open('/settings');

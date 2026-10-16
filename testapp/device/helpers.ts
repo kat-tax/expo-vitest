@@ -1,8 +1,8 @@
 // What the tests share: the demo account, the app's launches as each
 // platform has them, a first launch taken past onboarding and signed in, a
 // row's own actions, and the tabs.
-import type {Locator, Queries} from 'expo-vitest/device';
-import {device, screen, within} from 'expo-vitest/device';
+import type {Locator, Queries} from 'expo-vitest';
+import {device, screen, within} from 'expo-vitest';
 
 export const DEMO = {email: 'ada@example.com', password: 'testapp-demo-pass'};
 

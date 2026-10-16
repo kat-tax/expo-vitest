@@ -34,7 +34,7 @@ const chose = (extra: Partial<Choices> = {}): Choices => ({platforms: ['web', 'a
 describe('the configs', () => {
   it('name the platforms chosen, in the order a config names them', () => {
     expect(vitestConfig(chose({platforms: ['web', 'ios', 'android']}))).toBe(`import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects({platforms: ['ios', 'android', 'web']})},
@@ -46,7 +46,7 @@ export default defineConfig({
     expect(devicePlatforms(chose())).toEqual(['web']);
     expect(devicePlatforms(chose({platforms: ['windows', 'android']}))).toEqual(['android', 'windows']);
     expect(deviceVitestConfig(chose())).toBe(`import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig({platforms: ['web']}));
 `);
@@ -56,7 +56,7 @@ export default defineConfig(deviceConfig({platforms: ['web']}));
 describe('the harness config', () => {
   it("serves web through the project's own manager, and names each app by app.json's ids", () => {
     const text = harnessConfig(found({manager: 'bun', identity: {scheme: 'shop', bundleId: 'com.example.shop.ios', package: 'com.example.shop'}}), chose({platforms: ['web', 'android', 'ios', 'windows']}));
-    expect(text).toBe(`import {defineHarness} from 'expo-vitest/device';
+    expect(text).toBe(`import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {

@@ -2,7 +2,8 @@
 
 [Docs home](README.md)
 
-`expo-vitest` exports three functions that make Vitest configuration:
+`expo-vitest/config` exports three functions that make Vitest configuration,
+and `defineHarness`, which types the [harness config](#harnessconfigts):
 
 | Function | What it makes |
 | --- | --- |
@@ -14,7 +15,7 @@
 
 ```ts
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects()},
@@ -85,7 +86,7 @@ forbidden module, that test fails and names it.
 // packages/kit/vitest.config.mts, run from the repository root
 import path from 'node:path';
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects({root: path.resolve(import.meta.dirname)})},
@@ -110,7 +111,7 @@ A CLI, a Metro config or a build script is Node code, not React Native.
 clearing:
 
 ```ts
-import {expoProjects, nodeProject} from 'expo-vitest';
+import {expoProjects, nodeProject} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {
@@ -137,7 +138,7 @@ with the component tests.
 ```ts
 // vitest.config.device.mts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig());
 ```
@@ -197,7 +198,7 @@ and the waits.
 
 ```ts
 // harness.config.ts
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {

@@ -212,7 +212,7 @@ When they finish, it:
 // Expected: a message that names the empty fields
 // Observed: the page stayed as it was, with no message
 import {agent} from 'expo-vitest/agent';
-import {device, onlyOn, screen} from 'expo-vitest/device';
+import {device, onlyOn, screen} from 'expo-vitest';
 import {describe, it} from 'vitest';
 
 describe.skipIf(!process.env.HARNESS_BUGBASH)("[bugbash] sign-in: Sign in with an empty form says nothing", () => {

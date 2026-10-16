@@ -1,6 +1,6 @@
 // Sign-up: the form says what it lacks when sent, section by section, rates
 // the password as it is typed, and creates the account once all is there.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {field, firstLaunch, searchField, setCheckbox} from './helpers';
 
 beforeEach(async () => {

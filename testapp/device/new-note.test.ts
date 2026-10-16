@@ -1,6 +1,6 @@
 // A new note: made from the list, titled and saved in the editor, and found
 // in the list on the way back.
-import {screen} from 'expo-vitest/device';
+import {screen} from 'expo-vitest';
 import {field, openTab, searchField, signedIn} from './helpers';
 
 beforeEach(signedIn);

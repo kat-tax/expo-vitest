@@ -1,7 +1,7 @@
 // Sign-in: the button waits for both fields, a malformed email is refused
 // at once, a wrong password after the server answers, the demo account goes
 // to the notes, and an account not remembered is gone after a restart.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {DEMO, field, firstLaunch, relaunch, searchField, setCheckbox} from './helpers';
 
 const email = () => field('Email', 'sign-in-email');

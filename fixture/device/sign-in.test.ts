@@ -3,7 +3,7 @@
 // reading what changed, and each query here is the screen.* call its
 // locate answered for the node. With a field empty the press changes
 // nothing but the focus; with all three filled the welcome replaces the form.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('stays on the form while a field is empty, and welcomes the email once all three hold something', async () => {
   await device.open('/sign-in');

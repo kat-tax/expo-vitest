@@ -1,17 +1,15 @@
 /**
- * Vitest for Expo code on every platform it runs on.
+ * The tests' API, as `expo-vitest`: a device test drives a running app on
+ * iOS, Android, web or Windows, and reads its accessibility tree.
  *
- * - `expoProjects()` makes one Vitest project for iOS, Android, web and
- *   Windows, and a test file's name decides which of them run it.
- * - `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router` are
- *   helpers for the tests: the payload `@expo/ui` hands SwiftUI and Compose, a
- *   Windows native component's props and events, an in-memory Expo Router app.
- * - `expo-vitest/device` drives a running app and reads its accessibility
- *   tree, on the harness the `expo-harness` command is the other face of.
+ *   import {device, screen} from 'expo-vitest';
+ *
+ *   await device.open('/settings');
+ *   await screen.getByRole('button', {name: 'Save'}).press();
+ *   await expect(screen.getByText('Saved')).toBeVisible();
+ *
+ * A Vitest config and a harness config import from `expo-vitest/config`,
+ * as Vitest keeps `vitest` and `vitest/config` apart.
  */
-export type {ExpoProjectsOptions, Platform} from './projects.ts';
-export {deviceConfig, expoProjects, nodeProject} from './projects.ts';
-export {forbidModules} from './forbid-modules.ts';
-export {EXPO_WEB_PACKAGES, metroCompat} from './metro-compat.ts';
-export {TEST_TIMEOUT} from './timeout.ts';
-export {windowsResolution} from './windows-resolution.ts';
+export {by, configFromEnvironment, device, element, HarnessError, isHarnessError, Journal, Locator, onlyOn, reactNodeOf, requires, screen, skipOn, within, withComponents} from './device/index.ts';
+export type {Attribute, Capability, DeviceConfig, DialogAnswer, ExpectOptions, FindOptions, HarnessCode, Kind, LocatorState, OptionChoice, Orientation, Queries, QueryOptions, ReactNode, ReactTree, RoleQueryOptions, Selector, Snapshot, SnapshotNode, Step, StepEvent, TextMatch, TextMatchOptions, TextQueryOptions, TreeDigest, WaitOptions, WebCookie, WebRequest, WebRoute} from './device/index.ts';

@@ -2,7 +2,7 @@
 // relaunch, a display name's problem shows under its section, and what needs
 // a confirmation asks for one: signing out, resetting the app, and deleting
 // the account, which waits for a word typed first.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {alert, alertTitle, expectCheckbox, field, openTab, relaunch, searchField, setCheckbox, signedIn} from './helpers';
 
 const name = () => field('Display name', 'settings-name');

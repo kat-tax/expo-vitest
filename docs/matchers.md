@@ -7,7 +7,7 @@ do: each reads it until it says what the matcher asks, or until the time is
 up. Await them.
 
 ```ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('saves the name', async () => {
   await device.open('/settings');
@@ -93,7 +93,7 @@ A wait for something to be gone that did not hold says how long it must.
 
 ## Types
 
-`expo-vitest/device` brings the matchers' types with it. React Native Testing
+`expo-vitest` brings the matchers' types with it. React Native Testing
 Library and jest-dom name some of them too: `toBeVisible`, `toBeEnabled`,
 `toBeDisabled`, `toBeChecked`, `toBeSelected`, `toBeExpanded`, `toBePressed`,
 `toHaveAccessibleName`, `toHaveValue`, `toHaveRole` and `toHaveAttribute`.

@@ -1,4 +1,4 @@
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 import {rules} from './device/rules.mts';
 
 // The app the device tests drive. Web is served by Expo's dev server, which

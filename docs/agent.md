@@ -9,7 +9,7 @@ scripted step share the browser, the window or the device, and the evidence
 of a failing test shows both in order.
 
 ```ts
-import {device} from 'expo-vitest/device';
+import {device} from 'expo-vitest';
 import {agent, secret} from 'expo-vitest/agent';
 
 it('upgrades the workspace', async () => {
@@ -32,7 +32,7 @@ their models and the secrets from `harness.config.ts`:
 
 ```ts
 // harness.config.ts
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 import {anthropic} from 'expo-vitest/agent/anthropic';
 
 export default defineHarness({

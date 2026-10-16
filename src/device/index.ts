@@ -8,7 +8,7 @@
  * (driven by `agent-device`) and on web (a headless Chromium). The app under
  * test needs no SDK and no rebuild.
  *
- *   import {by, device, element, screen} from 'expo-vitest/device';
+ *   import {by, device, element, screen} from 'expo-vitest';
  *
  *   await device.open('/');
  *   await screen.getByRole('button', {name: 'Settings'}).press();

@@ -4,7 +4,7 @@
 agents, their models and the secrets are in `harness.config.ts`.
 
 ```ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {agent, secret} from 'expo-vitest/agent';
 
 it('signs in', async () => {

@@ -184,7 +184,7 @@ and every test folded away.
 ```ts
 // vitest.config.device.mts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 import {github, summary} from 'expo-vitest/reporter';
 
 export default defineConfig(deviceConfig({platforms: ['web', 'android'], reporters: ['default', summary(), github()]}));

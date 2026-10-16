@@ -4,7 +4,7 @@
 // once the assertion after it has held; the second, with FIXTURE_AGENT_REPLAY,
 // replays it, and the model refuses to act there.
 import {agent, isAgentError, secret} from 'expo-vitest/agent';
-import {device} from 'expo-vitest/device';
+import {device} from 'expo-vitest';
 
 afterAll(() => device.close());
 

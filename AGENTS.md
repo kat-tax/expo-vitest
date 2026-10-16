@@ -9,6 +9,7 @@ topic. A change to a feature changes its page. What is left to build is in
 
 | Path | What |
 | --- | --- |
+| `src/index.ts`, `src/config.ts` | the two entries: `expo-vitest`, what a test imports, and `expo-vitest/config`, what a config imports |
 | `src/projects.ts` | `expoProjects`, `nodeProject`, `deviceConfig`: everything a consumer's config calls |
 | `src/windows-resolution.ts`, `src/forbid-modules.ts`, `src/metro-compat.ts` | the three Vite plugins |
 | `src/setup/` | the setup file of each project |

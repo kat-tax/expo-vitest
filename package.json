@@ -30,6 +30,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./matchers": {
+      "types": "./dist/device/matchers.d.ts",
+      "default": "./dist/device/matchers.js"
+    },
     "./native": {
       "types": "./dist/native.d.ts",
       "default": "./dist/native.js"
@@ -42,14 +50,7 @@
       "types": "./dist/router.d.ts",
       "default": "./dist/router.js"
     },
-    "./device": {
-      "types": "./dist/device/index.d.ts",
-      "default": "./dist/device/index.js"
-    },
-    "./device/matchers": {
-      "types": "./dist/device/matchers.d.ts",
-      "default": "./dist/device/matchers.js"
-    },
+
     "./reporter": {
       "types": "./dist/reporter/index.d.ts",
       "default": "./dist/reporter/index.js"

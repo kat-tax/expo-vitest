@@ -286,7 +286,7 @@ export const LOCATOR_MATCHERS = {
 };
 
 // The device matchers' types, here rather than in the setup file so that
-// `expo-vitest/device`, which re-exports a type from this file, brings
+// `expo-vitest`, which re-exports a type from this file, brings
 // them into any program that imports it. Vitest 4 re-exports `Matchers`
 // and `Assertion` from `@vitest/expect`, and an augmentation of the
 // re-exporting module does not merge, so they are extended at their origin.

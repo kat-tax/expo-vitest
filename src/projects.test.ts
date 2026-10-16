@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import os from 'node:os';
-import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, nodeProject, SELF, selfAliases, SUBPATHS} from './projects.ts';
+import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, SELF, selfAliases, SUBPATHS} from './projects.ts';
 
 const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE, 'package.json'), 'utf8'));
@@ -18,6 +18,8 @@ describe('the subpaths', () => {
       .filter(key => !['.', './types', './package.json'].includes(key))
       .map(key => key.slice(2));
     expect(Object.keys(SUBPATHS).sort()).toEqual(exported.sort());
+    expect(fs.existsSync(path.join(PACKAGE, 'src', MAIN))).toBe(true);
+    expect(manifest.exports['.'].default).toBe(`./dist/${MAIN.replace(/\.ts$/, '.js')}`);
     for (const [subpath, source] of Object.entries(SUBPATHS)) {
       expect(fs.existsSync(path.join(PACKAGE, 'src', source)), subpath).toBe(true);
       // The compiled file the export names is the source's, under `dist`.
@@ -30,11 +32,14 @@ describe('the subpaths', () => {
     // Compiled, the file beside this one is JavaScript, whatever it was.
     expect(file('router.tsx', true)).toBe(path.join(PACKAGE, 'src', 'router.js'));
     const aliases = selfAliases();
-    expect(aliases).toHaveLength(Object.keys(SUBPATHS).length);
+    expect(aliases).toHaveLength(Object.keys(SUBPATHS).length + 1);
     const router = aliases.find(alias => (alias.find as RegExp).test('expo-vitest/router'));
     expect(router?.replacement).toBe(path.join(PACKAGE, 'src', 'router.tsx'));
-    // A subpath is matched whole: `device` is not `device/matchers`.
-    expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/device/matchers'))).toHaveLength(1);
+    // The entry is the package's own name, and nothing under it.
+    const main = aliases.filter(alias => (alias.find as RegExp).test('expo-vitest'));
+    expect(main.map(alias => alias.replacement)).toEqual([path.join(PACKAGE, 'src', 'index.ts')]);
+    // A subpath is matched whole: `agent` is not `agent/anthropic`.
+    expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/agent/anthropic'))).toHaveLength(1);
     expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/windows/more'))).toHaveLength(0);
   });
 });

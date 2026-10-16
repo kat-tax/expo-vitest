@@ -1,5 +1,5 @@
 import {defineConfig} from 'vitest/config';
-import {nodeProject} from './src/index.ts';
+import {nodeProject} from './src/config.ts';
 
 /**
  * The package's own logic, in Node: the file names each platform takes, the

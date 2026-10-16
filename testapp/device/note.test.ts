@@ -1,6 +1,6 @@
 // A note: an edit saved with a toast, an edit left only after saying so,
 // and a delete from the menu, undone from the toast.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {alert, alertTitle, field, menuItem, signedIn} from './helpers';
 
 beforeEach(async () => {

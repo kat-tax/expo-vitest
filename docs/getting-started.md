@@ -48,7 +48,7 @@ whichever loader reads it.
 ```ts
 // vitest.config.mts
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects()},

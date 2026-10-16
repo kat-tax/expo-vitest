@@ -10,7 +10,7 @@ before the screen changed still finds what is on it after.
 
 ```ts
 // device/profile.test.ts
-import {device, screen, within} from 'expo-vitest/device';
+import {device, screen, within} from 'expo-vitest';
 
 it('saves a new name', async () => {
   await device.open('/');
@@ -247,7 +247,7 @@ The shorter spelling: `element(by.…)` names a node with a selector, and acts
 on the first node it matches, without waiting.
 
 ```ts
-import {by, element} from 'expo-vitest/device';
+import {by, element} from 'expo-vitest';
 
 await element(by.testID('save')).press();
 ```

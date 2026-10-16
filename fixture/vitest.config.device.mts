@@ -1,5 +1,5 @@
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 import {github, summary} from 'expo-vitest/reporter';
 
 // The device tests, as an app's device config is: by the package's name, a

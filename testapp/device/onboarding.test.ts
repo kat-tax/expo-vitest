@@ -1,7 +1,7 @@
 // A first launch: three pages that introduce the app, which Next moves
 // through and Get started or Skip finishes, and which a launch after does
 // not show again.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {field, firstLaunch, relaunch} from './helpers';
 
 beforeEach(async () => {

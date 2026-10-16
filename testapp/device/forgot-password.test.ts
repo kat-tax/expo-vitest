@@ -1,6 +1,6 @@
 // A forgotten password: an email that is not one is refused, and one that
 // is gets the confirmation, from which sign-in is a press away.
-import {screen} from 'expo-vitest/device';
+import {screen} from 'expo-vitest';
 import {field, firstLaunch} from './helpers';
 
 beforeEach(async () => {

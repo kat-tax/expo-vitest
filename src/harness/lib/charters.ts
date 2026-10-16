@@ -193,7 +193,7 @@ export function skeletonOf(found: Found, platform: string, date: string): string
     `// Observed: ${line(found.observed)}`,
     ...(repro.length > 0 ? ['// The steps, as the explore told them:', ...repro] : []),
     `import {agent${secrets ? ', secret' : ''}} from 'expo-vitest/agent';`,
-    "import {device, onlyOn, screen} from 'expo-vitest/device';",
+    "import {device, onlyOn, screen} from 'expo-vitest';",
     "import {describe, it} from 'vitest';",
     '',
     `describe.skipIf(!process.env.HARNESS_BUGBASH)(${quoted(`[bugbash] ${found.area}: ${line(found.title)}`)}, () => {`,

@@ -1,7 +1,7 @@
 // The notes: a search that narrows the list and an empty state that clears
 // it, the filters, a favourite and an archive from a row's own menu, and a
 // new note that opens in the editor.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 import {field, rowAction, searchField, signedIn} from './helpers';
 
 // A row by its title, pressed there as a finger would. On web a row with a

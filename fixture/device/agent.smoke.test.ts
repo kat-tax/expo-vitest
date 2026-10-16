@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {agent, secret} from 'expo-vitest/agent';
-import {device} from 'expo-vitest/device';
+import {device} from 'expo-vitest';
 
 describe.skipIf(!process.env.HARNESS_AGENT_SMOKE)('the agent, live', () => {
   afterAll(() => device.close());

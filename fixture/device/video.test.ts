@@ -2,7 +2,7 @@
 // HARNESS_VIDEO=retain-on-failure and FIXTURE_VIDEO=1, and checks that the
 // test that fails on purpose kept its recording and the one that passes kept
 // none.
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 afterAll(() => device.close());
 

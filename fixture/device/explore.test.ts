@@ -5,7 +5,7 @@
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {onlyOn} from 'expo-vitest/device';
+import {onlyOn} from 'expo-vitest';
 
 interface Report {
   steps: {tool: string; ok: boolean; query?: string}[];

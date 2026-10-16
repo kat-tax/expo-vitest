@@ -4,7 +4,7 @@
  * start it, and the run's waits.
  *
  *   // harness.config.ts
- *   import {defineHarness} from 'expo-vitest/device';
+ *   import {defineHarness} from 'expo-vitest/config';
  *
  *   export default defineHarness({
  *     app: {

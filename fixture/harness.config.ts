@@ -1,5 +1,5 @@
 import {anthropic} from 'expo-vitest/agent/anthropic';
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 import {rules} from './device/rules.mts';
 
 // The app the device tests drive, as an app's harness config names its own:

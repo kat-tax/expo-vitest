@@ -4,7 +4,7 @@
 // stdout must be JSON, since one stray line ends a client's session.
 import {spawn} from 'node:child_process';
 import path from 'node:path';
-import {onlyOn} from 'expo-vitest/device';
+import {onlyOn} from 'expo-vitest';
 
 interface Message {
   id?: number;

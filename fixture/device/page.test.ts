@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
 import {inject} from 'vitest';
-import {by, device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest/device';
+import {by, device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest';
 
 afterAll(() => device.close());
 

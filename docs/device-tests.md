@@ -32,7 +32,7 @@ component tests, since they need a real app somewhere:
 ```ts
 // vitest.config.device.mts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
 ```
@@ -50,7 +50,7 @@ test does not wait for a bundle to build:
 
 ```ts
 // harness.config.ts
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {
@@ -66,7 +66,7 @@ export default defineHarness({
 
 ```ts
 // device/settings.test.ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('saves a new name', async () => {
   await device.open('/settings');
@@ -271,7 +271,7 @@ named component above it, and its `testID`, label and text as written. An iOS
 native tree, and the React tree still has them.
 
 ```ts
-import {device, withComponents} from 'expo-vitest/device';
+import {device, withComponents} from 'expo-vitest';
 
 const tree = withComponents(await device.fullSnapshot(), await device.react());
 // each node now has its component: tree.nodes[0].component === 'SaveButton'
@@ -312,7 +312,7 @@ a test or a script that has to decide what to do next, and `platform` says
 where it happened.
 
 ```ts
-import {isHarnessError, screen} from 'expo-vitest/device';
+import {isHarnessError, screen} from 'expo-vitest';
 
 // A banner that only some accounts see: dismiss it if it is there.
 try {
@@ -437,5 +437,5 @@ one file at a time.
 own registers them with a setup file:
 
 ```ts
-setupFiles: ['expo-vitest/device/matchers']
+setupFiles: ['expo-vitest/matchers']
 ```

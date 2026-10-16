@@ -46,12 +46,12 @@ running app. New here? Start with [Getting started](getting-started.md).
 
 | Import | Exports |
 | --- | --- |
-| `expo-vitest` | `expoProjects`, `nodeProject`, `deviceConfig`, `forbidModules`, `windowsResolution`, `metroCompat`, `EXPO_WEB_PACKAGES`, `TEST_TIMEOUT` |
+| `expo-vitest` | What a test imports: `device`, `screen`, `within`, `element`, `by`, `Locator`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
+| `expo-vitest/config` | What a config imports: `expoProjects`, `nodeProject`, `deviceConfig`, `defineHarness`, `forbidModules`, `windowsResolution`, `metroCompat`, `EXPO_WEB_PACKAGES`, `TEST_TIMEOUT` |
+| `expo-vitest/matchers` | A setup file that registers the device matchers, for a config of your own. |
 | `expo-vitest/native` | `nodes`, `host`, `modifier`, `byComposeTestID`, `stackHeaders` |
 | `expo-vitest/windows` | `island`, `islands`, `fireIsland` |
 | `expo-vitest/router` | `renderApp` |
-| `expo-vitest/device` | `device`, `screen`, `within`, `element`, `by`, `Locator`, `defineHarness`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
-| `expo-vitest/device/matchers` | A setup file that registers the device matchers. |
 | `expo-vitest/agent` | `agent`, `forEachAgent`, `secret`, `unique`, `isSecret`, `isUnique`, `defineTool`, `toolLoopExecutor`, `AgentError`, `isAgentError`, `AGENT_CODES`, `BLOCKED_CODES` |
 | `expo-vitest/agent/anthropic` | `anthropic`, the Claude adapter. |
 | `expo-vitest/reporter` | `summary`, `github`: the [run's summary](ci.md#the-summary-and-the-pull-request-comment) as a file, a job summary and a pull request comment. |

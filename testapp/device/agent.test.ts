@@ -3,7 +3,7 @@
 // sign-in screen. What the app said is the test's to check, as it would be
 // with a live model.
 import {agent} from 'expo-vitest/agent';
-import {screen} from 'expo-vitest/device';
+import {screen} from 'expo-vitest';
 import {firstLaunch} from './helpers';
 
 beforeEach(async () => {

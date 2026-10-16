@@ -21,13 +21,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Whether this is the compiled package rather than its source: the files beside it are `.js` then. */
 const BUILT = !fileURLToPath(import.meta.url).endsWith('.ts');
 
+/** The package's own entry, the tests' API, by its source file. */
+export const MAIN = 'index.ts';
+
 /** The package's subpaths, by the source file each is. `package.json`'s `exports` say the same; a test keeps them in step. */
 export const SUBPATHS: Record<string, string> = {
+  config: 'config.ts',
+  matchers: 'device/matchers.ts',
   native: 'native.ts',
   windows: 'windows.ts',
   router: 'router.tsx',
-  device: 'device/index.ts',
-  'device/matchers': 'device/matchers.ts',
   reporter: 'reporter/index.ts',
   'metro-compat': 'metro-compat.ts',
   agent: 'agent/index.ts',
@@ -40,12 +43,16 @@ export function file(source: string, built = BUILT): string {
 }
 
 /**
- * The package's own subpaths as absolute files, so that a test's import of
- * `expo-vitest/windows` and the setup files land on one copy of each module
- * whether the package is a workspace or installed.
+ * The package's own entry and subpaths as absolute files, so that a test's
+ * import of `expo-vitest` or `expo-vitest/windows` and the setup files land
+ * on one copy of each module whether the package is a workspace or
+ * installed.
  */
 export function selfAliases(): Alias[] {
-  return Object.entries(SUBPATHS).map(([subpath, source]) => ({find: new RegExp(`^expo-vitest/${subpath}$`), replacement: file(source)}));
+  return [
+    {find: /^expo-vitest$/, replacement: file(MAIN)},
+    ...Object.entries(SUBPATHS).map(([subpath, source]) => ({find: new RegExp(`^expo-vitest/${subpath}$`), replacement: file(source)})),
+  ];
 }
 
 /**
@@ -322,7 +329,7 @@ export interface DeviceConfigOptions {
 
 /**
  * The config for device tests: the ones that drive a real build of the app
- * and read what it actually rendered (`expo-vitest/device`). Its own config
+ * and read what it actually rendered (`expo-vitest`). Its own config
  * rather than a project, since it needs an app running somewhere and is run
  * on purpose:
  *

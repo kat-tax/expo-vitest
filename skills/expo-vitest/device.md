@@ -9,7 +9,7 @@ installed in the app.
 
 ```ts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
 ```
@@ -21,7 +21,7 @@ failed with `DRIVER_UNAVAILABLE` in CI or under `HARNESS_REQUIRE=1`.
 `harness.config.ts` names each platform's app:
 
 ```ts
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {
@@ -86,7 +86,7 @@ iframe. Off web each answers `'skipped'`; gate on `device.can('web')`.
 ## Gating
 
 ```ts
-import {onlyOn, requires, skipOn} from 'expo-vitest/device';
+import {onlyOn, requires, skipOn} from 'expo-vitest';
 
 requires(['setLocation'], () => {
   it('shows the map', async () => {});

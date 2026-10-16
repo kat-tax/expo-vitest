@@ -159,7 +159,7 @@ describe('the skeletons', () => {
         '//   1. open /sign-in',
         '//   2. tap Sign in',
         "import {agent} from 'expo-vitest/agent';",
-        "import {device, onlyOn, screen} from 'expo-vitest/device';",
+        "import {device, onlyOn, screen} from 'expo-vitest';",
         "import {describe, it} from 'vitest';",
         '',
         'describe.skipIf(!process.env.HARNESS_BUGBASH)("[bugbash] sign-in: Sign in with an empty form says nothing", () => {',

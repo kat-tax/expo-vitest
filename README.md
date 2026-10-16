@@ -49,7 +49,7 @@ Add a Vitest config:
 ```ts
 // vitest.config.mts
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects()},
@@ -192,7 +192,7 @@ for the run and stopped after it:
 
 ```ts
 // harness.config.ts
-import {defineHarness} from 'expo-vitest/device';
+import {defineHarness} from 'expo-vitest/config';
 
 export default defineHarness({
   app: {
@@ -207,7 +207,7 @@ Give the device tests a config of their own:
 ```ts
 // vitest.config.device.mts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 
 export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
 ```
@@ -216,7 +216,7 @@ Write the tests in `device/`:
 
 ```ts
 // device/sign-in.test.ts
-import {device, screen} from 'expo-vitest/device';
+import {device, screen} from 'expo-vitest';
 
 it('signs in', async () => {
   await device.open('/sign-in');
@@ -250,7 +250,7 @@ failure and links to its evidence:
 ```ts
 // vitest.config.device.mts
 import {defineConfig} from 'vitest/config';
-import {deviceConfig} from 'expo-vitest';
+import {deviceConfig} from 'expo-vitest/config';
 import {github, summary} from 'expo-vitest/reporter';
 
 export default defineConfig(deviceConfig({platforms: ['web', 'android'], reporters: ['default', summary(), github()]}));
@@ -263,7 +263,7 @@ and Codemagic.
 
 ```ts
 // device/billing.test.ts
-import {device} from 'expo-vitest/device';
+import {device} from 'expo-vitest';
 import {agent} from 'expo-vitest/agent';
 
 it('upgrades the plan', async () => {

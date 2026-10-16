@@ -3,7 +3,7 @@
 // call answering 'skipped'.
 import fs from 'node:fs';
 import path from 'node:path';
-import {device, onlyOn, screen} from 'expo-vitest/device';
+import {device, onlyOn, screen} from 'expo-vitest';
 
 const opened = () => device.open('/web');
 
