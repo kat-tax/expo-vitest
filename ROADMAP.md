@@ -115,11 +115,6 @@ These wait on an API key, and the runs are billed.
   windows. Two of the test app's tests are skipped on Windows for it.
 - A swipe in a unit test, and a hover on iOS, Android and Windows there.
   Nothing is laid out in a unit test, so a swipe has no distance to draw.
-- Quiet unit tests of an Expo Router app on Windows. There Expo Router takes
-  the branches it takes off iOS and Android, which load packages through
-  Node that also ship an ESM build, and vitest-native warns of each, as
-  `'nanoid' resolves to two different files`. The test passes; the warnings
-  are noise to stop, by having the engine load those packages one way.
 
 ### The agent and the MCP server
 
