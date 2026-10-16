@@ -331,6 +331,26 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
   }
 
   /**
+   * Deletes the folder of an app just stopped. Its window goes before the
+   * process lets go of its files, as its storage's database, and a delete
+   * then is refused, so it is tried again, a moment apart, for a few seconds.
+   * Node's own retries do not wait between tries here.
+   */
+  async function removeLetGo(folder: string): Promise<void> {
+    const deadline = Date.now() + 5000;
+    for (;;) {
+      try {
+        fs.rmSync(folder, {recursive: true, force: true});
+        return;
+      } catch (error) {
+        const code = (error as {code?: string}).code;
+        if ((code !== 'EPERM' && code !== 'EBUSY' && code !== 'ENOTEMPTY') || Date.now() > deadline) throw error;
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+  }
+
+  /**
    * Opens a route or a link. With the app running it is a second launch with
    * the link as its argument, which the app's single-instance check hands to
    * the window already open, as React Native's `url` event. With the app not
@@ -393,7 +413,7 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
             if (!exe) return failed(needsApp(request.name, 'windows', 'target'), 'INVALID_ARGUMENT');
             if (request.name === 'clearState' && !app.stateDir) return cannot(request, 'windows', CANNOT.windowsState);
             await stopApp();
-            if (app.stateDir && request.name === 'clearState') fs.rmSync(app.stateDir, {recursive: true, force: true});
+            if (app.stateDir && request.name === 'clearState') await removeLetGo(app.stateDir);
             const started = await openRoute('/');
             if (!started.ok) return started;
             return ok(`${request.name === 'clearState' ? `deleted ${path.relative(options.root, app.stateDir as string)}, then ` : ''}${started.message}`);
