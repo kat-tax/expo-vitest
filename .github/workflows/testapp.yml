@@ -128,6 +128,13 @@ jobs:
           HARNESS_TARGET: ${{ steps.simulator.outputs.udid }}
           HARNESS_METRO: http://localhost:41754
           TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      # What each thing the driver does costs on this simulator, for
+      # docs/performance.md: at the Settings app's first screen, with a press
+      # on its title, which does nothing, as the Android table is taken.
+      - name: Time the driver on the simulator
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: node src/harness/index.ts -p ios --target "${{ steps.simulator.outputs.udid }}" open com.apple.Preferences bench 20 --press 'label="Settings"'
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with: {name: testapp-ios, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
