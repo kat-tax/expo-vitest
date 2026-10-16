@@ -136,6 +136,8 @@ jobs:
       - run: npm ci
       - uses: actions/download-artifact@v8
         with: {name: windows-release, path: windows/x64/Release}
+      - run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+        shell: pwsh
       - run: npx vitest run --config vitest.config.device.mts --project device:windows
         env: {HARNESS_FORCE: '1', GITHUB_TOKEN: '${{ github.token }}'}
       - uses: actions/upload-artifact@v7
@@ -163,7 +165,9 @@ What each job keeps in mind:
   enough to be a job of its own. `HARNESS_FORCE` lets the harness send
   input on a desk [no one is using](device-tests.md#running),
   which on a runner is always so. The harness config's `app.windows.target`
-  names the exe under `windows/x64/Release`.
+  names the exe under `windows/x64/Release`. A runner's screen is 1024x768,
+  smaller than most app windows, and the harness will not press a part of a
+  window off the screen, so the job sets a larger one first.
 - **Web** needs nothing else: the harness config's command starts the dev
   server on the run's port, and stops it after.
 
