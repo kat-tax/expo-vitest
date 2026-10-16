@@ -1,6 +1,6 @@
 # Phase 7. The test app
 
-Status: in progress · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
+Status: in progress. The app and its suite are built and run from the packed package: on web every test passes but the two expo-interface bugs mark; on the Android emulator two full runs each passed 19 tests and failed the 8 marked ones as marked, and each lost one test, a different one each time, when the app left for the home screen as the emulator stopped answering adb. Open: Windows, which needs the .NET SDK and PowerShell 7 this machine lacks, iOS (no Mac), and explore and the MCP server against the app · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
 
 One app, kept in this repository, that behaves like a typical product app on
 iOS, Android, web and Windows, so that the device layer, the agent, explore,
@@ -8,6 +8,77 @@ bug bash and the MCP server all run against the same real screens, and
 expo-interface and expo-windows can build it too. It is fresh code, shaped
 like a common app: Entz was read for how it uses the libraries and lays out
 its screens, and nothing of it is copied.
+
+## As built
+
+On the `e2e` branch. Where the build differs from the design below, the
+build is what holds.
+
+- **Items 1 to 9.** `testapp/` as the routes table says, but for the notes:
+  a row's favourite, archive and delete are the row's own menu
+  (`ListItem`'s `swipeActions`), not an `IconToggle` in the row, which on
+  web is a button inside a button whose press opened the note too. The filter
+  chips sit in a `NativeHost`. The suite is 28 tests in 9 files in
+  `testapp/device/`, over helpers for a first launch, a relaunch, a
+  signed-in start, a row's own action, a menu item, an alert, a tab, the
+  search field and a text field. `bun run test:testapp` copies the app
+  outside this folder, installs it from its lockfile, unpacks the packed
+  package into it, type-checks it and runs the suite.
+- **Web.** 26 tests pass, and the two that choose from a row's menu fail as
+  marked, from the packed package in Chromium.
+- **Android.** A development build (`expo-dev-client`) made with
+  `expo prebuild` and Gradle in `testapp/android/`, which is not kept, and
+  installed on the Pixel_9_Pro_XL emulator. The suite runs with
+  `TESTAPP_PLATFORMS=android HARNESS_TARGET=emulator-5554
+  HARNESS_METRO=http://localhost:41752` after `adb reverse tcp:41752
+  tcp:41752`, and each first launch opens the app through its
+  `exp+testapp` link to that server. At the AVD's 2 GB the emulator
+  stopped answering adb part of the way through a run; started with
+  `-memory 4096`, it lasts most of one. Two full runs on it each passed 19
+  tests and failed the 8 marked ones as marked, and each lost one test, a
+  different one each time, when the app left for the home screen as the
+  emulator stopped answering adb.
+- **What the suite found in the harness, and fixed**, a commit each: an
+  option a select lacks fails at once with the options it has; Vitest's
+  copies of the evidence go under `.harness/attachments/`; the web tree
+  leaves out what is under `aria-hidden` and keeps text that is not drawn out
+  of a name; `HARNESS_TARGET` takes a device's id, its adb serial or UDID;
+  Android's tree is read as TalkBack reads it where Compose splits a control
+  in two; a press goes to a Compose button's middle where agent-device finds
+  no point of its own; an Android field whose testID or name says search is a
+  search box; a wait reads again after a read that fails.
+- **What it found in the app, and fixed.** The search row sat under the web
+  tab bar (`underBar` with content that does not pad itself), and a note's
+  editor under the header (`native header`, now `native underBar`).
+- **What it found in expo-interface 0.32, to report there.** Each but the
+  chip's has a test marked failing on the platform, which fails the run once
+  the kit is fixed; the chips sit in a `NativeHost` instead.
+  - Web: a row with a menu of its own and a press is no button: no role and no
+    focus, so a keyboard or a screen reader cannot open it.
+  - Web: choosing an item in a row's menu presses the row as well, the item's
+    click bubbling to the row's wrapper.
+  - Android: a `Chip` in React Native layout throws "must be rendered inside a
+    Host", where `Button` hosts itself.
+  - Android: a `List` throws as its rows change, as a search or a filter
+    narrows them: "The specified child already has a parent", from Compose's
+    `AndroidViewHolder`.
+  - Android: a `TextField` is named by its placeholder alone, so a field
+    that holds text has no name.
+  - Android: a `Switch`, a `Checkbox` and a `Slider` have their label
+    beside the control rather than on it, so nothing names them, and a
+    checkbox's label cannot be pressed. The `Picker` draws nothing to press.
+- **Where the platforms differ, which the tests say rather than hide.** On
+  Android a chip is a checkbox where web draws a pressed button, a menu's
+  items and the tab bar's tabs have no role, an alert is a window of its own
+  that nothing marks a dialog, a screen's title is no heading, and
+  `setNetwork` leaves an emulator on mobile data, so the offline test takes
+  airplane mode there.
+- **Open.** Windows: expo-windows' `ci/build.sh` stops at `expo-windows
+  init`, since the react-native-windows CLI loads its commands through the
+  .NET SDK and PowerShell 7, and this machine has neither. iOS needs a Mac.
+  An explore and the MCP server against the app are not run yet. On Android a
+  scroll looks for a row by agent-device's own labels, so a button named by
+  the tree's reading of its text is scrolled to by that text.
 
 ## Purpose and the claims it proves
 
