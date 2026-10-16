@@ -171,6 +171,13 @@ What each job keeps in mind:
 - **Web** needs nothing else: the harness config's command starts the dev
   server on the run's port, and stops it after.
 
+This repository runs the four on every pull request, against the app it
+keeps in `testapp/`, in `.github/workflows/testapp.yml`: web and Android on
+`ubuntu-latest`, iOS on `macos-26` and Windows on `windows-latest`. They
+differ from the jobs above where that app does: on Android and iOS a
+development build loads its JavaScript from the dev server the run starts,
+and on Windows the build is expo-windows' own.
+
 ## The summary and the pull request comment
 
 Two reporters, from `expo-vitest/reporter`, write a run's summary: its counts,
