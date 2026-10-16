@@ -9,15 +9,19 @@ import type {AppOptions, ControlName, DeviceFacts, Platform} from '../harness/li
 import type {BrowserName} from '../harness/platforms/web-browsers.ts';
 import {noClipboard} from '../harness/platforms/web-browsers.ts';
 
-export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'drag' | 'video' | 'web' | ControlName;
+export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'drag' | 'video' | 'web' | 'screenshot:element' | 'statusBar' | ControlName;
 
-/** The steps each platform's driver has, whatever the device. */
+/**
+ * The steps each platform's driver has, whatever the device, then what its
+ * pictures can do: one of an element alone, and a status bar made the same
+ * in every one, which a device's has.
+ */
 export const ACTIONS: Record<Platform, Capability[]> = {
-  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'web'],
+  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'web', 'screenshot:element'],
   // Windows has no screen recorder without a dependency.
-  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag'],
-  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video'],
-  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video'],
+  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'screenshot:element'],
+  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'screenshot:element', 'statusBar'],
+  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'screenshot:element', 'statusBar'],
 };
 
 const CONTROLS = Object.keys(CHANGES_SCREEN) as ControlName[];
@@ -54,6 +58,7 @@ export function absentBecause(capability: Capability, platform: Platform, circum
   if (capability === 'fold' && !/fold|flip|duo/i.test(device.name ?? '')) return `${device.name ?? 'the device'} does not fold`;
   if (capability === 'setAirplaneMode' && platform === 'android' && major(device.osVersion) < 11) return `airplane mode needs Android 11 or later, and this is Android ${device.osVersion}`;
   if ((capability === 'setBiometrics' || capability === 'enrollBiometrics') && device.kind === 'device') return `a physical ${platform} device answers its own biometric prompts`;
+  if (capability === 'statusBar' && platform === 'ios' && device.kind === 'device') return "agent-device makes a simulator's status bar the same in every picture, not a physical iPhone's";
   if (capability === 'installApp' && platform === 'windows' && !/\.msix(bundle)?$/i.test(app.appPath ?? '')) return 'only an .msix is installed on Windows, and app.windows.appPath names none';
   if (capability === 'clearState' && platform === 'windows' && !app.stateDir) return 'app.windows.stateDir names no folder to delete';
   if ((capability === 'clipboard' || capability === 'setClipboard') && platform === 'web') return noClipboard(browser);

@@ -140,7 +140,6 @@ These wait on an API key, and the runs are billed.
 - The app's console on a device, as web has it. It needs a connection held
   open with `Runtime.enable`.
 - `identity` keying screenshot baselines, as it keys the replay cache.
-- `statusBar` and `screenshot:element` in `device.capabilities`.
 
 ### The run
 

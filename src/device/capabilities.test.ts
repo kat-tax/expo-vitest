@@ -5,7 +5,7 @@ const pixel = {name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'};
 
 describe('the capabilities', () => {
   it('are the steps first, then every control, each once', () => {
-    expect(CAPABILITIES.slice(0, 14)).toEqual(ACTIONS.web);
+    expect(CAPABILITIES.slice(0, 15)).toEqual(ACTIONS.web);
     expect(CAPABILITIES).toContain('restart');
     expect(CAPABILITIES).toContain('alert');
     expect(new Set(CAPABILITIES).size).toBe(CAPABILITIES.length);
@@ -15,6 +15,12 @@ describe('the capabilities', () => {
     expect(absentBecause('key', 'android')).toBe('the android harness has no key');
     expect(absentBecause('hover', 'ios')).toBe('the ios harness has no hover');
     expect(absentBecause('swipe', 'windows')).toBeNull();
+    expect([absentBecause('screenshot:element', 'web'), absentBecause('screenshot:element', 'windows'), absentBecause('screenshot:element', 'ios')]).toEqual([null, null, null]);
+    expect(absentBecause('statusBar', 'web')).toBe('the web harness has no statusBar');
+    expect(absentBecause('statusBar', 'android')).toBeNull();
+    expect(absentBecause('statusBar', 'ios', {device: {kind: 'simulator'}})).toBeNull();
+    expect(absentBecause('statusBar', 'ios', {device: {kind: 'device'}})).toBe("agent-device makes a simulator's status bar the same in every picture, not a physical iPhone's");
+    expect(absentBecause('screenshot:element', 'android', {unit: true})).toBe('a unit test has no screenshot:element, which a device test has on the running app');
     expect(absentBecause('swipe', 'web')).toBeNull();
     expect(absentBecause('video', 'windows')).toBe('the windows harness has no video');
     expect(absentBecause('web', 'web')).toBeNull();

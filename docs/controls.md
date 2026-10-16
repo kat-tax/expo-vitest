@@ -90,9 +90,12 @@ stays `denied` whatever is granted. A page that asks
 `device.can(name)` says whether this platform and this device have a step or
 a control, and `device.capabilities` is the set of every one they have. The
 names are the steps, `open`, `press`, `fill`, `type`, `screenshot`, `key`,
-`longPress`, `hover`, `focus`, `scrollIntoView` and `swipe`, then `video` for
-a [recording](evidence.md#video), `web` for [`device.web`](device-tests.md#deviceweb),
-which web alone has, and the controls by their method names.
+`longPress`, `hover`, `focus`, `scrollIntoView`, `swipe` and `drag`, then
+`video` for a [recording](evidence.md#video), `web` for
+[`device.web`](device-tests.md#deviceweb), which web alone has,
+`screenshot:element` for a [picture of one element](matchers.md#tomatchscreenshot),
+`statusBar` for a status bar made the same in every picture, which iOS and
+Android have, and the controls by their method names.
 
 A control a platform has no counterpart for is not in the set, and neither
 is one this device lacks:
@@ -100,6 +103,8 @@ is one this device lacks:
 - `fold` on a phone or simulator whose name does not say it folds;
 - `setAirplaneMode` on Android before 11;
 - biometrics on a physical device;
+- `statusBar` on a physical iPhone, whose status bar agent-device leaves as
+  it is;
 - on Windows, `installApp` without an `.msix`, and `clearState` without a
   `stateDir`.
 
