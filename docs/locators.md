@@ -55,7 +55,7 @@ between readings in place of the growing one.
 | `PlaceholderText` | `placeholder` | The hint an empty field shows. react-native-windows reports none. |
 | `DisplayValue` | `value` | What a field holds. A secure field never has one. |
 | `TestId` | `testId` | The `testID` the component was given. |
-| `HintText` | `help` | The hint: `HelpText` on Windows, `aria-description` on web. Elsewhere it matches nothing. |
+| `HintText` | `help` | The hint: `HelpText` on Windows; on web, what `aria-describedby` points at, `aria-description`, or a `title` that does not name the node; in a unit test, `accessibilityHint`. On a device on iOS and Android it matches nothing. |
 
 Every predicate leaves out a node that is off screen, unless the query is
 given `{hidden: true}`. RNTL's spelling, `includeHiddenElements`, works too.

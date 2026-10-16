@@ -161,6 +161,21 @@ it('travels a route, a place a second, and ends on the last', async () => {
   await expect(screen.getByTestId('seen')).toHaveText(/^Seen ([3-9]|\d{2,}) places$/);
 });
 
+it('names an image by its alt, an SVG by its title, and anything else by its title last', async () => {
+  await device.open('/names');
+  await expect(screen.getByRole('img', {name: 'A red square'})).toBeVisible();
+  await expect(screen.getByRole('img', {name: 'Close'})).toBeVisible();
+  await expect(screen.getByRole('button', {name: 'Search'})).toBeVisible();
+  await expect(screen.getByText('●')).toBeVisible();
+  expect(await screen.queryByText('Online')).toBeNull();
+  // What is inside an image is part of the picture.
+  expect(await screen.queryAllByRole('img', {name: 'Chart'})).toHaveLength(1);
+  // What a screen reader says after the name: a title that does not name, and what aria-describedby points at.
+  await expect(screen.getByRole('button', {name: '×'})).toHaveAttribute('help', 'Delete the draft');
+  await expect(screen.getByRole('textbox', {name: 'Email'})).toHaveAttribute('help', 'We never share it');
+  expect(await screen.tree()).not.toContain('svg ""');
+});
+
 it('names its own steps', async () => {
   await step('Open the profile', async () => {
     await device.open('/');

@@ -258,13 +258,13 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 | `ref` | `@e1`, `@e2` and so on, which a step can act on. On web and Windows a node keeps its ref for as long as its element lives, so a ref read earlier still presses it after the screen changed around it. On iOS and Android a ref is good until the next snapshot. |
 | `role` | The platform's own word for what this is. |
 | `kind` | One word for it on every platform, from a fixed list: `button`, `textbox`, `checkbox`, `switch`, `tab`, `tablist`, `link`, `heading`, `listitem`, `menuitem`, `radio`, `slider`, `progressbar`, `dialog`, `text`, `image`, `group`, `list`, `combobox`, `searchbox`, `spinbutton`, `status`, `alert`, `toolbar`, `menu`, `radiogroup`. Absent where the platform's word is not one the harness knows. The tree prints it beside the role where the two differ: `Button/switch`. |
-| `name` | The accessible name: what a screen reader says. On web a name made from an element's text leaves out what is not drawn, such as a menu that is shut. |
+| `name` | The accessible name: what a screen reader says. On web it comes, in order, from what `aria-labelledby` points at, `aria-label`, a field's labels, an image's `alt` or an SVG's `<title>`, the element's text, and last its `title`. A name made from an element's text leaves out what is not drawn, such as a menu that is shut. |
 | `testId` | The `testID` from the source. |
 | `depth` | Depth in the tree. |
 | `parent` | The ref of the nearest node in the same snapshot that this one sits inside. Absent at the top, and where the platform does not say: on iOS and Android, a node whose parent an interactive snapshot left out. |
 | `interactive` | Whether a person can act on it. On web that includes a react-native-web Pressable with no role, which is drawn as a div that takes the focus. |
 | `focused`, `focusable`, `enabled`, `offscreen` | State, where the platform reports it. `offscreen` on Windows and on a device is a node outside the screen, scrolled out of view or clipped; on web it is a node with no size. |
-| `help` | The hint or description: `HelpText` on Windows, `aria-description` on web. |
+| `help` | The hint or description: `HelpText` on Windows; on web, what `aria-describedby` points at, `aria-description`, or a `title` that does not name the element; in a unit test on iOS, Android and Windows, `accessibilityHint`. |
 | `inSet` | A position in a set, as it is announced: `"2 of 5"`. |
 | `heading` | The heading rank, 1 to 6. |
 | `live` | A live region, and how urgent: `polite` or `assertive`. |

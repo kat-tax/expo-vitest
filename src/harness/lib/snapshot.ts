@@ -62,7 +62,11 @@ export interface SnapshotNode {
    * Windows fills all of them (UI Automation); the other platforms fill what
    * their own trees carry.
    */
-  /** The hint or description: `HelpText` on Windows, `aria-description` on web. */
+  /**
+   * The hint or description: `HelpText` on Windows; on web, what
+   * `aria-describedby` points at, `aria-description`, or a `title` that does
+   * not name the element; in a unit test, `accessibilityHint`.
+   */
   help?: string | null;
   /** `"2 of 5"` — how a position in a set is announced, rather than two numbers to pair up. */
   inSet?: string | null;

@@ -35,7 +35,7 @@ export const COLLECT = `((last, options) => {
   // UI Automation reports on Windows, so a test finds a label on either. A
   // container's text is its children's, so only leaves are taken; that keeps
   // the tree small enough to read and to put in front of a model.
-  const selector = '[role],button,a,input,select,textarea,h1,h2,h3,h4,h5,h6,ul,ol,img,progress,output,dialog,[popover],[tabindex],p,li,td,label,span,div';
+  const selector = '[role],[title],button,a,input,select,textarea,h1,h2,h3,h4,h5,h6,ul,ol,img,svg,progress,output,dialog,[popover],[tabindex],p,li,td,label,span,div';
   const ACTIONABLE = new Set(['button', 'link', 'a', 'menuitem', 'menuitemcheckbox', 'checkbox', 'switch', 'tab', 'textbox', 'input', 'select', 'textarea', 'slider', 'option', 'radio']);
   const depthOf = (node) => { let d = 0; for (let p = node.parentElement; p; p = p.parentElement) d++; return d; };
   // The refs given out by this collect, so a node's parent is the nearest
@@ -88,32 +88,52 @@ export const COLLECT = `((last, options) => {
     // not on a device: an icon drawn as a font's ligature, as Material
     // Symbols draws one, is the icon's name as text under aria-hidden.
     if (element.closest('[aria-hidden="true"]')) continue;
+    // What is inside an image is part of its picture, as ARIA has it.
+    // react-native-web draws an Image given a role as an element with the
+    // image's name, holding an <img> with the same alt.
+    if (element.parentElement && element.parentElement.closest('[role="img"]')) continue;
+    const tag = element.tagName.toLowerCase();
+    const type = (element.getAttribute('type') || '').toLowerCase();
+    // An SVG's <title> names it, as an alt names an image, and is what
+    // a browser shows over it, as a title attribute is.
+    const svgTitle = tag === 'svg' ? [...element.children].find((child) => child.tagName.toLowerCase() === 'title') : undefined;
+    const titled = readable(element.getAttribute('title') ?? '') || (svgTitle ? readable(svgTitle.textContent ?? '') : '');
+    // An SVG nothing names or gives a role is drawing, which a screen reader passes over.
+    if (tag === 'svg' && !element.hasAttribute('role') && !element.hasAttribute('aria-label') && !element.hasAttribute('aria-labelledby') && !titled) continue;
     const box = element.getBoundingClientRect();
-    const role = element.getAttribute('role') ?? element.tagName.toLowerCase();
+    const role = element.getAttribute('role') ?? tag;
     // react-native-web draws a Pressable with no role as a div that takes the
     // focus (tabindex 0), or, disabled, one marked aria-disabled: a control
     // all the same, named by the text inside it.
     const pressable = PLAIN.has(element.tagName) && !element.hasAttribute('role') &&
       ((element.hasAttribute('tabindex') && element.tabIndex >= 0) || element.getAttribute('aria-disabled') === 'true' || element.isContentEditable);
-    // A plain container earns a place only when it is the leaf holding the text.
-    if (PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && (element.childElementCount > 0 || !readable(element.textContent ?? ''))) continue;
-    // The accessible name, in the order a screen reader works it out. The last
-    // two steps are not optional niceties: a checkbox is an empty <input> with
-    // no text of its own, and it takes its name from the <label> wrapped round
-    // it — reading textContent alone reports it as nameless and fails an
-    // accessibility assertion that is actually being met.
-    let name = element.getAttribute('aria-label') ?? '';
-    if (!name) {
-      const labelledBy = element.getAttribute('aria-labelledby');
-      if (labelledBy) {
-        name = labelledBy.split(/\\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
-      }
-    }
-    if (!name && element.labels && element.labels.length > 0) {
-      name = [...element.labels].map((each) => each.textContent ?? '').join(' ').replace(/\\s+/g, ' ').trim();
-    }
-    if (!name) name = textOf(element);
-    name = readable(name).slice(0, 80);
+    // A plain container earns a place only when it is the leaf holding the
+    // text, or when it has a title, which a screen reader says.
+    const holdsText = element.childElementCount === 0 && readable(element.textContent ?? '') !== '';
+    if (PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && !titled && !holdsText) continue;
+    // The accessible name, in the order a screen reader works it out. The
+    // later steps are not optional niceties: a checkbox is an empty <input>
+    // with no text of its own, and it takes its name from the <label> wrapped
+    // round it — reading textContent alone reports it as nameless and fails
+    // an accessibility assertion that is actually being met. An image is named
+    // by its alt, and an SVG by its <title>.
+    const byIds = (ids) => (ids ? ids.split(/\\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ') : '');
+    const alt = tag === 'img' || (tag === 'input' && type === 'image') ? readable(element.getAttribute('alt') ?? '') : '';
+    let name = readable(byIds(element.getAttribute('aria-labelledby')));
+    if (!name) name = readable(element.getAttribute('aria-label') ?? '');
+    if (!name && element.labels && element.labels.length > 0) name = readable([...element.labels].map((each) => each.textContent ?? '').join(' '));
+    if (!name) name = alt || (svgTitle ? readable(svgTitle.textContent ?? '') : '');
+    // A plain container kept for its title alone is named by it, not by the text of what it holds.
+    const container = PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && !holdsText;
+    if (!name && !container) name = textOf(element);
+    // A title attribute is the last a name is taken from, and where it is
+    // not the name it describes, after what aria-describedby points at and
+    // aria-description.
+    const title = readable(element.getAttribute('title') ?? '');
+    const namedByTitle = !name && title !== '';
+    if (namedByTitle) name = title;
+    name = name.slice(0, 80);
+    const help = readable(byIds(element.getAttribute('aria-describedby'))) || readable(element.getAttribute('aria-description') ?? '') || (namedByTitle ? '' : title);
     const id = idOf(element);
     const ref = '@e' + id;
     elements.set(id, new WeakRef(element));
@@ -128,7 +148,6 @@ export const COLLECT = `((last, options) => {
     // and from the native control where there is no ARIA to say.
     const aria = (attribute) => element.getAttribute(attribute);
     const tristate = (value) => (value === 'true' ? true : value === 'false' ? false : value === 'mixed' ? 'mixed' : undefined);
-    const type = (element.getAttribute('type') || '').toLowerCase();
     const choice = element.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio');
     const checked = tristate(aria('aria-checked')) ?? (choice ? (element.indeterminate ? 'mixed' : element.checked) : undefined);
     const selected = aria('aria-selected') === null ? undefined : aria('aria-selected') === 'true';
@@ -146,7 +165,7 @@ export const COLLECT = `((last, options) => {
     const said = (element.getAttribute('role') || '').trim().split(/\\s+/)[0];
     const implied = element.tagName === 'INPUT' ? (INPUTS[type] || 'textbox') : element.tagName === 'A' ? (element.hasAttribute('href') ? 'link' : undefined) : IMPLIED[element.tagName];
     const ariaRole = said || implied;
-    const leaf = PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable;
+    const leaf = PLAIN.has(element.tagName) && !element.hasAttribute('role') && !pressable && holdsText;
     const level = (/^H([1-6])$/.exec(element.tagName) || [])[1] || (ariaRole === 'heading' ? aria('aria-level') : null);
     nodes.push({
       ref,
@@ -168,6 +187,7 @@ export const COLLECT = `((last, options) => {
       ...(value === undefined ? null : {value}),
       ...(placeholder ? {placeholder} : null),
       ...(secure ? {secure: true} : null),
+      ...(help ? {help} : null),
       ...(level ? {heading: Number(level)} : null),
       ...(ariaRole ? {ariaRole} : null),
       ...(leaf ? {leaf: true} : null),
