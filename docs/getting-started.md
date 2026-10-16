@@ -83,8 +83,7 @@ And the scripts:
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx`, `*.android.test.tsx`, `*.web.test.tsx`, `*.windows.test.tsx` | that platform |
 
@@ -161,8 +160,9 @@ it('finds a host view by its name and fires its events', async () => {
 
 ### One test on three platforms
 
-A `.test.tsx` file runs on iOS, Android and web. The two testing libraries
-differ, so import the one for the platform where the test needs it:
+A `.test.tsx` file runs on all four platforms. React Native Testing Library
+renders on iOS, Android and Windows, and Testing Library on web, so import
+the one for the platform where the test needs it:
 
 ```tsx
 // src/where/shared.test.tsx

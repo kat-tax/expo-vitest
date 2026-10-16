@@ -79,17 +79,16 @@ build for with `expoProjects({platforms: ['ios', 'android', 'web']})`.
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx` | iOS |
 | `*.android.test.tsx` | Android |
 | `*.web.test.tsx` | web |
 | `*.windows.test.tsx` | Windows |
 
-A `.test.ts` file renders nothing, so it runs everywhere. A `.test.tsx` file
-renders, and Windows renders a different tree from the other three, so
-Windows runs only the files named for it.
+A test runs on every platform unless its name picks some. Each platform
+loads its own files of the code under test, such as `button.windows.tsx`, so
+one test checks each platform's version.
 
 ## Common scenarios
 

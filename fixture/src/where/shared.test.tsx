@@ -1,10 +1,10 @@
 import {Platform, Text} from 'react-native';
 import {renderApp} from 'expo-vitest/router';
 
-// A `.test.tsx` runs on iOS, Android and web.
+// A `.test.tsx` runs on every platform, Windows included.
 describe('a shared test', () => {
-  it('stays off Windows', () => {
-    expect(['ios', 'android', 'web']).toContain(Platform.OS);
+  it('runs on every platform', () => {
+    expect(['ios', 'android', 'web', 'windows']).toContain(Platform.OS);
   });
 
   it('mounts an in-memory Expo Router app', async () => {

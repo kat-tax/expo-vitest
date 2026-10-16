@@ -39,14 +39,13 @@ command for it, such as `expo start --web`, and stop it after.
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx`, `*.android.test.tsx`, `*.web.test.tsx`, `*.windows.test.tsx` | that one |
 
-A `.test.ts` file holds logic, which is the same everywhere. A `.test.tsx`
-file renders, and Windows renders a different tree, so it runs only the files
-named for it.
+A test runs on every platform unless its name picks some. Each platform
+loads its own files of the code under test, and keeps its own snapshots, in
+`__snapshots__/<platform>/`.
 
 ## Write a component test
 

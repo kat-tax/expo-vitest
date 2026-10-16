@@ -26,21 +26,21 @@ export default defineConfig({
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx` | iOS |
 | `*.android.test.tsx` | Android |
 | `*.web.test.tsx` | web |
 | `*.windows.test.tsx` | Windows |
 
-A `.test.ts` file holds logic with nothing rendered, which is the same
-everywhere, so it runs everywhere. A `.test.tsx` file renders, and what it
-renders on Windows is a different tree from the other three, so Windows takes
-only the files named for it.
+A test runs on every platform unless its name picks some, whether it renders
+or not. Each platform loads its own files of the code under test, so one test
+checks each platform's version of a component. A platform name works on a
+`.ts` test too: `colors.web.test.ts` runs on web only.
 
-A platform name works on a `.ts` test too: `colors.web.test.ts` runs on web
-only.
+Snapshots are kept for each platform apart, in `__snapshots__/<platform>/`
+beside the test, since one test file runs on several platforms and each
+renders its own.
 
 A package that exists for Windows alone can run every test there. See
 [`windows.include`](configuration.md#options).

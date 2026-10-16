@@ -13,8 +13,7 @@
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx` | iOS |
 | `*.android.test.tsx` | Android |

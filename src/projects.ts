@@ -155,6 +155,18 @@ export interface ExpoProjectsOptions {
   };
 }
 
+/**
+ * What keeps a platform's snapshots apart from the others': a snapshot
+ * environment that puts them in a folder named for the platform, which the
+ * project names. One test file runs on several platforms, and what each
+ * renders is its own to compare against, as a screenshot baseline is.
+ * Vitest takes `resolveSnapshotPath` at the root alone, and a snapshot
+ * environment in each project.
+ */
+export function snapshotsFor(platform: Platform): {snapshotEnvironment: string; env: {EXPO_VITEST_PLATFORM: Platform}} {
+  return {snapshotEnvironment: file('setup/snapshots.ts'), env: {EXPO_VITEST_PLATFORM: platform}};
+}
+
 /** The test files a platform leaves to the others. */
 const OTHERS: Record<Platform, string[]> = {
   ios: ['**/*.web.test.*', '**/*.android.test.*', '**/*.windows.test.*'],
@@ -168,15 +180,15 @@ const OTHERS: Record<Platform, string[]> = {
 /**
  * One Vitest project per platform, for code that resolves a different file on
  * each (`index.ios.tsx`, `index.android.tsx`, `index.web.tsx`,
- * `index.windows.tsx`). A test file picks its platforms by name:
+ * `index.windows.tsx`). A test file runs on every platform unless its name
+ * picks some:
  *
- * - `*.test.ts`             every platform, Windows included
- * - `*.test.tsx`            iOS, Android and web
- * - `*.native.test.tsx`     iOS and Android
- * - `*.ios.test.tsx`        iOS only
- * - `*.android.test.tsx`    Android only
- * - `*.web.test.tsx`        web only
- * - `*.windows.test.tsx`    Windows only
+ * - `*.test.ts`, `*.test.tsx`   every platform
+ * - `*.native.test.tsx`         iOS and Android
+ * - `*.ios.test.tsx`            iOS only
+ * - `*.android.test.tsx`        Android only
+ * - `*.web.test.tsx`            web only
+ * - `*.windows.test.tsx`        Windows only
  *
  * iOS and Android run on vitest-native's engines through `vitest-expo`. Web
  * is react-native-web in jsdom, with the dependency optimizer pre-bundling the
@@ -218,6 +230,7 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           ...common,
           include: everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS[platform]],
+          ...snapshotsFor(platform),
           setupFiles: [file('setup/native.ts')],
           server: {deps: {inline}},
         },
@@ -236,8 +249,9 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           ...preset.test,
           ...common,
           name: windows.name ?? 'windows',
-          include: windows.include ?? folders.flatMap(folder => [`${folder}/**/*.windows.test.{ts,tsx}`, `${folder}/**/*.test.ts`]),
+          include: windows.include ?? everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS.windows],
+          ...snapshotsFor('windows'),
           setupFiles: [file('setup/windows.ts')],
           server: {deps: {inline}},
         },
@@ -273,6 +287,7 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           name: 'web',
           include: everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS.web],
+          ...snapshotsFor('web'),
           setupFiles: [file('setup/web.ts')],
           server: {deps: {inline: [SELF]}},
           deps: {
@@ -382,6 +397,8 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
         globals: true,
         environment: 'node',
         include: options.include ?? ['device/**/*.test.ts'],
+        // The platform is HARNESS_PLATFORM's, which the snapshot environment reads in the test process.
+        snapshotEnvironment: file('setup/snapshots.ts'),
         setupFiles: [file('device/matchers.ts')],
         attachmentsDir: ATTACHMENTS,
         // A real app, a real renderer: slower than a component test by a lot.
@@ -418,6 +435,8 @@ export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig 
           globals: true,
           environment: 'node',
           include: options.include ?? ['device/**/*.test.ts'],
+          // The platform is the project's HARNESS_PLATFORM, below.
+          snapshotEnvironment: file('setup/snapshots.ts'),
           // The run, resolved from the harness config, before anything uses the device: in turn, not side by side as Vitest would have them.
           setupFiles: [file('device/setup.ts'), file('device/matchers.ts')],
           sequence: {setupFiles: 'list', ...pooled(poolSize(platform, loaded, process.env), index)},

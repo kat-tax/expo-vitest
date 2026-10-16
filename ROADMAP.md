@@ -113,6 +113,11 @@ These wait on an API key, and the runs are billed.
   or `scroll_to` there.
 - A menu flyout in the Windows tree, by reading the app's other top-level
   windows. Two of the test app's tests are skipped on Windows for it.
+- Quiet unit tests of an Expo Router app on Windows. There Expo Router takes
+  the branches it takes off iOS and Android, which load packages through
+  Node that also ship an ESM build, and vitest-native warns of each, as
+  `'nanoid' resolves to two different files`. The test passes; the warnings
+  are noise to stop, by having the engine load those packages one way.
 
 ### The agent and the MCP server
 

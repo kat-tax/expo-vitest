@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import os from 'node:os';
-import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, SELF, selfAliases, SUBPATHS} from './projects.ts';
+import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, SELF, selfAliases, snapshotsFor, SUBPATHS} from './projects.ts';
 
 const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE, 'package.json'), 'utf8'));
@@ -95,8 +95,9 @@ describe('expoProjects', () => {
     expect(ios.exclude).toEqual(expect.arrayContaining(['**/*.web.test.*', '**/*.android.test.*', '**/*.windows.test.*']));
     expect(android.exclude).toEqual(expect.arrayContaining(['**/*.ios.test.*']));
     expect(android.exclude).not.toContain('**/*.android.test.*');
-    expect(windows.include).toEqual(['src/**/*.windows.test.{ts,tsx}', 'src/**/*.test.ts']);
-    expect(windows.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.web.test.*']));
+    // Every platform takes a test that renders, Windows as well, unless the name picks others.
+    expect(windows.include).toEqual(['src/**/*.test.{ts,tsx}']);
+    expect(windows.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.web.test.*', '**/*.ios.test.*', '**/*.android.test.*']));
     expect(web.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.windows.test.*']));
     // Vite's root as well as Vitest's: the engine's plugins read the first.
     expect(projects.map(project => project.root)).toEqual([PACKAGE, PACKAGE, PACKAGE, PACKAGE]);
@@ -160,6 +161,17 @@ describe('nodeProject and deviceConfig', () => {
       include: ['cli/**/*.test.js'],
     });
     expect(testOf(nodeProject({name: 'cli', include: []}))).toMatchObject({root: process.cwd(), testTimeout: 15_000});
+  });
+
+  it("keeps each platform's snapshots apart, through a snapshot environment that knows the platform", () => {
+    const environment = path.join(PACKAGE, 'src', 'setup', 'snapshots.ts');
+    expect(snapshotsFor('android')).toEqual({snapshotEnvironment: environment, env: {EXPO_VITEST_PLATFORM: 'android'}});
+    const projects = expoProjects({root: PACKAGE}).map(testOf);
+    expect(projects.map(project => [project.snapshotEnvironment, project.env.EXPO_VITEST_PLATFORM])).toEqual(['ios', 'android', 'windows', 'web'].map(platform => [environment, platform]));
+    // A device project's platform is its HARNESS_PLATFORM, which the environment reads too.
+    const [android] = (deviceConfig({platforms: ['android'], root: PACKAGE}).test?.projects ?? []) as {test: Record<string, any>}[];
+    expect(android!.test).toMatchObject({snapshotEnvironment: environment, env: {HARNESS_PLATFORM: 'android'}});
+    expect(testOf(deviceConfig()).snapshotEnvironment).toBe(environment);
   });
 
   it('runs device tests one at a time, with the matchers registered', () => {
