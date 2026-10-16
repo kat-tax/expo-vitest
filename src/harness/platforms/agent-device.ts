@@ -53,10 +53,14 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     }
   }
 
+  /** The tree read last, whose refs agent-device resolves a ref against until the next read. */
+  let lastTree: Snapshot | null = null;
+
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     const payload = await (await transport()).snapshot(Boolean(snapshotOptions.interactive));
     const viewport = viewportFrom(payload);
-    return {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android'), ...(viewport ? {viewport} : {})};
+    lastTree = {platform, source: options.target ?? name, nodes: toSnapshotNodes(nodesFrom(payload), platform === 'ios' ? 'ios' : 'android'), ...(viewport ? {viewport} : {})};
+    return lastTree;
   }
 
   /**
@@ -74,21 +78,17 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
   /**
    * A press or a hold, given at the node's middle where agent-device finds no
-   * point of the node's own to press its ref at (`middleToPress`).
+   * point of the node's own to press its ref at (`middleToPress`). The node
+   * is found in the tree read last, where its ref came from: a tree read
+   * afresh numbers its nodes anew, and the same ref could be another node.
    */
   async function pressing(what: Target, done: string, failing: string, work: (current: AgentDeviceTransport, at: Target) => Promise<void>): Promise<StepResult> {
     const first = await step(done, failing, current => work(current, what));
-    if (first.ok || !NO_TOUCH_POINT.test(first.message)) return first;
+    if (first.ok || !NO_TOUCH_POINT.test(first.message) || !lastTree) return first;
     const selector = asSelector(what);
-    if (isPoint(selector)) return first;
-    try {
-      const tree = await snapshot({interactive: false});
-      const node = findNode(tree, selector);
-      const middle = node ? middleToPress(tree, node) : null;
-      return middle ? await step(`${done} at its middle`, failing, current => work(current, middle)) : first;
-    } catch {
-      return first;
-    }
+    const node = isPoint(selector) ? undefined : findNode(lastTree, selector);
+    const middle = node ? middleToPress(lastTree, node) : null;
+    return middle ? step(`${done} at its middle`, failing, current => work(current, middle)) : first;
   }
 
   /** The file the recording in progress is written to, until it is stopped. */
