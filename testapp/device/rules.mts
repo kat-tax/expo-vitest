@@ -28,11 +28,13 @@ function textsOf(messages: readonly Message[]): string[] {
 /**
  * The ref of the node of a kind and a name, from the latest text that shows
  * it: an action answers a diff of the view, whose lines carry a mark before
- * the ref.
+ * the ref. A field is found by its testID too, where the kit leaves it
+ * unnamed, as on iOS.
  */
-function refOf(texts: readonly string[], kind: string, name: string): string {
+function refOf(texts: readonly string[], kind: string, name: string, testId?: string): string {
   const wanted = `  ${kind}  ${JSON.stringify(name)}`;
-  const line = texts.flatMap(text => text.split('\n')).findLast(each => each.includes(wanted));
+  const byId = (each: string) => testId !== undefined && each.includes(`  ${kind}  `) && each.includes(`#${testId}`);
+  const line = texts.flatMap(text => text.split('\n')).findLast(each => each.includes(wanted) || byId(each));
   const ref = line?.trim().split(/\s+/).find(token => token.startsWith('@'));
   if (!ref) throw new Error(`no view shows ${kind} ${JSON.stringify(name)}:\n${texts.at(-1)}`);
   return ref;
@@ -49,8 +51,8 @@ export const rules: Model = {
     const next = flow[acted] ?? 'done';
     if (next === 'navigate') return calls('navigate', {url: '/sign-in'});
     if (next === 'observe') return calls('observe', {});
-    if (next === 'email') return calls('type', {ref: refOf(texts, 'textbox', 'Email'), text: 'ada@example.com', replace: true});
-    if (next === 'password') return calls('type', {ref: refOf(texts, 'textbox', 'Password'), text: 'not-the-password', replace: true});
+    if (next === 'email') return calls('type', {ref: refOf(texts, 'textbox', 'Email', 'sign-in-email'), text: 'ada@example.com', replace: true});
+    if (next === 'password') return calls('type', {ref: refOf(texts, 'textbox', 'Password', 'sign-in-password'), text: 'not-the-password', replace: true});
     if (next === 'press') return calls('tap', {ref: refOf(texts, 'button', 'Sign in')});
     // The look once the pretend server has had the moment a real model's answer takes.
     if (next === 'look') {
