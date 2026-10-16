@@ -66,6 +66,9 @@ jobs:
           bun install --frozen-lockfile
           npx expo prebuild --platform android --no-install
           cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
+      # An emulator drawn in software can leave its launcher not responding
+      # after boot, and Android's dialog for that sits over every app, so the
+      # job hides error dialogs and closes any that is up before the tests.
       - name: Run on an emulator
         timeout-minutes: 90
         uses: reactivecircus/android-emulator-runner@v2
@@ -78,7 +81,7 @@ jobs:
           avd-name: ci
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: adb install -r testapp/android/app/build/outputs/apk/debug/app-debug.apk && adb reverse tcp:41752 tcp:41752 && bun run test:testapp
+          script: adb install -r testapp/android/app/build/outputs/apk/debug/app-debug.apk && adb reverse tcp:41752 tcp:41752 && adb shell settings put global hide_error_dialogs 1 && adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS && bun run test:testapp
         env:
           TESTAPP_PLATFORMS: android
           HARNESS_TARGET: emulator-5554
