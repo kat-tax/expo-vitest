@@ -94,7 +94,9 @@ Against the exit criteria:
   line chose.
 - A second `init` changes nothing and says so per file: checked in the
   fixture.
-- The pull request comment: not seen, since nothing is pushed.
+- The pull request comment: seen on the branch's pull request, posted by
+  the summary reporter from the fixture's device run in CI, with the
+  run's 29 passed and 37 skipped and every test in a table.
 - Video: `video.webm` for a failing web test and none for a passing one,
   `video.mp4` on the Android emulator, and Windows has no `video`
   capability, with the reason.
