@@ -18,6 +18,15 @@ function Settings() {
   );
 }
 
+function Counter() {
+  const [presses, setPresses] = useState(0);
+  return (
+    <Pressable accessibilityRole="button" onPress={() => setPresses(count => count + 1)}>
+      <Text>Pressed {presses}</Text>
+    </Pressable>
+  );
+}
+
 // The device's API on a rendered component: the same queries, actions,
 // matchers and tree on every platform, as a device test has them.
 describe('a unit test', () => {
@@ -37,4 +46,11 @@ describe('a unit test', () => {
     expect(device.platform).toBe(Platform.OS);
     expect(await screen.tree()).toMatchSnapshot();
   });
+
+  it('presses as the first thing a test does, with nothing focused', async () => {
+    await render(<Counter/>);
+    await screen.getByRole('button').press();
+    await expect(screen.getByRole('button')).toHaveText('Pressed 1');
+  });
+
 });
