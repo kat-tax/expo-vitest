@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
+import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -289,6 +290,28 @@ describe('middleToPress', () => {
   it('is null where something inside can be pressed, however deep, or the node has no bounds', () => {
     expect(middleToPress(tree, tree.nodes[3]!)).toBeNull();
     expect(middleToPress(tree, {...tree.nodes[0]!, bounds: null})).toBeNull();
+  });
+});
+
+describe('openInQuestion', () => {
+  const asked = (title: string, buttons: string[]): Snapshot => ({
+    platform: 'ios',
+    nodes: [
+      {ref: '@e1', role: 'Alert', name: title, depth: 0, interactive: false},
+      ...buttons.map((name, at) => ({ref: `@e${at + 2}`, parent: '@e1', role: 'Button', name, depth: 1, interactive: true})),
+      {ref: '@e9', parent: '@e1', role: 'StaticText', name: title, depth: 1, interactive: false},
+    ],
+  });
+
+  it("finds iOS's question before a link is handed to an app, with either kind of quotes", () => {
+    expect(openInQuestion(asked('Open in “Test App”?', ['Cancel', 'Open']))?.ref).toBe('@e1');
+    expect(openInQuestion(asked('Open in "Test App"?', ['Open', 'Cancel']))?.ref).toBe('@e1');
+  });
+
+  it('finds nothing in another alert, with other buttons, or where there is no alert', () => {
+    expect(openInQuestion(asked('“Test App” Would Like to Send You Notifications', ['Don’t Allow', 'Allow']))).toBeUndefined();
+    expect(openInQuestion(asked('Open in “Test App”?', ['Cancel', 'Open', 'Always']))).toBeUndefined();
+    expect(openInQuestion({platform: 'ios', nodes: [{ref: '@e1', role: 'Button', name: 'Open in “Test App”?', depth: 0, interactive: true}]})).toBeUndefined();
   });
 });
 

@@ -163,6 +163,20 @@ export const NO_TOUCH_POINT = /no parent-owned touch point/;
 export const STILL_MOVING = /had no confirmed resting position/;
 
 /**
+ * iOS's question before it hands a link to the app the link's scheme names,
+ * "Open in “<app>”?" with Cancel and Open, as agent-device itself knows it,
+ * or undefined where the tree holds no such question.
+ */
+export function openInQuestion(tree: Snapshot): SnapshotNode | undefined {
+  const asking = /^Open in [“"].+[”"]\?$/u;
+  return tree.nodes.find(node => {
+    if (node.role.toLowerCase() !== 'alert' || !asking.test(node.name)) return false;
+    const buttons = tree.nodes.filter(each => each.parent === node.ref && each.role.toLowerCase() === 'button').map(each => each.name);
+    return buttons.length === 2 && buttons.includes('Cancel') && buttons.includes('Open');
+  });
+}
+
+/**
  * Where a press goes when agent-device refuses a node's ref because every
  * point of the node lies in a descendant it counts as one to press, as a
  * button Compose draws does, its role on a node that fills its touch target:

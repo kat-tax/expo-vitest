@@ -9,7 +9,7 @@ import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions,
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -18,6 +18,9 @@ const PLATFORM_NAMES: Partial<Record<Platform, string>> = {ios: 'ios', android: 
 
 /** How many times a step is tried on a target agent-device refuses as still moving. */
 const RESTING_TRIES = 3;
+
+/** How long iOS is given to ask "Open in …?" after a url is opened. */
+const OPEN_IN_MS = 3000;
 
 /**
  * `agent-device` (callstack) driving iOS, Android and its own web backend. It
@@ -77,6 +80,33 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     const node = isPoint(selector) ? undefined : findNode(tree, selector);
     if (!node) throw new HarnessError('LOCATOR_NOT_FOUND', `nothing matches ${describeTarget(what)} on the ${platform} screen (${tree.nodes.length} nodes)`, {platform});
     return node;
+  }
+
+  /**
+   * After a url is opened on iOS: iOS asks "Open in “<app>”?" before it
+   * hands a link to the app the link's scheme names, and waits, so the
+   * question is answered Open, as a person following the link does. What
+   * the step then says, or nothing where no question came.
+   */
+  async function answeredOpenIn(current: AgentDeviceTransport): Promise<string> {
+    if (platform !== 'ios') return '';
+    const until = Date.now() + OPEN_IN_MS;
+    for (;;) {
+      const tree = await snapshot({interactive: false}).catch(() => null);
+      const question = tree ? openInQuestion(tree) : undefined;
+      if (question) {
+        // agent-device answers the question itself with its accept, where it
+        // opened the app; its Open button is pressed where that fails.
+        const open = tree?.nodes.find(node => node.parent === question.ref && node.name === 'Open');
+        await current.command({command: 'alert', action: 'accept'}).catch(async (error: unknown) => {
+          if (!open) throw error;
+          await current.press({ref: open.ref});
+        });
+        return `, and answered Open to ${JSON.stringify(question.name)}`;
+      }
+      if (Date.now() >= until) return '';
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
   }
 
   /**
@@ -152,8 +182,9 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       const where = openTarget(to, options.scheme);
       if (!where) return failed(`cannot open ${to}: a route needs the app's URI scheme (pass --scheme, or set HARNESS_SCHEME)`, 'INVALID_ARGUMENT');
       try {
-        await (await transport()).open(where);
-        return ok(`opened ${'url' in where ? where.url : where.app}`);
+        const current = await transport();
+        await current.open(where);
+        return ok(`opened ${'url' in where ? where.url + (await answeredOpenIn(current)) : where.app}`);
       } catch (error) {
         return failed(`could not open ${to}: ${(error as Error).message}`, codeOf(error, 'APP_UNREACHABLE'));
       }
@@ -318,7 +349,7 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
           }
           case 'openLink':
             await current.open({url: request.url});
-            return ok(`opened ${request.url}`);
+            return ok(`opened ${request.url}${await answeredOpenIn(current)}`);
           case 'foregroundApp': {
             const front = foregroundOf(await current.appState());
             return front ? {...ok(`${front.said} is in front`), value: front.app} : failed('agent-device did not say which app is in front');

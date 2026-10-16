@@ -227,7 +227,7 @@ runs one file at a time.
 | Call | What it does |
 | --- | --- |
 | `device.platform` | The platform under test. |
-| `device.open(route)` | Opens a route, as a deep link or a URL. |
+| `device.open(route)` | Opens a route, as a deep link or a URL. iOS first asks whether to open a deep link in the app, which is answered Open. |
 | `device.snapshot({interactive})` | The accessibility tree. By default only what a person can act on. |
 | `device.fullSnapshot()` | The whole tree, including what cannot be acted on. |
 | `device.screenshot(name)` | Saves `.harness/<name>.png` and returns its path. |
