@@ -9,15 +9,17 @@ to a driver against, not a promise about any machine but the one named.
 
 ## How they were taken
 
-- `bench` at 20 iterations, run twice on each platform. Each row is from
-  whichever run had the lower p50 for that operation.
+- `bench` at 20 iterations, run twice on web, Windows and Android, where
+  each row is from whichever run had the lower p50 for that operation, and
+  once on iOS.
 - The first call of an operation is `cold`, and is kept out of the
   percentiles, which are by nearest rank.
 - `press` presses something a press does nothing to, named with `--press`,
   and finds it afresh each time, as `element(…).press()` does in a test.
   `fill` was not timed.
-- One machine for all three: an Intel Core i9-14900K with 96 GB, Windows 11
-  Pro 10.0.22631, Node 24.20.0. iOS needs a Mac, and is not on this page.
+- One machine for web, Windows and Android: an Intel Core i9-14900K with
+  96 GB, Windows 11 Pro 10.0.22631, Node 24.20.0. iOS on GitHub's `macos-26`
+  runner, in this repository's CI, Node 24.20.0.
 
 To time your own app on any platform:
 
@@ -125,6 +127,24 @@ The client saves the command line's process start on every step, 5 to 14%
 of a step here. The rest is the phone: agent-device's daemon asks its runner
 on the device for the tree, the tap or the picture, and on either path that
 is most of the time.
+
+## iOS
+
+An iPhone 11 simulator on iOS 26.5, on GitHub's `macos-26` runner, with
+agent-device 0.21.28 through its Node client, at the Settings app's first
+screen. `--press` named the screen's title, which a tap does nothing to.
+
+```
+  operation         cold      p50      p95      min      max
+  snapshot        1950.3    205.8    816.3    122.4   2313.8
+  snapshot -i      167.5    172.5    230.9    124.5    256.8
+  press           3025.1   1020.8   1199.9    839.0   1334.0
+  screenshot      3543.1   2101.0   2821.0   1368.5   3234.1
+```
+
+The first of each is the slowest by far, as agent-device's runner reaches
+the app. After it a read takes about 200 ms, a press about a second and a
+picture about two.
 
 ## Video
 
