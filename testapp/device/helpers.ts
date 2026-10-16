@@ -25,11 +25,59 @@ async function launch(): Promise<void> {
   await device.openLink(`exp+testapp://expo-development-client/?url=${server}&disableOnboarding=1&disableFab=1&disableAutoLaunch=1`);
 }
 
+/**
+ * Waits for `first` after a launch. A development build on an Android
+ * emulator now and then dies as it first draws, a SIGSEGV in React Native's
+ * mounting, and leaves the launcher in front. It is launched again then, at
+ * most twice, but only once it is seen gone, since a second load over a
+ * first one is not survived. iOS may name the app in front by its name
+ * rather than its bundle id, so there the wait is the assertion alone.
+ *
+ * A hook that runs out of time leaves this going into the next test, where
+ * a launch would land in the middle of it, so it stops once its test is
+ * over.
+ */
+async function comesUp(first: Locator): Promise<void> {
+  const until = Date.now() + UP;
+  const test = expect.getState().currentTestName;
+  const ours = () => expect.getState().currentTestName === test;
+  for (let again = 0; device.platform === 'android' && again < 2; again++) {
+    if (await showsBefore(first, until, ours)) return;
+    if (Date.now() >= until || !ours()) break;
+    await launch();
+  }
+  if (ours()) await expect(first).toBeVisible({timeout: Math.max(until - Date.now(), 1000)});
+}
+
+/** How long a launched app may take to come to the front, and how long it must stay away to count as gone. */
+const TO_FRONT = 20_000;
+const GONE = 3_000;
+
+/** Whether `first` shows before `until`, or false once the app is seen gone from the front or the test is over. */
+async function showsBefore(first: Locator, until: number, ours: () => boolean): Promise<boolean> {
+  const launched = Date.now();
+  let seen = false;
+  let away: number | null = null;
+  while (Date.now() < until && ours()) {
+    if (await first.isVisible().catch(() => false)) return true;
+    const front = await device.foregroundApp().catch(() => null);
+    if (front === device.config.app?.bundleId) {
+      seen = true;
+      away = null;
+    } else if (front !== null) {
+      away ??= Date.now();
+      if (seen ? Date.now() - away >= GONE : Date.now() - launched >= TO_FRONT) return false;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  return false;
+}
+
 /** A first launch, with nothing saved, which opens on onboarding. */
 export async function firstLaunch(): Promise<void> {
   await device.clearState();
   await launch();
-  await expect(screen.getByRole('button', {name: 'Skip'})).toBeVisible({timeout: UP});
+  await comesUp(screen.getByRole('button', {name: 'Skip'}));
 }
 
 /** How long a restarted development build is given to open its last server by itself. */
@@ -56,7 +104,7 @@ export async function relaunch(first: Locator): Promise<void> {
   } else {
     await launch();
   }
-  await expect(first).toBeVisible({timeout: UP});
+  await comesUp(first);
 }
 
 /**
