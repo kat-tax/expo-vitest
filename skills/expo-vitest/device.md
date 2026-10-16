@@ -70,13 +70,13 @@ flicker does not pass it.
 
 ## The app's life and the device's settings
 
-`device.restart()`, `clearState()`, `back()`, `home()`, `installApp()`,
-`openLink(url)` and `foregroundApp()`; `setAppearance('dark')`,
-`setOrientation()`, `setNetwork('offline')`, `setPermission()`,
-`setLocation()`, `setClipboard()`, `dismissKeyboard()`, `alert('accept')` and
-the rest. Each answers `'skipped'` where a platform has no counterpart, and
-`device.lastSkip` says why. A setting stays until it is changed back: put it
-back in `afterEach`.
+`device.restart()`, `clearState()`, `stopApp()`, `back()`, `home()`,
+`installApp()`, `openLink(url)` and `foregroundApp()`;
+`setAppearance('dark')`, `setOrientation()`, `setNetwork('offline')`,
+`setPermission()`, `setLocation()`, `setClipboard()`, `dismissKeyboard()`,
+`alert('accept')` and the rest. Each answers `'skipped'` where a platform has
+no counterpart, and `device.lastSkip` says why. A setting stays until it is
+changed back: put it back in `afterEach`.
 
 On web, `device.web` has what a browser has and a device does not:
 `route(pattern, handler)` to answer requests, `onDialog`, `evaluate`,

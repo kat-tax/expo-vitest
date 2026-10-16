@@ -69,6 +69,7 @@ export type PermissionState = 'grant' | 'deny' | 'reset';
 export type ControlRequest =
   | {name: 'restart'}
   | {name: 'clearState'}
+  | {name: 'stopApp'}
   | {name: 'back'}
   | {name: 'home'}
   | {name: 'installApp'; path?: string; reinstall?: boolean}

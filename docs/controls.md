@@ -25,6 +25,7 @@ it('starts signed out once its state is cleared', async () => {
 | --- | --- | --- | --- |
 | `restart()` | The app relaunched, with its permissions set first and its launch arguments | A new browser context at the base url, with its permissions granted | The exe ended with everything it started, then started with the base link and the launch arguments, and its window waited for |
 | `clearState()` | The app's data cleared, then a restart | A restart: a new context keeps no cookies and no storage | The folder `app.windows.stateDir` names deleted between the end and the start; skipped without one |
+| `stopApp()` | The app ended, its data kept, through agent-device's close of the harness config's `bundleId` | The page left for a blank one: the app's script ends, and its cookies and storage stay | The exe ended with everything it started, and its window waited for |
 | `back()` | The device's back | The page before, in the history | Skipped: react-native-windows has no system back |
 | `home()` | The home screen, with the app left running behind it | Skipped | Skipped |
 | `installApp(path?, {reinstall})` | The build at `path`, or the harness config's `appPath`, installed, in place of the one there with `reinstall` | Skipped | An `.msix` installed with `Add-AppxPackage`; skipped for anything else |

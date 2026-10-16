@@ -647,6 +647,7 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(device.saveVideo).toEqualTypeOf<(file?: string) => Promise<string | null>>();
     expectTypeOf<'video'>().toExtend<Capability>();
     expectTypeOf(device.restart).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.stopApp).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.clearState).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.back).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.home).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();

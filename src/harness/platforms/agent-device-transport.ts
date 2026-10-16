@@ -90,6 +90,8 @@ export interface AgentDeviceTransport {
   screenshot(file: string, statusBar?: 'fixed' | 'real'): Promise<void>;
   /** Opens an app by its id, relaunched where asked, with the arguments a fresh launch is given. */
   launch(app: string, relaunch: boolean, launchArguments: string[]): Promise<void>;
+  /** The app ended, its session going on. */
+  closeApp(app: string): Promise<void>;
   /** Installs a build, in place of the installed app where asked. */
   install(app: string | undefined, appPath: string, reinstall: boolean): Promise<void>;
   /** Changes an operating-system setting: an app's permission, or its state cleared. */
@@ -137,7 +139,7 @@ type Call = (options: Record<string, unknown>) => Promise<unknown>;
 
 interface Client {
   devices: {capabilities: Call; list: Call};
-  apps: {open: Call; install: Call; reinstall: Call};
+  apps: {open: Call; close: Call; install: Call; reinstall: Call};
   command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call};
   settings: {update: Call};
   recording: {record: Call};
@@ -292,6 +294,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async launch(app, relaunch, launchArguments) {
       await call(signal => client.apps.open({...select, app, relaunch, ...(launchArguments.length ? {launchArgs: launchArguments} : {}), signal}), 'APP_UNREACHABLE', OPEN_TIMEOUT);
     },
+    async closeApp(app) {
+      await call(signal => client.apps.close({...select, app, signal}), 'ACTION_FAILED');
+    },
     async install(app, appPath, reinstall) {
       await call(signal => (reinstall ? client.apps.reinstall({...select, app, appPath, signal}) : client.apps.install({...select, ...(app ? {app} : {}), appPath, signal})), 'ACTION_FAILED', OPEN_TIMEOUT);
     },
@@ -392,6 +397,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async screenshot(file, statusBar) {
       await agent(['screenshot', file, ...screenshotArgs(options.platform, statusBar)], 'ACTION_FAILED');
+    },
+    async closeApp(app) {
+      await agent(['close', app], 'ACTION_FAILED');
     },
     async launch(app, relaunch, launchArguments) {
       await agent(launchArgs(app, relaunch, launchArguments), 'APP_UNREACHABLE', OPEN_TIMEOUT);

@@ -365,6 +365,11 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
             if (!started.ok) return started;
             return ok(`${request.name === 'clearState' ? `deleted ${path.relative(options.root, app.stateDir as string)}, then ` : ''}${started.message}`);
           }
+          case 'stopApp': {
+            if (!processName) return failed(needsApp(request.name, 'windows', 'target'), 'INVALID_ARGUMENT');
+            await stopApp();
+            return ok(`ended ${processName}`);
+          }
           case 'installApp': {
             const package_ = request.path ? path.resolve(options.root, request.path) : app.appPath;
             if (!package_) return failed(needsApp('installApp', 'windows', 'appPath'), 'INVALID_ARGUMENT');

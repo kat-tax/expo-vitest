@@ -383,6 +383,10 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
             const given = [launchArguments.length ? `${launchArguments.length} launch arguments` : '', permissions.length ? `${permissions.length} permissions set` : ''].filter(Boolean);
             return ok(`${request.name === 'clearState' ? 'cleared and restarted' : 'restarted'} ${app.bundleId}${given.length ? `, with ${given.join(' and ')}` : ''}`);
           }
+          case 'stopApp':
+            if (!app.bundleId) return failed(needsApp(request.name, platform, 'bundleId'), 'INVALID_ARGUMENT');
+            await current.closeApp(app.bundleId);
+            return ok(`ended ${app.bundleId}`);
           case 'back':
             await current.back();
             return ok('went back');

@@ -127,11 +127,16 @@ it("drags a card onto a list, by the browser's own drag and drop, and a held poi
   await expect(screen.getByTestId('moved')).toHaveText(/^Moved [1-9]\d* times$/);
 });
 
-it('keeps a signed-in session, and starts from it after a restart, but not after the state is cleared', async () => {
+it('keeps a signed-in session when the app ends, and starts from it after a restart, but not after the state is cleared', async () => {
   expect(await device.clearState()).toBe('done');
   await device.open('/session');
   await expect(screen.getByText('Signed out')).toBeVisible();
   await screen.getByRole('button', {name: 'Sign in'}).press();
+  await expect(screen.getByText('Signed in as Ada')).toBeVisible();
+  // Ended and started again, the app finds what it kept.
+  expect(await device.stopApp()).toBe('done');
+  expect(await device.foregroundApp()).toBe('about:blank');
+  await device.open('/session');
   await expect(screen.getByText('Signed in as Ada')).toBeVisible();
   const kept = await device.web.storageState('.harness/session.json');
   expect(JSON.parse(fs.readFileSync(kept as string, 'utf8'))).toMatchObject({cookies: [expect.objectContaining({name: 'session'})], origins: [expect.objectContaining({localStorage: [{name: 'user', value: 'Ada'}]})]});

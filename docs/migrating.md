@@ -48,7 +48,7 @@ retries and timeouts are Vitest's own, and so is `expect`.
 | `launchApp({launchArgs, permissions})` | `launchArguments` and `permissions` in the harness config, applied to each restart | renamed |
 | `launchApp({delete: true})` | `device.clearState()` | renamed |
 | `device.reloadReactNative()` | `device.restart()`, the nearest | renamed |
-| `device.terminateApp()` | | not yet |
+| `device.terminateApp()` | `device.stopApp()` | renamed |
 | `device.installApp()` | `device.installApp()` | same |
 | `device.sendToHome()` | `device.home()` | renamed |
 | `device.pressBack()` | `device.back()` | renamed |
@@ -89,7 +89,7 @@ A flow is a test file, and each command a line of it.
 | `launchApp: {clearState: true}`, `clearState` | `device.clearState()` | renamed |
 | `launchApp: {stopApp: true}` | `device.restart()` | renamed |
 | `launchApp: {arguments}`, `launchApp: {permissions}` | `launchArguments` and `permissions` in the harness config | renamed |
-| `stopApp`, `killApp` | | not yet |
+| `stopApp`, `killApp` | `device.stopApp()` | renamed |
 | a second `appId` in a flow | | not yet: one app to a platform |
 | `tapOn: Save` | `screen.getByText('Save').press()` | renamed |
 | `tapOn: {id: save}` | `screen.getByTestId('save').press()` | renamed |

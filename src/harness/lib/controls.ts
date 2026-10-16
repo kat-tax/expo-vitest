@@ -11,6 +11,7 @@ import {elsewhere} from './types.ts';
 export const CHANGES_SCREEN: Record<ControlName, boolean> = {
   restart: true,
   clearState: true,
+  stopApp: true,
   back: true,
   home: true,
   installApp: false,

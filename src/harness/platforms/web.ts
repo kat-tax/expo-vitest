@@ -641,6 +641,13 @@ export function webDriver(options: DriverOptions): Driver {
             const result = await relaunch(false);
             return result.ok ? ok(`cleared: ${result.message}, with no cookies or storage kept`) : result;
           }
+          case 'stopApp': {
+            // The app's own script ends with its page; the context, its cookies and its storage stay.
+            const current = await open();
+            lastRead = null;
+            await current.goto('about:blank', {timeout: navigation});
+            return ok('left the app for a blank page, with its cookies and storage kept');
+          }
           case 'back': {
             const current = await open();
             lastRead = null;

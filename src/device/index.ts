@@ -417,6 +417,16 @@ class Device {
     return doneOrSkipped(await this.control({name: 'clearState'}));
   }
 
+  /**
+   * The app ended, as Detox's `terminateApp` and Maestro's `stopApp` end it,
+   * with its data kept: the app's process on a device and on Windows, and on
+   * web the page, left for a blank one with its cookies and storage kept.
+   * `open` or `restart` starts it again.
+   */
+  async stopApp(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'stopApp'}));
+  }
+
   /** Back, as the platform goes back: the history on web, the back button on a device. */
   async back(): Promise<'done' | 'skipped'> {
     return doneOrSkipped(await this.control({name: 'back'}));

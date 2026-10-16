@@ -4,7 +4,7 @@ import {PLATFORMS} from './types.ts';
 
 describe('the controls', () => {
   it('wait for the screen after the ones that change it', () => {
-    expect(Object.entries(CHANGES_SCREEN).filter(([, changes]) => changes).map(([name]) => name)).toEqual(['restart', 'clearState', 'back', 'home', 'openLink', 'setAppearance', 'setOrientation', 'fold', 'dismissKeyboard', 'alert']);
+    expect(Object.entries(CHANGES_SCREEN).filter(([, changes]) => changes).map(([name]) => name)).toEqual(['restart', 'clearState', 'stopApp', 'back', 'home', 'openLink', 'setAppearance', 'setOrientation', 'fold', 'dismissKeyboard', 'alert']);
   });
 
   it('are named in the journal by what they did', () => {
