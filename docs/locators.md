@@ -235,7 +235,7 @@ Each platform's word becomes a kind like this:
 | Platform | From | Where it reads more than the word |
 | --- | --- | --- |
 | Windows | the UI Automation control type | a `Button` that toggles and does not invoke is a `switch`; a `Button` in a `Tab` is a `tab`; an `Edit` named for searching is a `searchbox` |
-| Android | the widget's class | a named child of a tab bar is a `tab`; a node that can be pressed and says nothing takes the kind of the one control inside it that cannot be pressed; a class the table lacks takes agent-device's own word for it |
+| Android | the widget's class | a named child of a tab bar is a `tab`; an `EditText` whose testID or name says search is a `searchbox`; a node that can be pressed and says nothing takes the kind of the one control inside it that cannot be pressed; a class the table lacks takes agent-device's own word for it |
 | iOS | the XCUIElement type | a button in a tab bar or a segmented control is a `tab` |
 | web | the ARIA role, given or implied by the tag | a plain element kept for its text is `text` |
 

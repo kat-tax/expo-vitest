@@ -113,7 +113,7 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
     const kind =
       platform === 'ios'
         ? kindOnIos(raw.role ?? raw.type ?? '', above ? (above.node.role ?? above.node.type) : undefined)
-        : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type);
+        : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type, node.testId);
     return {...node, ...(above ? {parent: above.ref} : null), ...(kind ? {kind} : null)};
   });
   return platform === 'android' ? readAsTalkBack(kinded, nodes) : kinded;
@@ -150,7 +150,6 @@ function readAsTalkBack(mapped: SnapshotNode[], nodes: AgentNode[]): SnapshotNod
     return {...node, ...(name ? {name} : null), ...(kind ? {kind} : null)};
   });
 }
-
 
 /** agent-device's refusal of a ref every point of which lies in a descendant it counts as one to press. */
 export const NO_TOUCH_POINT = /no parent-owned touch point/;

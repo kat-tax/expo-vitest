@@ -148,12 +148,15 @@ function simpleName(type: string): string {
 /**
  * An Android node's kind, from its class, or from agent-device's own word
  * for a class not in the table. A named child of a tab bar is a tab, as
- * agent-device reports a tab of `TabLayout` or `BottomNavigationView`.
+ * agent-device reports a tab of `TabLayout` or `BottomNavigationView`. A
+ * field whose testID or name says search is a search box, as on Windows,
+ * since Android has no class for one.
  */
-export function kindOnAndroid(type: string, agentKind: string | undefined, name: string, parentType?: string): Kind | undefined {
+export function kindOnAndroid(type: string, agentKind: string | undefined, name: string, parentType?: string, testId?: string): Kind | undefined {
   const parent = parentType ? ANDROID[simpleName(parentType)] : undefined;
   if (parent === 'tablist' && name) return 'tab';
-  return ANDROID[simpleName(type)] ?? (agentKind ? AGENT_DEVICE[agentKind] : undefined);
+  const kind = ANDROID[simpleName(type)] ?? (agentKind ? AGENT_DEVICE[agentKind] : undefined);
+  return kind === 'textbox' && /search/i.test(`${testId ?? ''} ${name}`) ? 'searchbox' : kind;
 }
 
 /** XCUIElement types without their prefix. */

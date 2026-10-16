@@ -58,6 +58,12 @@ describe('kindOnAndroid', () => {
     expect(kindOnAndroid('com.example.Fancy', 'widget', '')).toBeUndefined();
   });
 
+  it('makes a field whose testID or name says search a search box', () => {
+    expect(kindOnAndroid('android.widget.EditText', 'text-field', 'Search notes')).toBe('searchbox');
+    expect(kindOnAndroid('android.widget.EditText', 'text-field', '', undefined, 'notes-search')).toBe('searchbox');
+    expect(kindOnAndroid('android.widget.EditText', 'text-field', 'Email', undefined, 'sign-in-email')).toBe('textbox');
+  });
+
   it('makes a named child of a tab bar a tab', () => {
     expect(kindOnAndroid('android.widget.FrameLayout', 'group', 'Home', 'com.google.android.material.bottomnavigation.BottomNavigationView')).toBe('tab');
     expect(kindOnAndroid('android.widget.FrameLayout', 'group', '', 'com.google.android.material.tabs.TabLayout')).toBe('group');
@@ -72,7 +78,8 @@ describe('kindOnAndroid', () => {
     const display = toSnapshotNodes(nodesFrom(fixture('android-display.json')));
     expect(display.find(each => each.role === 'android.widget.Switch')?.kind).toBe('switch');
     const search = toSnapshotNodes(nodesFrom(fixture('android-search.json')));
-    expect(search.find(each => each.role === 'android.widget.EditText')?.kind).toBe('textbox');
+    // The Settings app's "Search settings" field.
+    expect(search.find(each => each.role === 'android.widget.EditText')?.kind).toBe('searchbox');
   });
 });
 
