@@ -12,7 +12,7 @@ own.
 
 | Platform | Runner | Before the tests |
 | --- | --- | --- |
-| web | Linux | `npx playwright-core install --with-deps chromium`, or `firefox` or `webkit` for [`HARNESS_BROWSER`](harness.md#the-browser). The harness config's [command](configuration.md#the-command) serves the app. |
+| web | Linux | `npx playwright-core install --with-deps chromium`, or `firefox` or `webkit` for [`HARNESS_BROWSER`](platforms.md#the-browser). The harness config's [command](configuration.md#the-command) serves the app. |
 | android | Linux with KVM | `agent-device`, an emulator booted, and the app built and installed. |
 | ios | macOS | `agent-device`, a simulator booted on a runtime the image has, and a simulator build installed. |
 | windows | Windows | The app built, at the path the harness config's `target` names, and `HARNESS_FORCE=1`, since no one is at the desk. |
@@ -109,6 +109,7 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/app/build/outputs/apk/release/app-release.apk
+            adb shell settings put global hide_error_dialogs 1
             npx vitest run --config vitest.config.device.mts --project device:android
         env: {HARNESS_TARGET: ci, GITHUB_TOKEN: '${{ github.token }}'}
       - uses: actions/upload-artifact@v7
@@ -158,12 +159,14 @@ What each job keeps in mind:
 - **Android** installs and tests in one `script`, since the action stops
   the emulator when its step ends, and each line of the script runs in a
   shell of its own. Expo's templates sign a release build with the debug
-  key, so the APK installs as it is.
+  key, so the APK installs as it is. An emulator drawn in software can
+  leave its launcher not responding after it boots, and Android's dialog
+  for that sits over every app, so the script hides error dialogs first.
 - **Windows** takes the app from a build job's artifact: a
   react-native-windows build needs Visual Studio 2022's C++ desktop and UWP
   workloads and the Windows SDK, which `windows-2022` has, and takes long
   enough to be a job of its own. `HARNESS_FORCE` lets the harness send
-  input on a desk [no one is using](device-tests.md#running),
+  input on a desk [no one is using](platforms.md#synthetic-input-waits-for-a-quiet-desk),
   which on a runner is always so. The harness config's `app.windows.target`
   names the exe under `windows/x64/Release`. A runner's screen is 1024x768,
   smaller than most app windows, and the harness will not press a part of a
@@ -171,14 +174,6 @@ What each job keeps in mind:
 - **Web** needs nothing else: the harness config's command starts the dev
   server on the run's port, and stops it after.
 
-This repository runs these jobs on every pull request, against the app it
-keeps in `testapp/`, in `.github/workflows/testapp.yml`: web and Android on
-`ubuntu-latest` and Windows on `windows-latest`. Its iOS job, on
-`macos-26`, is there and off, since expo-interface's iOS form buttons take a
-tap only on what they draw and the app cannot be signed in to. The jobs
-differ from those above where that app does: on Android and iOS a
-development build loads its JavaScript from the dev server the run starts,
-and on Windows the build is expo-windows' own.
 
 ## The summary and the pull request comment
 
@@ -565,8 +560,12 @@ Codemagic's Linux image has three emulators made already, `emulator`,
 
 ## What has been run
 
-This package's own CI runs the web job's steps, against its fixture: the
-packed package installed in an app, its device tests on a Chromium the job
-installs. The other jobs follow each service's documented setup, and
-agent-device's own EAS template, and have not been run from this page. Pin
-each image, stack and simulator runtime to one your account lists.
+Jobs like the GitHub Actions ones above run on every pull request to this
+package, for web, Android and Windows, against an app of the usual kind with
+a device suite, as [Contributing](contributing.md#ci) says. There the Android
+app is a development build, which loads its JavaScript from the dev server
+the run starts, and the Windows app is the build expo-windows makes. An iOS
+simulator on `macos-26`, with agent-device, has run there too. The EAS
+Workflows, Bitrise and Codemagic jobs follow each service's documented
+setup, and agent-device's own EAS template, and have not been run. Pin each
+image, stack and simulator runtime to one your account lists.

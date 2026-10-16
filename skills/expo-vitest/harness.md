@@ -45,4 +45,4 @@ anyway.
 
 `expo-harness mcp`, `explore` and `bug-bash` are topics of their own.
 
-More: `node_modules/expo-vitest/docs/harness.md`.
+More: `node_modules/expo-vitest/docs/harness.md` and `platforms.md`.

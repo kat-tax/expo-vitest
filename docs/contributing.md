@@ -11,12 +11,17 @@
 | `src/setup/` | Each project's setup file. |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | The helpers. |
 | `src/device/` | The device test API and its matchers. |
+| `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter. |
 | `src/harness/` | The drivers and the `expo-harness` command. |
+| `src/cli/` | `init`, `guide` and `cache`. |
+| `src/reporter/` | The summary and GitHub reporters. |
+| `skills/expo-vitest/` | The skill for coding agents, which `guide` prints and `init` copies. |
 | `fixture/` | A library the size of one constant, tested against the packed package. |
 | `testapp/` | An Expo app of the usual kind, with a device suite, run against the packed package. |
 | `scripts/` | The build, and the fixture and test app runs. |
 
-`AGENTS.md` at the root has the conventions.
+`AGENTS.md` at the root has the conventions, and `ROADMAP.md` what is left
+to build.
 
 ## Checks
 
@@ -163,6 +168,20 @@ The app keeps its storage in `%LOCALAPPDATA%/TestApp`, which `clearState`
 deletes. A step that needs synthetic input waits for a quiet desk, or goes
 ahead with `HARNESS_FORCE=1`.
 
+On iOS the suite drives a simulator build of the same development build,
+whose dev server the run starts on port 41754. The suite cannot sign in there
+yet: expo-interface's iOS form buttons take a press only on what they draw,
+and a press goes to the middle of a button's frame, which is the whole row.
+
+```sh
+cd testapp && npx expo prebuild --platform ios
+WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+xcodebuild -workspace "$WORKSPACE" -scheme "$(basename "$WORKSPACE" .xcworkspace)" -configuration Debug \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/*.app
+cd .. && TESTAPP_PLATFORMS=ios HARNESS_TARGET=<udid> HARNESS_METRO=http://localhost:41754 bun run test:testapp
+```
+
 Its harness config gives the agent a model of rules, `testapp/device/rules.mts`,
 which explores a sign-in with a wrong password, so `expo-harness explore`
 runs against the app with no key, as `expo-harness mcp` serves it to a
@@ -179,7 +198,7 @@ node scripts/testapp.js --update-lockfile
 | Workflow | When | What |
 | --- | --- | --- |
 | `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture with its device tests on web. |
-| `testapp.yml` | Pull requests | The test app's suite from the packed package: on web, on an Android emulator and an iOS simulator from its development build, and on Windows from the Release build expo-windows makes. Each job uploads what its run saw. |
+| `testapp.yml` | Pull requests | The test app's suite from the packed package: on web, on an Android emulator from its development build, and on Windows from the Release build expo-windows makes. Each job uploads what its run saw. Its iOS job, on a simulator, is off until the suite can sign in there. |
 | `release.yml` | A `v*` tag matching `package.json` | Re-runs the checks, publishes to npm with provenance, creates a GitHub release. |
 
 ## Commits and writing

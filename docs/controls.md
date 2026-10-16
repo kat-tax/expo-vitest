@@ -77,7 +77,7 @@ step says how many characters. On Windows the clipboard is the machine's, and
 an Android emulator may share its clipboard with the machine it runs on, so a
 test that sets it replaces what someone copied. On web the clipboard is
 Chromium's alone: Firefox grants a page no clipboard permission, and WebKit
-none to write with, so under [either](harness.md#the-browser) the two are
+none to write with, so under [either](platforms.md#the-browser) the two are
 not in `device.capabilities`.
 
 The headless Chromium has no notifications, so `Notification.permission`

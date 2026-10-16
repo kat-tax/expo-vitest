@@ -238,7 +238,7 @@ Each platform's word becomes a kind like this:
 | --- | --- | --- |
 | Windows | the UI Automation control type | a `Button` that toggles and does not invoke is a `switch`; a `Button` in a `Tab` is a `tab`; an `Edit` named for searching is a `searchbox` |
 | Android | the widget's class | a named child of a tab bar is a `tab`; an `EditText` whose testID or name says search is a `searchbox`; a node that can be pressed and says nothing takes the kind of the one control inside it that cannot be pressed; a class the table lacks takes agent-device's own word for it |
-| iOS | the XCUIElement type | a button in a tab bar or a segmented control is a `tab` |
+| iOS | the XCUIElement type | a button in a tab bar or a segmented control is a `tab`; a type the table lacks, as a SwiftUI control read by its class, takes agent-device's own word for it |
 | web | the ARIA role, given or implied by the tag | a plain element kept for its text is `text` |
 
 ## by and element
@@ -263,7 +263,7 @@ await element(by.testID('save')).press();
 | --- | --- |
 | `by.testID(id)` | The `testID` the component was given. It reaches `data-testid` on web and `AutomationId` on Windows. |
 | `by.label(name)` | The accessible name, exactly first, then in any case, then as a part of it. |
-| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. |
+| `by.text(part)` | The accessible name, loosely: `New` finds `New drop`. On iOS and Android a press or a fill by it goes to agent-device as a label, which has to match whole. |
 | `by.role(role)` | What it is: the platform's own word (`Button`, `TabItem`, `link`), or its kind (`button`, `tab`, `switch`). |
 | `by.ref(ref)` | A ref from a snapshot (`@e7`). Good for that snapshot only. |
 

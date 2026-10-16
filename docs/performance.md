@@ -57,9 +57,8 @@ once more, where it would land, which costs about half a millisecond.
 ## Windows
 
 A react-native-windows 0.84 Release build made with expo-windows 0.25, at
-its first screen of 94 nodes.
-
-Through the host, one PowerShell process the harness keeps for the run:
+its first screen of 94 nodes, through the host: one PowerShell process the
+harness keeps for the run.
 
 ```
   operation         cold      p50      p95      min      max
@@ -68,32 +67,21 @@ Through the host, one PowerShell process the harness keeps for the run:
   screenshot        43.0     34.7     38.3     31.7     39.4
 ```
 
-A PowerShell process started for each step instead, measured straight after
-on the same screen:
+Someone was using the machine, so the driver refused the press, and every
+number carries that load.
 
-```
-  operation         cold      p50      p95      min      max
-  snapshot        1422.0   1366.4   1746.8    946.8   1919.2
-  snapshot -i      868.3   1067.6   1534.6    822.3   1672.5
-  screenshot       353.8    354.4    398.2    341.3    427.2
-```
-
-Someone was using the machine for both, so the driver refused the press and
-every number carries that load.
-
-A process for each step loads UI Automation and compiles the C# it needs,
-and walks the tree with a call across to the app for each element and each
-property. The host starts and compiles once, in about half a second, and
-fetches the whole tree in one request. Where the
-managed UI Automation client cannot read that cached tree back, as on some
-react-native-windows screens, the host walks the same tree an element at a
-time instead, which took 359 ms for the 94 nodes in one reading. What is left
-of a snapshot is that request: the app's own provider answering for every
-element, which is most of the time here.
+A process started for each step would load UI Automation, compile the C# it
+needs, and walk the tree with a call across to the app for each element and
+each property. The host starts and compiles once, in about half a second,
+and fetches the whole tree in one request. Where the managed UI Automation
+client cannot read that cached tree back, as on some react-native-windows
+screens, the host walks the same tree an element at a time instead, which
+took 359 ms for the 94 nodes in one reading. What is left of a snapshot is
+that request: the app's own provider answering for every element, which is
+most of the time here.
 
 A screenshot is the window drawing itself, so a window over it is not in the
-picture. That costs what copying the screen did: 35 ms at p50 in a run of
-ten.
+picture: 35 ms at p50 in a run of ten.
 
 ## Android
 

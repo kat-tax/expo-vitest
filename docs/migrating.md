@@ -2,7 +2,7 @@
 
 [Docs home](README.md) · [Device tests](device-tests.md) · [Locators](locators.md) · [Matchers](matchers.md) · [Controls](controls.md)
 
-What a test from Detox, Maestro, Playwright or e2e becomes here. Each row's
+What a test from Detox, Maestro or Playwright becomes here. Each row's
 status is one of four: **same**, the call by the same name; **renamed**, the
 same thing by another name; **by design**, not here, for the reason given;
 and **not yet**. A test here is a Vitest test: `describe`, `it`, the hooks,
@@ -170,49 +170,10 @@ since a test here runs on a phone as well as a page.
 | `page.setViewportSize` | `device.web.setViewport` | renamed |
 | `context.cookies`, `addCookies`, `clearCookies` | `device.web.cookies`, `setCookies`, `clearCookies` | renamed |
 | `page.frameLocator('#card')` | `device.web.frame('#card')` | renamed |
-| browser projects | [`HARNESS_BROWSER`](harness.md#the-browser), `chromium`, `firefox` or `webkit` | renamed |
-| `connectOverCDP` | [`HARNESS_CDP`](harness.md#the-browser) | renamed |
+| browser projects | [`HARNESS_BROWSER`](platforms.md#the-browser), `chromium`, `firefox` or `webkit` | renamed |
+| `connectOverCDP` | [`HARNESS_CDP`](platforms.md#the-browser) | renamed |
 | `video` | [`video`](evidence.md#video) in the harness config | same |
 | the trace viewer | `trace.md`, the tree and the screenshot in each failing test's [folder](evidence.md) | by design: a trace a person or an agent reads as text |
 | `storageState`, `test.step` | | not yet |
 | `expect.poll` | Vitest's `expect.poll` | same |
 
-## From e2e
-
-| e2e | Here | Status |
-| --- | --- | --- |
-| `test`, `expect` from `e2e` | Vitest's | renamed |
-| `screen.getByRole(role, name)` | `screen.getByRole(role, {name})` | renamed |
-| `.tap()` | `.press()` | renamed |
-| `app.open` | `device.open` | renamed |
-| `app.restart`, `app.clearState` | `device.restart`, `device.clearState` | renamed |
-| the `device` fixture | `device` from `expo-vitest/device` | renamed |
-| `requires` | `device.can`, `requires`, `onlyOn` and `skipOn` | same |
-| `targets` | `deviceConfig({platforms})` | renamed |
-| `e2e.config.ts` | `harness.config.ts` | renamed |
-| `--target ios` | `--project device:ios` | renamed |
-| `.e2e/` | `.harness/` | renamed |
-| reporters | Vitest's, and [`expo-vitest/reporter`](ci.md#the-summary-and-the-pull-request-comment) | renamed |
-| `video` | [`video`](evidence.md#video) | same |
-| `agent.act`, `agent.assert`, `agent.waitFor`, `agent.extract` | the same, from [`expo-vitest/agent`](agent.md) | same |
-| `agents` in `e2e.config.ts` | [`agents`](agent.md#several-agents) in `harness.config.ts` | same |
-| `{agent: ['buyer', 'admin']}` | [`forEachAgent(['buyer', 'admin'], ...)`](agent.md#several-agents), and `agent.as(name)` | renamed |
-| `credentials.user(name)`, `secrets.get(name)` | [`secret(name)`](agent.md#secrets) | renamed |
-| `E2E_SECRET_<NAME>` | `HARNESS_SECRET_<NAME>` | renamed |
-| `unique(value)` | `unique(value)` | same |
-| `defineTool(aiSdkTool, {mutates, platforms})` | [`defineTool({name, description, schema, mutates, platforms, execute})`](agent.md#project-tools), with no AI SDK tool | renamed |
-| `createToolLoopExecutor` | [`toolLoopExecutor`](agent.md#an-executor-of-your-own) | renamed |
-| `cache` modes, `strict` | [`cache`](agent.md#the-cache) in `harness.config.ts`, `HARNESS_CACHE` | same |
-| `e2e cache ls`, `stats`, `clear` | [`expo-harness cache ls`, `stats`, `clear`](harness.md#the-agents-cache) | renamed |
-| `--debug` | `HARNESS_DEBUG=1` | renamed |
-| `--ai-trace`, `.e2e/ai-trace.json` | `HARNESS_AI_TRACE=1`, `.harness/ai-trace.jsonl`, a JSON line a call | renamed |
-| `e2e mcp`, and `open_session`, `tools`, `call`, `close_session` | [`expo-harness mcp`](coding-agents.md#the-mcp-server), with the same four tools | renamed |
-| a node's `#id`, good against the newest observation | its ref, `@e7`, which names the node for the whole session | different by design |
-| `locate` | [`locate`](coding-agents.md#the-loop), answering the `screen.*` call | same |
-| `hover_at`, `type_at`, `press_at`, `select_at`, `start_recording`, `stop_recording`, and the mobile pack's `open_app` and `alert` | | not yet |
-| progress notifications on a long call | | not yet |
-| `e2e explore [goal]` | [`expo-harness explore [goal]`](coding-agents.md#explore) | renamed |
-| the bug bash, a procedure in the skill | [`expo-harness bug-bash`](coding-agents.md#bug-bash), a command over a feature map | different by design |
-| the `bugbash` tag and `--exclude-tag bugbash` | `describe.skipIf(!process.env.HARNESS_BUGBASH)` around each skeleton | different by design |
-| `init` writing `.mcp.json` and `.cursor/mcp.json` | [`init`](harness.md#setting-a-project-up), with `--mcp` under `--yes` | same |
-| `maxInputTokens`, `providerOptions` | | not yet |

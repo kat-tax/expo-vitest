@@ -2,8 +2,24 @@
 
 [Docs home](README.md)
 
-This page sets up Vitest in an Expo SDK 57 project and writes one test for each
-kind of platform.
+This page sets up Vitest in an Expo SDK 57 project, and writes a test for
+each kind of platform.
+
+## The quick way
+
+```sh
+npx expo-vitest init
+```
+
+`init` reads the project: its package manager, Expo SDK, React Native Testing
+Library version, the platforms the app builds for, its scheme, and the tests
+already there. It asks which platforms to set up, whether to add device
+tests, the skill for coding agents and the MCP server, and whether to install
+the packages. It shows each file before it writes it, and keeps a config or
+a test the project already has. [The harness](harness.md#setting-a-project-up)
+lists what it writes.
+
+The rest of this page is what `init` does, by hand.
 
 ## 1. Install
 
@@ -16,17 +32,16 @@ npx expo install --dev expo-vitest vitest vitest-expo vitest-native \
 | Package | Why |
 | --- | --- |
 | `vitest`, `vitest-expo`, `vitest-native` | The runner, and the engines that run React Native's JavaScript under it. |
-| `@testing-library/react-native`, `test-renderer` | Rendering and queries for the iOS, Android and Windows projects. Version 14 uses `test-renderer`. |
+| `@testing-library/react-native`, `test-renderer` | Rendering and queries for the iOS, Android and Windows projects. Version 14 renders through `test-renderer`. |
 | `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` | The same for the web project. Leave them out if you have no web project. |
 
 The web project also needs `react-dom` and `react-native-web`, which an app
 with a web target has.
 
-The package needs Node 22.18 or later. That is where Node strips TypeScript's
-types without a flag, so a device test's [harness
-config](configuration.md#harnessconfigts), a `.ts` file, loads as it is
-whichever loader reads it. agent-device, which drives iOS and Android, needs
-22.12 already.
+The package needs Node 22.18 or later. That is where Node strips
+TypeScript's types without a flag, so a [harness
+config](configuration.md#harnessconfigts), which is a `.ts` file, loads
+whichever loader reads it.
 
 ## 2. Configure
 
@@ -40,8 +55,8 @@ export default defineConfig({
 });
 ```
 
-By default the projects look for tests under `src`. Name other folders with
-`include`, and the platforms you have with `platforms`:
+The projects look for tests under `src`. Name other folders with `include`,
+and the platforms you build for with `platforms`:
 
 ```ts
 expoProjects({include: ['app', 'components'], platforms: ['ios', 'android', 'web']});
@@ -49,27 +64,27 @@ expoProjects({include: ['app', 'components'], platforms: ['ios', 'android', 'web
 
 [Configuration](configuration.md) has every option.
 
-Add the types, for the globals (`describe`, `it`, `expect`, `vi`) and the
+Add the types for the globals (`describe`, `it`, `expect`, `vi`) and the
 jest-dom matchers on `expect`:
 
 ```json
 {"compilerOptions": {"types": ["vitest-expo/types", "expo-vitest/types"]}}
 ```
 
-And a script:
+And the scripts:
 
 ```json
 {"scripts": {"test": "vitest run", "test:watch": "vitest"}}
 ```
 
-## 3. Name the test for its platforms
+## 3. Name each test for its platforms
 
 | File name | Runs on |
 | --- | --- |
 | `*.test.ts` | iOS, Android, web and Windows |
 | `*.test.tsx` | iOS, Android and web |
 | `*.native.test.tsx` | iOS and Android |
-| `*.ios.test.tsx`, `*.android.test.tsx`, `*.web.test.tsx`, `*.windows.test.tsx` | one platform |
+| `*.ios.test.tsx`, `*.android.test.tsx`, `*.web.test.tsx`, `*.windows.test.tsx` | that platform |
 
 [Projects](projects.md#which-tests-run-where) explains the rule.
 
@@ -78,7 +93,7 @@ And a script:
 ### Logic, on every platform
 
 A `.test.ts` file renders nothing, so it runs on all four. It is the place to
-prove that each platform resolves the right file.
+check that each platform resolves the right file.
 
 ```ts
 // src/where/where.test.ts
@@ -145,7 +160,7 @@ it('finds a host view by its name and fires its events', async () => {
 ### One test on three platforms
 
 A `.test.tsx` file runs on iOS, Android and web. The two testing libraries
-differ, so import the one for the platform when the test needs it:
+differ, so import the one for the platform where the test needs it:
 
 ```tsx
 // src/where/shared.test.tsx
@@ -164,9 +179,6 @@ it('mounts an in-memory Expo Router app', async () => {
 });
 ```
 
-These five are the tests in this repository's `fixture/`, which run against the
-packed package on every change.
-
 ## 5. Run
 
 ```sh
@@ -178,7 +190,7 @@ npx vitest                              # watch mode
 
 ## Coverage
 
-Coverage and reporters stay in the root `test` block, which is yours:
+Coverage and reporters go in the root `test` block, which is yours:
 
 ```ts
 export default defineConfig({
@@ -198,15 +210,15 @@ npm install --save-dev @vitest/coverage-v8
 npx vitest run --coverage
 ```
 
-Coverage merges across the projects, so a branch taken only on Android counts
-once the Android project has run it. To find what is uncovered, parse
-`coverage/lcov.info` for `DA:...,0` and `BRDA:...,0` lines rather than reading
-the text table.
+Coverage merges across the projects, so a branch taken only on Android
+counts once the Android project has run it. To find what is not covered,
+read `coverage/lcov.info` for `DA:...,0` and `BRDA:...,0` lines, which the
+text table rounds away.
 
 ## In CI
 
-The projects need no simulator, emulator or Windows machine. They run on a
-Linux runner:
+The component projects need no simulator, emulator or Windows machine. They
+run on a Linux runner:
 
 ```yaml
 - run: npm ci
@@ -214,25 +226,23 @@ Linux runner:
 ```
 
 Device tests need what they drive: a browser, an emulator, a simulator or a
-Windows build. [CI](ci.md) has a job for each, on GitHub Actions, EAS
-Workflows, Bitrise and Codemagic, and the reporter that comments on a pull
-request.
+Windows build. [CI](ci.md) has a job for each.
 
 ## Next steps
 
-- Keep native-only modules out of Windows files with
-  [forbidden modules](configuration.md#forbidden-modules).
+- Drive the running app with [device tests](device-tests.md).
 - Assert on what SwiftUI, Compose or C++ receives with the
   [helpers](helpers.md).
-- Drive a real build with [device tests](device-tests.md).
+- Keep native-only modules out of Windows files with
+  [forbidden modules](configuration.md#forbidden-modules).
 
 ## Troubleshooting
 
 **`jest is not defined`.** Jest compatibility is off. Use `vi.fn()`,
 `vi.mock()` and `vi.spyOn()`.
 
-**An update lands in the next test, or `act` warnings.** A `render` or
-`fireEvent` from React Native Testing Library 14 was not awaited.
+**An update lands in the next test, or there are `act` warnings.** A `render`
+or `fireEvent` from React Native Testing Library 14 was not awaited.
 
 **A Windows test loads `index.tsx` instead of `index.windows.tsx`.** Only
 relative imports of the code under test resolve `.windows.*` first. For a
@@ -247,8 +257,8 @@ TypeScript or untranspiled source. Name it in
 pre-bundled. Name it in [`web.optimize`](configuration.md#options).
 
 **`toBeInTheDocument` is not a function on `expect`.** Add
-`expo-vitest/types` to the `types` in `tsconfig.json`. At run time the matchers
-are registered by the web project's setup file, so this is a type error only.
+`expo-vitest/types` to the `types` in `tsconfig.json`. The web project's
+setup file registers the matchers at run time, so this is a type error only.
 
 **Tests time out under coverage.** The projects run in parallel, and coverage
 slows each. Raise [`timeout`](configuration.md#options) from its fifteen

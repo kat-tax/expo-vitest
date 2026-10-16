@@ -155,8 +155,9 @@ export default defineConfig(deviceConfig());
 | `root` | With `platforms`: the project's folder. Screenshots, baselines and evidence are kept under it. | `HARNESS_ROOT`, else the working directory |
 | `reporters` | Vitest's reporters, kept at the config's root where Vitest reads them: `summary()` and `github()` from `expo-vitest/reporter` beside Vitest's own. See [CI](ci.md#the-summary-and-the-pull-request-comment). | Vitest's default |
 
-The config runs one file at a time in one worker. There is one app and one
-driver, and two files must not press the same window at once.
+A platform's files run one at a time in one worker, since there is one app
+and one driver, and two files must not press the same window at once. A
+[pool](device-tests.md#pools) of devices or browsers runs them side by side.
 
 ### A project per platform
 

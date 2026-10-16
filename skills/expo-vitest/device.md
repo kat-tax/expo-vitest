@@ -106,5 +106,5 @@ Without a baseline the picture is kept as evidence and the test passes. A
 baseline is recorded only under `HARNESS_UPDATE_SCREENSHOTS=1` or `vitest -u`.
 A baseline belongs to the machine that drew it.
 
-More: `node_modules/expo-vitest/docs/device-tests.md`, `locators.md`,
-`matchers.md`, `controls.md` and `configuration.md`.
+More: `node_modules/expo-vitest/docs/device-tests.md`, `platforms.md`,
+`locators.md`, `matchers.md`, `controls.md` and `configuration.md`.

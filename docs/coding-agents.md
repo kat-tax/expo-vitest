@@ -66,7 +66,7 @@ claude mcp add --transport stdio --scope project expo-harness -- npx expo-harnes
 
 ### The loop
 
-The server has four tools, e2e's names for them:
+The server has four tools:
 
 | Tool | What it does |
 | --- | --- |
