@@ -222,7 +222,16 @@ public static class HarnessHost {
     if (!element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) return Unsupported;
     ValuePattern value = (ValuePattern)pattern;
     if (value.Current.IsReadOnly) return "{\"pattern\":\"Value\",\"readOnly\":true}";
+    // A secure field reads back a mask, a character for each it holds, so new
+    // text as long as the old reads the same as before. Emptied first, the
+    // field shows by its length that the text went in.
+    bool secure = element.Current.IsPassword;
     string before = value.Current.Value;
+    if (secure && text.Length > 0 && before.Length == text.Length) {
+      value.SetValue("");
+      Until(() => value.Current.Value.Length == 0);
+      before = value.Current.Value;
+    }
     value.SetValue(text);
     if (text != before) Until(() => value.Current.Value != before);
     string after;
@@ -230,6 +239,8 @@ public static class HarnessHost {
     // Taken when the field reads the text, or reads something new the app
     // made of it, as a field that keeps capitals or a length does.
     bool changed = after == text || after != before;
+    // Never what a secure field reads back, which a step's message would carry.
+    if (secure) return "{\"pattern\":\"Value\",\"changed\":" + Bool(changed) + "}";
     return "{\"pattern\":\"Value\",\"changed\":" + Bool(changed) + ",\"value\":" + Json(after) + "}";
   }
 

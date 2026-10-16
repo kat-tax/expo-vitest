@@ -305,7 +305,8 @@ and where it stayed as it was, the pointer presses it instead, with the check
 above. react-native-windows leaves a view that way when the view declares no
 accessibility action to answer the pattern. A field with a Value pattern is
 filled by setting its text and reading it back, and a read-only one is
-refused. In a device test, `press({via: 'pointer'})` and
+refused. A secure field reads back only a mask of its length, so one that
+holds text as long as the new text is emptied first. In a device test, `press({via: 'pointer'})` and
 `fill(text, {via: 'keys'})` ask for synthetic input instead.
 
 **A screenshot does not raise the window.** Raising it would hide the flyout
