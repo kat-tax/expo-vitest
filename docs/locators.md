@@ -116,7 +116,7 @@ that names no node, or several, has nothing inside it.
 | `.focus({timeout})` | Gives the node the keyboard focus without pressing it: through the page on web and through UI Automation on Windows. On iOS and Android, agent-device gives the focus with a touch. |
 | `.key(name, {timeout})` | Sends a named key, `ArrowDown`, `Enter`, with the node focused, focusing it first. `'skipped'` where the platform sends no keys. |
 | `.scrollIntoView({timeout})` | Scrolls the node onto the screen where it is not there already. |
-| `.swipe(direction, {distance, timeout})` | Draws a finger across the node the way `direction` says, over half of it by default. A finger drawn up scrolls the content down. A wheel on web; `'skipped'` on Windows. |
+| `.swipe(direction, {distance, timeout})` | Draws a finger across the node the way `direction` says, over half of it by default. A finger drawn up scrolls the content down. A wheel on web. On Windows, through the Scroll pattern of what scrolls under the node, else the wheel. |
 | `.waitFor({state, timeout})` | Waits until the nodes are `visible` (the default), `attached` (in the tree at all), `hidden` (none on screen) or `detached` (none in the tree). Gives the node, or `null` for the two states that have none. |
 | `.node()` | The node now, or `undefined`. |
 | `.all()`, `.count()` | Every node it names now, and how many. |
@@ -182,7 +182,7 @@ Playwright does.
 | `hover` | the mouse moved over it | the pointer moved over it | `'skipped'` |
 | `focus` | the element's own focus | UI Automation's SetFocus | a touch at its middle |
 | `scrollIntoView` | the page scrolled | the ScrollItem pattern | a scroll until it is seen |
-| `swipe` | a wheel | `'skipped'` | a swipe |
+| `swipe` | a wheel | the Scroll pattern of what scrolls under it, else the wheel | a swipe |
 | `key` | the keyboard | the keyboard | `'skipped'` |
 
 On Windows, the pointer and the keyboard are synthetic input, which waits

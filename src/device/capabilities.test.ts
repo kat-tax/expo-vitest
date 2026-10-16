@@ -14,7 +14,7 @@ describe('the capabilities', () => {
   it("are a platform's steps, less what its driver has no counterpart for", () => {
     expect(absentBecause('key', 'android')).toBe('the android harness has no key');
     expect(absentBecause('hover', 'ios')).toBe('the ios harness has no hover');
-    expect(absentBecause('swipe', 'windows')).toBe('the windows harness has no swipe');
+    expect(absentBecause('swipe', 'windows')).toBeNull();
     expect(absentBecause('swipe', 'web')).toBeNull();
     expect(absentBecause('video', 'windows')).toBe('the windows harness has no video');
     expect(absentBecause('web', 'web')).toBeNull();

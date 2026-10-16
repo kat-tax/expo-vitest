@@ -98,8 +98,8 @@ export interface SnapshotNode {
   /**
    * The UI Automation patterns the control implements, which drive it without
    * a pointer: `Invoke`, `Toggle`, `SelectionItem`, `Value`, `ScrollItem`,
-   * `ExpandCollapse`. Windows only, through the host, and absent where there
-   * are none.
+   * `ExpandCollapse`, `Scroll`. Windows only, through the host, and absent
+   * where there are none.
    */
   patterns?: string[];
 }

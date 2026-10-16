@@ -27,6 +27,7 @@
  * Invoke on a disabled Button was refused. A Pressable with no accessibility
  * role offers only ScrollItem, so its press is synthetic.
  */
+import type {Point, SnapshotNode} from './snapshot.ts';
 
 /** A press: through the first pattern that presses the control, or with the pointer. */
 export type PressWay = 'invoke' | 'toggle' | 'select' | 'pointer';
@@ -87,4 +88,21 @@ export function afterFill(answer: PatternAnswer | null): 'verified' | 'readOnly'
   if (!answer || answer.unsupported) return 'keys';
   if (answer.readOnly) return 'readOnly';
   return answer.changed ? 'verified' : 'keys';
+}
+
+/**
+ * What a swipe from a point scrolls through its Scroll pattern: the smallest
+ * node with one whose bounds hold the point, since the innermost scroller is
+ * what a finger there moves. Null where none does, and the wheel turns.
+ */
+export function scrollerAt(nodes: SnapshotNode[], point: Point): SnapshotNode | null {
+  let found: {node: SnapshotNode; area: number} | null = null;
+  for (const node of nodes) {
+    const box = node.bounds;
+    if (!box || !node.patterns?.includes('Scroll')) continue;
+    if (point.x < box.x || point.y < box.y || point.x >= box.x + box.width || point.y >= box.y + box.height) continue;
+    const area = box.width * box.height;
+    if (!found || area < found.area) found = {node, area};
+  }
+  return found?.node ?? null;
 }

@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import type {PatternAnswer} from '../lib/patterns.ts';
-import {afterFill, afterPress, chooseFill, choosePress} from '../lib/patterns.ts';
+import {afterFill, afterPress, chooseFill, choosePress, scrollerAt} from '../lib/patterns.ts';
 import {desk, fileStore, refusal} from '../lib/quiet.ts';
 import {kindOnWindows, withKinds} from '../lib/roles.ts';
 import {firstLine, prepare, run} from '../lib/run.ts';
@@ -68,6 +68,10 @@ interface Backend {
   hold(point: Point, ms: number): Promise<string>;
   /** The pointer moved to a point, without a press. */
   move(point: Point): Promise<string>;
+  /** The wheel turned at a point, for a distance in pixels; positive moves the content down or right. */
+  wheel(point: Point, dx: number, dy: number): Promise<string>;
+  /** A control of the newest snapshot scrolled through its Scroll pattern by a distance in pixels, as `act` answers; null where the call failed. */
+  scroll(ref: string, dx: number, dy: number): Promise<PatternAnswer | null>;
   keys(keys: string): Promise<string>;
   screen(out: string): Promise<string>;
   idle(): Promise<number>;
@@ -118,6 +122,8 @@ function hostBackend(processName: string): Backend {
     click: (point, count = 1) => host.request<string>('click', {...windowed, points: [[point.x, point.y]], count}),
     hold: (point, ms) => host.request<string>('hold', {...windowed, x: point.x, y: point.y, ms}, 30_000),
     move: point => host.request<string>('move', {...windowed, x: point.x, y: point.y}),
+    wheel: (point, dx, dy) => host.request<string>('wheel', {...windowed, x: point.x, y: point.y, dx, dy}),
+    scroll: (ref, dx, dy) => host.request<PatternAnswer>('scroll', {ref, dx, dy}).catch(() => null),
     keys: keys => host.request<string>('keys', {...windowed, keys}, 30_000),
     screen: out => host.request<string>('screen', {...windowed, out}, 30_000),
     async idle() {
@@ -433,6 +439,28 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         return ok(`held ${note} for ${held} ms`);
       } catch (error) {
         return failed(`long press failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    async swipe(from: Point, to: Point): Promise<StepResult> {
+      // The content moves the way the finger does: a finger drawn up moves it down.
+      const dx = from.x - to.x;
+      const dy = from.y - to.y;
+      try {
+        // Through the Scroll pattern of what scrolls under the finger where it
+        // has one, which needs no pointer and no quiet desk; the wheel otherwise.
+        const scroller = scrollerAt((await snapshot()).nodes, from);
+        if (scroller) {
+          const answer = await backend.scroll(scroller.ref, dx, dy);
+          if (answer && !answer.unsupported) return ok(`scrolled ${scroller.ref} ${scroller.role} by ${dx},${dy} through its Scroll pattern${answer.changed ? '' : ', which was at its end already'}`);
+        }
+        const refusing = await refused('turning the wheel');
+        if (refusing) return refusing;
+        // Wheel input goes to the window under the pointer, so the app has to be in front.
+        if (processName) await backend.raise().catch(() => {});
+        return ok(await sending(() => backend.wheel(from, dx, dy)));
+      } catch (error) {
+        return failed(`swipe failed: ${(error as Error).message}`, codeOf(error));
       }
     },
 

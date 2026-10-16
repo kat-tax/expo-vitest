@@ -108,8 +108,7 @@ These wait on an API key, and the runs are billed.
   adding media, a route of locations, `getByAltText` and `getByTitle`,
   `storageState`, `test.step`, and JUnit `properties`.
 - Named keys on iOS and Android, which answer `'skipped'`.
-- A swipe and a wheel on Windows. Without them the agent offers no `scroll`
-  or `scroll_to` there.
+
 - A menu flyout in the Windows tree, by reading the app's other top-level
   windows. Two of the test app's tests are skipped on Windows for it.
 - A swipe in a unit test, and a hover on iOS, Android and Windows there.

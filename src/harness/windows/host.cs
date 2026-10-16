@@ -65,14 +65,15 @@ public static class HarnessHost {
   static readonly AutomationProperty LiveSetting = Lookup(30135);
 
   // The patterns the snapshot names on a node, each with the property that says it is there.
-  static readonly string[] PatternNames = new string[] { "Invoke", "Toggle", "SelectionItem", "Value", "ScrollItem", "ExpandCollapse" };
+  static readonly string[] PatternNames = new string[] { "Invoke", "Toggle", "SelectionItem", "Value", "ScrollItem", "ExpandCollapse", "Scroll" };
   static readonly AutomationProperty[] PatternProperties = new AutomationProperty[] {
     AutomationElement.IsInvokePatternAvailableProperty,
     AutomationElement.IsTogglePatternAvailableProperty,
     AutomationElement.IsSelectionItemPatternAvailableProperty,
     AutomationElement.IsValuePatternAvailableProperty,
     AutomationElement.IsScrollItemPatternAvailableProperty,
-    AutomationElement.IsExpandCollapsePatternAvailableProperty
+    AutomationElement.IsExpandCollapsePatternAvailableProperty,
+    AutomationElement.IsScrollPatternAvailableProperty
   };
 
   static CacheRequest tree;
@@ -128,6 +129,8 @@ public static class HarnessHost {
       case "click": return Click(Text(request, "process"), request.ContainsKey("points") ? request["points"] as IEnumerable : null, Number(request, "count", 1));
       case "hold": return Hold(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "ms", 800));
       case "move": return Move(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0));
+      case "wheel": return Wheel(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "dx", 0), Number(request, "dy", 0));
+      case "scroll": return Scroll(Text(request, "ref"), Number(request, "dx", 0), Number(request, "dy", 0));
       case "focus": return Focus(Text(request, "ref"));
       case "keys": return Keys(Text(request, "process"), Text(request, "keys"));
       case "screen": return Screen(Text(request, "process"), Text(request, "out"));
@@ -176,6 +179,67 @@ public static class HarnessHost {
   // A control driven through its UI Automation pattern, which reaches it on
   // UI Automation's own channel: no pointer, no foreground window, and so
   // nothing that minds someone being at the desk.
+  // A scroll by a distance in the element's own pixels, through its Scroll
+  // pattern: the percent that distance is of what the element can scroll,
+  // with whether the position was seen to move. A positive distance moves the
+  // content down or right, as a finger drawn up or left does.
+  static string Scroll(string reference, int dx, int dy) {
+    AutomationElement element = Element(reference);
+    object pattern;
+    if (!element.TryGetCurrentPattern(ScrollPattern.Pattern, out pattern)) return Unsupported;
+    ScrollPattern scroll = (ScrollPattern)pattern;
+    System.Windows.Rect box = element.Current.BoundingRectangle;
+    double beforeX = scroll.Current.HorizontalScrollPercent;
+    double beforeY = scroll.Current.VerticalScrollPercent;
+    double x = ScrollTo(scroll.Current.HorizontallyScrollable, beforeX, scroll.Current.HorizontalViewSize, box.Width, dx);
+    double y = ScrollTo(scroll.Current.VerticallyScrollable, beforeY, scroll.Current.VerticalViewSize, box.Height, dy);
+    if (x == ScrollPattern.NoScroll && y == ScrollPattern.NoScroll) return "{\"pattern\":\"Scroll\",\"changed\":false}";
+    scroll.SetScrollPercent(x, y);
+    bool changed = Until(() => scroll.Current.HorizontalScrollPercent != beforeX || scroll.Current.VerticalScrollPercent != beforeY);
+    return "{\"pattern\":\"Scroll\",\"changed\":" + Bool(changed) + "}";
+  }
+
+  // The percent to scroll an axis to for a move of `pixels` over a viewport
+  // `size` pixels long, of which `view` percent of the content is in view;
+  // NoScroll where the axis does not scroll or the move is nothing.
+  static double ScrollTo(bool scrollable, double percent, double view, double size, int pixels) {
+    if (!scrollable || pixels == 0 || view <= 0 || view >= 100 || size <= 0) return ScrollPattern.NoScroll;
+    double range = size * 100 / view - size;
+    return Math.Max(0, Math.Min(100, percent + pixels * 100 / range));
+  }
+
+  // The wheel turned at a point in the window's own pixels, a notch for each
+  // 48 pixels of the distance, what a scroll viewer moves for one. A positive
+  // distance moves the content down or right, as for a scroll.
+  static string Wheel(string name, int x, int y, int dx, int dy) {
+    int originX = 0;
+    int originY = 0;
+    uint pid = 0;
+    if (!string.IsNullOrEmpty(name)) {
+      Process process = Window(name);
+      RECT rect = WindowRect(process);
+      originX = rect.Left;
+      originY = rect.Top;
+      pid = (uint)process.Id;
+    }
+    int atX = x + originX;
+    int atY = y + originY;
+    Owns(pid, name, atX, atY, "wheel");
+    SetCursorPos(atX, atY);
+    Thread.Sleep(80);
+    // Content moved down is the wheel turned towards the user, a negative delta.
+    int down = Notches(dy);
+    int right = Notches(dx);
+    if (down != 0) mouse_event(0x0800, 0, 0, unchecked((uint)(-120 * down)), UIntPtr.Zero);
+    if (right != 0) mouse_event(0x01000, 0, 0, unchecked((uint)(120 * right)), UIntPtr.Zero);
+    Thread.Sleep(200);
+    return Json("turned the wheel " + down + " notches down and " + right + " right at " + atX + "," + atY);
+  }
+
+  static int Notches(int pixels) {
+    return pixels == 0 ? 0 : Math.Sign(pixels) * Math.Max(1, (int)Math.Round(Math.Abs(pixels) / 48.0));
+  }
+
   static string Act(string reference, string name) {
     AutomationElement element = Element(reference);
     object pattern;

@@ -150,6 +150,10 @@ main window over UI Automation:
 - **A fill** sets a field's text through its Value pattern and reads it back.
   A read-only field is refused. A secure field reads back only a mask of its
   length, so one that holds text as long as the new text is emptied first.
+- **A swipe** scrolls what scrolls under it through its Scroll pattern, by
+  the share of what it can scroll that the distance is. Where nothing there
+  has the pattern, as in react-native-windows, it turns the wheel, a notch
+  for every 48 pixels.
 - **Everything else** is synthetic input: the pointer and the keyboard. In a
   device test, `press({via: 'pointer'})` and `fill(text, {via: 'keys'})` ask
   for it in place of a pattern.

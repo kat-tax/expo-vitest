@@ -15,7 +15,7 @@ export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'ke
 export const ACTIONS: Record<Platform, Capability[]> = {
   web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'video', 'web'],
   // Windows has no screen recorder without a dependency.
-  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView'],
+  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe'],
   android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'video'],
   ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'video'],
 };

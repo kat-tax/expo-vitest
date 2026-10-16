@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {afterFill, afterPress, chooseFill, choosePress} from './patterns.ts';
+import type {SnapshotNode} from './snapshot.ts';
+import {afterFill, afterPress, chooseFill, choosePress, scrollerAt} from './patterns.ts';
 
 describe('choosePress', () => {
   it('presses through Invoke, then Toggle, then SelectionItem', () => {
@@ -48,5 +49,25 @@ describe('afterFill', () => {
     expect(afterFill({pattern: 'Value', changed: false, value: ''})).toBe('keys');
     expect(afterFill({unsupported: true})).toBe('keys');
     expect(afterFill(null)).toBe('keys');
+  });
+});
+
+describe('scrollerAt', () => {
+  const node = (ref: string, bounds: SnapshotNode['bounds'], patterns?: string[]): SnapshotNode => ({ref, role: 'Pane', name: '', depth: 0, interactive: false, bounds, ...(patterns ? {patterns} : {})});
+  const page = node('@e1', {x: 0, y: 0, width: 400, height: 800}, ['Scroll']);
+  const list = node('@e2', {x: 20, y: 100, width: 200, height: 300}, ['Scroll']);
+  const button = node('@e3', {x: 30, y: 120, width: 100, height: 40}, ['Invoke']);
+
+  it('is the innermost node with a Scroll pattern under the point', () => {
+    expect(scrollerAt([page, list, button], {x: 50, y: 130})).toBe(list);
+    expect(scrollerAt([list, page], {x: 50, y: 130})).toBe(list);
+    expect(scrollerAt([list, page], {x: 300, y: 600})).toBe(page);
+  });
+
+  it('is null where nothing under the point scrolls by its pattern', () => {
+    expect(scrollerAt([button, node('@e4', null, ['Scroll'])], {x: 50, y: 130})).toBeNull();
+    expect(scrollerAt([list], {x: 220, y: 130})).toBeNull();
+    expect(scrollerAt([list], {x: 19, y: 130})).toBeNull();
+    expect(scrollerAt([list], {x: 50, y: 400})).toBeNull();
   });
 });
