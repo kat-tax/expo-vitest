@@ -47,8 +47,10 @@ export default function SettingsScreen() {
   };
   const reset = async () => {
     close();
-    await Promise.all([onboarding.reset(), account.reset(), notes.reset(), settings.reset()]);
+    // Onboarding first: the tabs send a signed-out account to sign-in, which
+    // would race the move to onboarding once the account is reset.
     router.replace('/onboarding');
+    await Promise.all([onboarding.reset(), account.reset(), notes.reset(), settings.reset()]);
   };
   const remove = async () => {
     close();
