@@ -40,6 +40,9 @@ export type LocatorState = 'attached' | 'detached' | 'visible' | 'hidden';
 
 const PRESSES = new Set(['Invoke', 'Toggle', 'SelectionItem']);
 
+/** The platforms whose focus is given with a touch. */
+const PHONES = new Set<Platform>(['ios', 'android']);
+
 /**
  * What an action on a node is pointed at: its ref. Every backend can act on
  * one from the snapshot the node came from: agent-device keeps that
@@ -362,6 +365,8 @@ export class Locator {
     const {node} = await this.one(options.timeout);
     return this.record('key', node, async () => {
       if (!(await this.host.ready()).key) return 'skipped';
+      // On a phone only a field takes a key, and anything else the touch that gives the focus would press.
+      if (!node.focused && PHONES.has(this.host.platform) && node.kind !== 'textbox') return 'skipped';
       if (!node.focused && (await this.optional('giving the focus', driver => driver.focus?.({ref: node.ref}))) === 'skipped') return 'skipped';
       return (await this.optional(`the ${name} key`, driver => driver.key?.(name))) === 'done' ? 'pressed' : 'skipped';
     });

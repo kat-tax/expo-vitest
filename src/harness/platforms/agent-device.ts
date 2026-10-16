@@ -254,6 +254,17 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       }
     },
 
+    /** A named key where the focus is: Enter, agent-device's one, the keyboard's own return key; any other is skipped. */
+    async key(keyName: string): Promise<StepResult> {
+      if (keyName !== 'Enter') return {ok: true, skipped: true, message: `agent-device sends Enter alone on ${platform}, not ${keyName}`};
+      try {
+        await (await transport()).command({command: 'keyboard', action: 'enter'});
+        return ok('pressed Enter');
+      } catch (error) {
+        return failed(`Enter failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
     async focus(what: Target): Promise<StepResult> {
       try {
         const selector = asSelector(what);

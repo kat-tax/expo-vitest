@@ -310,6 +310,18 @@ describe('the actions a backend may not have', () => {
     const skippedKey = rig(() => [{...row, focused: true}], {key: vi.fn(async () => ({ok: true, skipped: true, message: 'no keys'}))});
     expect(await skippedKey.locate(query('text', 'Ada')).key('Enter')).toBe('skipped');
   });
+
+  it('on a phone send a key to a field, touching it for the focus, and to nothing else, which the touch would press', async () => {
+    const key = vi.fn(async (): Promise<StepResult> => ok('pressed'));
+    const focus = vi.fn(async (): Promise<StepResult> => ok('focused'));
+    const email = node('@e7', 'android.widget.EditText', 'Email', {kind: 'textbox'});
+    const phone = rig(() => [row, email], {key, focus}, 'android');
+    expect(await phone.locate(query('text', 'Ada')).key('Enter')).toBe('skipped');
+    expect(focus).not.toHaveBeenCalled();
+    expect(await phone.locate(query('label', 'Email')).key('Enter')).toBe('pressed');
+    expect(focus).toHaveBeenCalledWith({ref: '@e7'});
+    expect(await rig(() => [{...row, focused: true}], {key, focus}, 'ios').locate(query('text', 'Ada')).key('Enter')).toBe('pressed');
+  });
 });
 
 describe('check and uncheck', () => {

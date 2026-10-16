@@ -114,7 +114,7 @@ that names no node, or several, has nothing inside it.
 | `.longPress({duration, timeout})` | Holds a press, 800 ms by default, as for a context menu. Fails where the platform has no counterpart. |
 | `.hover({timeout})` | Moves the pointer over the node without pressing. `'skipped'` on iOS and Android, which have no pointer. |
 | `.focus({timeout})` | Gives the node the keyboard focus without pressing it: through the page on web and through UI Automation on Windows. On iOS and Android, agent-device gives the focus with a touch. |
-| `.key(name, {timeout})` | Sends a named key, `ArrowDown`, `Enter`, with the node focused, focusing it first. `'skipped'` where the platform sends no keys. |
+| `.key(name, {timeout})` | Sends a named key, `ArrowDown`, `Enter`, with the node focused, focusing it first. On iOS and Android it sends Enter alone, to a field, which a touch focuses: another key, or a node that is not a field, is `'skipped'`, and `device.can('key')` is false there. |
 | `.scrollIntoView({timeout})` | Scrolls the node onto the screen where it is not there already. |
 | `.swipe(direction, {distance, timeout})` | Draws a finger across the node the way `direction` says, over half of it by default. A finger drawn up scrolls the content down. A wheel on web. On Windows, through the Scroll pattern of what scrolls under the node, else the wheel. |
 | `.dragTo(locator, {hold, timeout})` | Presses the node, draws the press to the node another locator names, and lets it go there, as for a slider or a card dropped on a list. `{hold: 800}` holds it first, as a list that reorders on a long press wants. Fails where the platform has no counterpart. |
@@ -185,7 +185,7 @@ Playwright does.
 | `scrollIntoView` | the page scrolled | the ScrollItem pattern | a scroll until it is seen |
 | `swipe` | a wheel | the Scroll pattern of what scrolls under it, else the wheel | a swipe |
 | `dragTo` | the mouse held and moved in ten steps, which the browser's drag and drop sees too | the pointer held and moved in ten steps | agent-device's drag between the two nodes |
-| `key` | the keyboard | the keyboard | `'skipped'` |
+| `key` | the keyboard | the keyboard | Enter, the keyboard's return key; any other is `'skipped'` |
 
 On Windows, the pointer and the keyboard are synthetic input, which waits
 for a quiet desk; a pattern needs none.

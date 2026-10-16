@@ -603,7 +603,7 @@ export type DeviceCommand =
   | {command: 'fold'; pose: 'closed' | 'half-open' | 'open'}
   | {command: 'clipboard'; action: 'read'}
   | {command: 'clipboard'; action: 'write'; text: string}
-  | {command: 'keyboard'; action: 'dismiss'}
+  | {command: 'keyboard'; action: 'dismiss' | 'enter'}
   | {command: 'alert'; action: 'accept' | 'dismiss'};
 
 /** A device command as the command line spells it. */

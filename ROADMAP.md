@@ -106,7 +106,8 @@ These wait on an API key, and the runs are billed.
   column's value, a shake, a second app in one test, the system keys (lock,
   power, volume, a TV remote), clearing the keychain, adding media, a route
   of locations, and `getByAltText` and `getByTitle`.
-- Named keys on iOS and Android, which answer `'skipped'`.
+- Named keys on iOS and Android other than Enter, which answer `'skipped'`:
+  agent-device sends Enter alone on a phone.
 
 - A swipe and a drag in a unit test, and a hover on iOS, Android and Windows
   there. Nothing is laid out in a unit test, so neither has a distance to

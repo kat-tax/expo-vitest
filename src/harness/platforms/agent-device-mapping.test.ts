@@ -507,6 +507,7 @@ describe("the device's settings through agent-device", () => {
     expect(commandArgs({command: 'clipboard', action: 'read'})).toEqual(['clipboard', 'read', '--json']);
     expect(commandArgs({command: 'clipboard', action: 'write', text: 'a b'})).toEqual(['clipboard', 'write', 'a b']);
     expect(commandArgs({command: 'keyboard', action: 'dismiss'})).toEqual(['keyboard', 'dismiss']);
+    expect(commandArgs({command: 'keyboard', action: 'enter'})).toEqual(['keyboard', 'enter']);
     expect(commandArgs({command: 'alert', action: 'accept'})).toEqual(['alert', 'accept']);
     expect(commandRequest({command: 'fold', pose: 'open'})).toEqual({method: 'fold', options: {pose: 'open'}});
     expect(commandRequest({command: 'clipboard', action: 'write', text: 'x'})).toEqual({method: 'clipboard', options: {action: 'write', text: 'x'}});
