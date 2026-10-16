@@ -108,8 +108,6 @@ These wait on an API key, and the runs are billed.
   of locations, and `getByAltText` and `getByTitle`.
 - Named keys on iOS and Android, which answer `'skipped'`.
 
-- A menu flyout in the Windows tree, by reading the app's other top-level
-  windows. Two of the test app's tests are skipped on Windows for it.
 - A swipe and a drag in a unit test, and a hover on iOS, Android and Windows
   there. Nothing is laid out in a unit test, so neither has a distance to
   draw.

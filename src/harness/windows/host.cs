@@ -50,8 +50,10 @@ public static class HarnessHost {
   [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
   [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr h);
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attribute, out RECT value, int size);
+  [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attribute, out int value, int size);
   delegate bool WindowVisit(IntPtr window, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisit visit, IntPtr data);
+  [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int index);
 
   // What a person can act on. Text and images are structure, not affordances.
   static readonly HashSet<string> Actionable = new HashSet<string>(new string[] {
@@ -366,8 +368,32 @@ public static class HarnessHost {
 
   static RECT WindowRect(Process process) {
     RECT rect;
-    GetWindowRect(process.MainWindowHandle, out rect);
+    GetWindowRect(MainWindow(process), out rect);
     return rect;
+  }
+
+  // The app's own window. .NET's MainWindowHandle is the first visible window
+  // of the process that nothing owns, which, while a WinForms menu is open, is
+  // the menu: a popup with no caption. Then the process's visible window with
+  // a caption is the app's, where it has one.
+  static IntPtr MainWindow(Process process) {
+    IntPtr first = process.MainWindowHandle;
+    if (first == IntPtr.Zero || Captioned(first)) return first;
+    uint pid = (uint)process.Id;
+    IntPtr found = IntPtr.Zero;
+    EnumWindows(delegate (IntPtr window, IntPtr data) {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner != pid || !IsWindowVisible(window) || !Captioned(window)) return true;
+      found = window;
+      return false;
+    }, IntPtr.Zero);
+    return found != IntPtr.Zero ? found : first;
+  }
+
+  // WS_CAPTION, which is WS_BORDER and WS_DLGFRAME together.
+  static bool Captioned(IntPtr window) {
+    return (GetWindowLong(window, -16) & 0x00C00000) == 0x00C00000;
   }
 
   static string Rect(string name) {
@@ -437,24 +463,55 @@ public static class HarnessHost {
   static string Snapshot(string name, bool interactive, int max) {
     Process process = Window(name);
     RECT window = WindowRect(process);
-    AutomationElement found = AutomationElement.FromHandle(process.MainWindowHandle);
+    // The main window, then the app's other windows on the screen: a menu
+    // flyout, a combo box's list or a tooltip opens in a top-level window of
+    // its own, which the main window's tree does not reach.
+    List<AutomationElement> roots = new List<AutomationElement>();
+    IntPtr handle = MainWindow(process);
+    AutomationElement main = AutomationElement.FromHandle(handle);
+    roots.Add(main);
+    foreach (IntPtr popup in Popups(process, handle)) {
+      try {
+        AutomationElement element = AutomationElement.FromHandle(popup);
+        if (!Inside(element, main)) roots.Add(element);
+      } catch (Exception) { }
+    }
     Walk walk = Start(interactive, max, window, false);
     walk.Pid = process.Id;
     try {
-      Visit(walk, found.GetUpdatedCache(TreeRequest()), 0, null);
+      foreach (AutomationElement root in roots) {
+        AutomationElement cached;
+        // A popup can close between being found and being read.
+        try { cached = root.GetUpdatedCache(TreeRequest()); } catch (ElementNotAvailableException) { continue; }
+        Visit(walk, cached, 0, null);
+      }
     } catch (IndexOutOfRangeException) {
       // The managed client's reader of a cached tree throws on some of
       // react-native-windows' screens, inside GetUpdatedCache. The same tree
       // read an element at a time is slower and does not fail.
       walk = Start(interactive, max, window, true);
       walk.Pid = process.Id;
-      Visit(walk, found, 0, null);
+      foreach (AutomationElement root in roots) Visit(walk, root, 0, null);
     }
     refs = walk.Refs;
     return "{\"process\":" + Json(process.ProcessName)
       + ",\"read\":" + Json(walk.Live ? "walked" : "cached")
       + ",\"window\":{\"x\":" + window.Left + ",\"y\":" + window.Top + ",\"width\":" + (window.Right - window.Left) + ",\"height\":" + (window.Bottom - window.Top) + "}"
       + ",\"nodes\":[" + walk.Nodes.ToString() + "]}";
+  }
+
+  // Whether UI Automation shows a window inside the main one's tree already,
+  // as it shows a window the main one owns, such as a WinForms menu. Read
+  // twice, it would be two nodes and its ref would change from read to read.
+  static bool Inside(AutomationElement element, AutomationElement main) {
+    TreeWalker walker = TreeWalker.ControlViewWalker;
+    AutomationElement root = AutomationElement.RootElement;
+    try {
+      for (AutomationElement up = walker.GetParent(element); up != null && !Automation.Compare(up, root); up = walker.GetParent(up)) {
+        if (Automation.Compare(up, main)) return true;
+      }
+    } catch (ElementNotAvailableException) { }
+    return false;
   }
 
   /** One element and what is inside it. `parent` is the ref of the nearest ancestor kept, which passes through one that is not. */
@@ -809,7 +866,7 @@ public static class HarnessHost {
       return Json("saved " + output + " (" + screen.Width + " x " + screen.Height + " at " + screen.X + "," + screen.Y + ")");
     }
     Process process = Window(name);
-    IntPtr handle = process.MainWindowHandle;
+    IntPtr handle = MainWindow(process);
     // There is no picture of a minimized window short of raising it, and a
     // screenshot never raises a window.
     if (IsIconic(handle)) throw new InvalidOperationException(process.ProcessName + "'s window is minimized, and a screenshot does not raise it");
@@ -839,7 +896,18 @@ public static class HarnessHost {
 
   /** Whether another visible window of the process, a menu or a popup, lies over its main window. */
   static bool PopupOver(Process process, IntPtr main, RECT area) {
-    bool found = false;
+    foreach (IntPtr window in Popups(process, main)) {
+      RECT rect;
+      GetWindowRect(window, out rect);
+      if (rect.Right > area.Left && rect.Left < area.Right && rect.Bottom > area.Top && rect.Top < area.Bottom) return true;
+    }
+    return false;
+  }
+
+  // The app's top-level windows on the screen other than its main one, the
+  // one nearest the front first: those visible, not minimized, with a size.
+  static List<IntPtr> Popups(Process process, IntPtr main) {
+    List<IntPtr> found = new List<IntPtr>();
     uint pid = (uint)process.Id;
     EnumWindows(delegate (IntPtr window, IntPtr data) {
       uint owner;
@@ -847,10 +915,10 @@ public static class HarnessHost {
       if (window == main || owner != pid || !IsWindowVisible(window) || IsIconic(window)) return true;
       RECT rect;
       GetWindowRect(window, out rect);
-      if (rect.Right <= rect.Left || rect.Bottom <= rect.Top) return true;
-      if (rect.Right <= area.Left || rect.Left >= area.Right || rect.Bottom <= area.Top || rect.Top >= area.Bottom) return true;
-      found = true;
-      return false;
+      // A window DWM keeps cloaked is visible to Windows and shows nothing.
+      int cloaked;
+      if (rect.Right > rect.Left && rect.Bottom > rect.Top && !(DwmGetWindowAttribute(window, 14, out cloaked, 4) == 0 && cloaked != 0)) found.Add(window);
+      return true;
     }, IntPtr.Zero);
     return found;
   }
@@ -890,7 +958,7 @@ public static class HarnessHost {
   // foreground, so this attaches to the foreground thread's input queue first,
   // which is the documented way past that lock.
   static string Raise(string name) {
-    IntPtr window = Window(name).MainWindowHandle;
+    IntPtr window = MainWindow(Window(name));
     IntPtr foreground = GetForegroundWindow();
     uint owner;
     uint foregroundThread = GetWindowThreadProcessId(foreground, out owner);

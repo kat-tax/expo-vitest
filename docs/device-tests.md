@@ -287,9 +287,7 @@ invisible in a unit test and obvious to a user. Windows fills all of
 them but `placeholder`. The other platforms fill what their own trees carry.
 
 On web, what a screen reader is told to pass over, under `aria-hidden="true"`,
-is not in the tree, as it is not on a device. On Windows a WinUI flyout is not
-in it either, since it opens in a window of its own: [Platforms](platforms.md#windows)
-says what to do instead.
+is not in the tree, as it is not on a device.
 
 ## The React tree
 

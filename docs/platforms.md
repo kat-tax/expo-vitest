@@ -195,11 +195,10 @@ refused, since it cannot be pictured without raising it. The `raise` step of
 
 ### What to know
 
-- **A flyout is not in the tree.** The tree walks the descendants of the
-  app's main window, and a WinUI `MenuFlyout` opens in a separate top-level
-  window, so a menu plainly open on screen leaves no trace in it. Check menus
-  with a screenshot. A tree that says nothing happened is not evidence that
-  nothing did.
+- **A flyout is in the tree, after the window.** A WinUI `MenuFlyout`, a
+  combo box's list and a tooltip open in a top-level window of their own,
+  outside the main window's tree, so the app's other windows on the screen
+  are read after it, each as a tree of its own at the end.
 - **A switch and a toggle button are one control type**, with the Toggle
   pattern and no Invoke, and both read as `switch`.
 - **A restarted window may not come to the front.** Windows lets a process in

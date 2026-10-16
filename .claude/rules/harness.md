@@ -75,9 +75,12 @@ or an element at a time where the managed client's reader of that cache
 throws, as it does on some react-native-windows screens.
 Title bars are
 left out with everything in them, since a cached read hands back ones a walk
-never reached. The tree walks the descendants of the app's main window, and
-a WinUI `MenuFlyout` opens in a separate top-level window, so a menu plainly
-open on screen leaves no trace in it. That is what screenshots are for.
+never reached. The tree walks the descendants of the app's main window, then
+the app's other windows on the screen, since a WinUI `MenuFlyout` opens in a
+top-level window of its own; a window UI Automation already shows inside the
+main one, as a WinForms menu, is not read twice. The main window is the
+process's window with a caption where .NET's `MainWindowHandle` names a
+popup, as it does while a WinForms menu is open.
 
 ## Web
 

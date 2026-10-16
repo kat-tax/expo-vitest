@@ -14,9 +14,9 @@ const search = searchField;
 // expo-interface 0.32 the menu sits inside the row's clickable wrapper, and
 // the item's click bubbles up to it. Marked as failing there until that is
 // fixed, when the mark fails the run and comes off.
-// On Windows the row's menu is a WinUI flyout, in a window of its own that
-// the tree does not reach, so there is nothing to choose from.
-const rowMenu = device.platform === 'windows' ? it.skip : device.platform === 'web' || device.platform === 'android' ? it.fails : it;
+// On Windows the row's menu is a WinUI flyout, in a window of its own, which
+// the tree reads after the app's main window.
+const rowMenu = device.platform === 'web' || device.platform === 'android' ? it.fails : it;
 
 // On Android a List of expo-interface 0.32 throws as its rows change, as a
 // search or a filter narrows them: "The specified child already has a
