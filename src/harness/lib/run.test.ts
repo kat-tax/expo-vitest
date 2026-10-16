@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {describe, expect, it} from 'vitest';
-import {firstLine, installed, numbered, prepare, run, runAsync, runBinary} from './run.ts';
+import {describe, expect, it, vi} from 'vitest';
+import {firstLine, installed, numbered, prepare, run, runAsync, runBinary, stopProgram} from './run.ts';
 
 // Every program here is this Node, so the cases run the same on every CI machine.
 const node = process.execPath;
@@ -10,6 +10,31 @@ const PRINTS = "process.stdout.write('out'); process.stderr.write('err')";
 const LINGERS = 'setTimeout(() => {}, 10000)';
 const ECHOES = "process.stdin.setEncoding('utf8'); let all = ''; process.stdin.on('data', c => (all += c)); process.stdin.on('end', () => process.stdout.write(all))";
 const MISSING = 'expo-vitest-no-such-program';
+
+describe('stopping a program', () => {
+  it('stops its group where it leads one, and the program itself where it does not', () => {
+    const kill = vi.fn();
+    const child = {pid: 7, kill: vi.fn(() => true)};
+    stopProgram(child, true, kill);
+    expect(kill).toHaveBeenCalledWith(-7, 'SIGTERM');
+    expect(child.kill).not.toHaveBeenCalled();
+    stopProgram(child, false, kill);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(kill).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the program itself where its group has gone, or it never started', () => {
+    const child = {pid: 7, kill: vi.fn(() => true)};
+    stopProgram(child, true, () => {
+      throw new Error('kill ESRCH');
+    });
+    expect(child.kill).toHaveBeenCalledTimes(1);
+    const kill = vi.fn();
+    stopProgram({kill: child.kill}, true, kill);
+    expect(kill).not.toHaveBeenCalled();
+    expect(child.kill).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe('runAsync', () => {
   it('answers with what the program printed and how it exited', async () => {
@@ -25,6 +50,26 @@ describe('runAsync', () => {
     const started = Date.now();
     expect(await runAsync(node, ['-e', LINGERS], {timeout: 200})).toMatchObject({ok: false, timedOut: true, aborted: false});
     expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it('stops what the program started along with it', async () => {
+    const pidFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'expo-vitest-run-')), 'pid');
+    // A child of its own, through Node, that would linger well past the test.
+    const starts = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(LINGERS)}], {stdio: 'ignore'}); require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(child.pid)); ${LINGERS}`;
+    expect(await runAsync(node, ['-e', starts], {timeout: 1000})).toMatchObject({timedOut: true});
+    const started = Number(fs.readFileSync(pidFile, 'utf8'));
+    const alive = () => {
+      try {
+        process.kill(started, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const deadline = Date.now() + 5000;
+    while (alive() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+    expect(alive()).toBe(false);
+    fs.rmSync(path.dirname(pidFile), {recursive: true, force: true});
   });
 
   it('stops a program when the signal aborts', async () => {

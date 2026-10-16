@@ -51,6 +51,26 @@ export interface RanAsync extends Ran {
 }
 
 /**
+ * Stops a program `runAsync` started, with what it started. On macOS and
+ * Linux the program leads a process group of its own, which is sent the
+ * signal, since a program's children outlive it there. On Windows Node starts
+ * the program in a job that ends what it started through Node along with it,
+ * so the program alone is sent it. A daemon started detached, as
+ * agent-device's is, is meant to outlive the call, and does.
+ */
+export function stopProgram(child: {pid?: number; kill(signal: NodeJS.Signals): boolean}, group: boolean, kill: (pid: number, signal: NodeJS.Signals) => void = process.kill): void {
+  if (group && child.pid !== undefined) {
+    try {
+      kill(-child.pid, 'SIGTERM');
+      return;
+    } catch {
+      // The group has gone, and the program may not have.
+    }
+  }
+  child.kill('SIGTERM');
+}
+
+/**
  * `run`, without blocking. `spawnSync` holds the event loop until the program
  * exits, so no timer fires meanwhile, a Vitest timeout included; this lets one
  * fire, and stops the program when a timeout or an abort says so.
@@ -65,14 +85,16 @@ export function runAsync(command: string, args: string[], options: RunOptions = 
     if (signal?.aborted) return resolve({...answer, aborted: true});
     try {
       // No shell, ever: nothing a test hands over is interpreted.
-      const child = spawn(command, args, {cwd: options.cwd, env: options.env, windowsHide: true});
+      const group = process.platform !== 'win32';
+      const child = spawn(command, args, {cwd: options.cwd, env: options.env, windowsHide: true, detached: group});
       let error: NodeJS.ErrnoException | undefined;
       const stop = (why: 'timedOut' | 'aborted') => {
         answer[why] = true;
-        // On Windows this ends that one process, not what it started; nothing
-        // the drivers run starts anything that would outlive it.
-        child.kill('SIGTERM');
+        stopProgram(child, group);
       };
+      // In a group of its own the program does not hear a terminal's Ctrl+C, so the run's exit stops it.
+      const orphaned = stopProgram.bind(null, child, group, process.kill);
+      process.once('exit', orphaned);
       const timer = timeout > 0 ? setTimeout(() => stop('timedOut'), timeout) : undefined;
       const abort = () => stop('aborted');
       signal?.addEventListener('abort', abort, {once: true});
@@ -87,6 +109,7 @@ export function runAsync(command: string, args: string[], options: RunOptions = 
       // It comes even when the program never started, after the error.
       child.on('close', status => {
         clearTimeout(timer);
+        process.off('exit', orphaned);
         signal?.removeEventListener('abort', abort);
         const started = child.pid !== undefined;
         const missing = error?.code === 'ENOENT';

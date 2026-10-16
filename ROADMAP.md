@@ -152,8 +152,6 @@ These wait on an API key, and the runs are billed.
 
 ### The run
 
-- Ending a timed-out child's whole process tree on Windows, with
-  `taskkill /T`. Now only the one process ends.
 - Platforms side by side in one run. Vitest holds one file at a time for
   the whole run, so the platforms take turns; separate runs go side by side.
 - This repository's unit tests, and a compile of the Windows host, on a
