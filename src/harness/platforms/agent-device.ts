@@ -19,8 +19,8 @@ const PLATFORM_NAMES: Partial<Record<Platform, string>> = {ios: 'ios', android: 
 /** How many times a step is tried on a target agent-device refuses as still moving. */
 const RESTING_TRIES = 3;
 
-/** How long iOS is given to ask "Open in …?" after a url is opened. */
-const OPEN_IN_MS = 3000;
+/** How long iOS is given to ask "Open in …?" after a url is opened, which on a simulator just started can come seconds after. */
+const OPEN_IN_MS = 10_000;
 
 /**
  * `agent-device` (callstack) driving iOS, Android and its own web backend. It
