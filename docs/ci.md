@@ -2,7 +2,7 @@
 
 [Docs home](README.md) · [Device tests](device-tests.md) · [Evidence](evidence.md)
 
-Component tests need Node and nothing else, so any job runs them. Device
+Unit tests need Node and nothing else, so any job runs them. Device
 tests need what each platform's tests drive: a browser on web, an emulator or
 a simulator and agent-device for a phone, a built app on Windows. Give each
 platform a job of its own: the runners differ, and each job's evidence is its

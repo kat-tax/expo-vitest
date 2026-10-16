@@ -91,10 +91,44 @@ And the scripts:
 
 ## 4. Write tests
 
+### A component, on every platform
+
+`render` mounts a component, and `screen` reads and acts on what it
+rendered, as it reads a running app in a device test. This file runs on iOS,
+Android, web and Windows:
+
+```tsx
+// src/where/counter.test.tsx
+import {useState} from 'react';
+import {Pressable, Text} from 'react-native';
+import {render, screen} from 'expo-vitest';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <Pressable accessibilityRole="button" onPress={() => setCount(count + 1)}>
+      <Text>Pressed {count} times</Text>
+    </Pressable>
+  );
+}
+
+it('counts the presses', async () => {
+  await render(<Counter/>);
+  await screen.getByRole('button').press();
+  await expect(screen.getByText('Pressed 1 times')).toBeVisible();
+  expect(await screen.tree()).toMatchSnapshot();
+});
+```
+
+Await `render`, each action and each matcher: a matcher reads the tree
+until it agrees, so it waits for the update a press starts. Each platform
+keeps its snapshot in `__snapshots__/<platform>/`. [Unit tests](unit-tests.md)
+has the rest.
+
 ### Logic, on every platform
 
-A `.test.ts` file renders nothing, so it runs on all four. It is the place to
-check that each platform resolves the right file.
+A `.test.ts` file is the place to check that each platform resolves the
+right file.
 
 ```ts
 // src/where/where.test.ts
@@ -106,43 +140,27 @@ it('is the file the platform resolves', () => {
 });
 ```
 
-### iOS and Android
+### What iOS and Android hand the native side
 
 ```tsx
 // src/where/host.native.test.tsx
-import {render, screen} from '@testing-library/react-native';
 import {Text, View} from 'react-native';
+import {render, screen} from 'expo-vitest';
 import {host} from 'expo-vitest/native';
 
 it('reads the host views it rendered', async () => {
   await render(<View testID="box"><Text>Inside</Text></View>);
-  expect(screen.getByText('Inside')).toBeOnTheScreen();
+  await expect(screen.getByText('Inside')).toBeVisible();
   expect(host(props => props.testID === 'box').type).toBe('RCTView');
 });
 ```
 
-React Native Testing Library 14 is asynchronous. Always `await render(...)`
-and `await fireEvent(...)`, or an update lands in the next test.
-
-### Web
-
-```tsx
-// src/where/dom.web.test.tsx
-import {render, screen} from '@testing-library/react';
-import {Text} from 'react-native';
-
-it('has the DOM and the jest-dom matchers', () => {
-  render(<Text>In the document</Text>);
-  expect(screen.getByText('In the document')).toBeInTheDocument();
-});
-```
-
-### Windows
+### What Windows hands the native side
 
 ```tsx
 // src/where/island.windows.test.tsx
-import {render} from '@testing-library/react-native';
 import {Platform, Pressable} from 'react-native';
+import {render} from 'expo-vitest';
 import {fireIsland, island} from 'expo-vitest/windows';
 
 it('is told it is Windows', () => {
@@ -158,26 +176,19 @@ it('finds a host view by its name and fires its events', async () => {
 });
 ```
 
-### One test on three platforms
-
-A `.test.tsx` file runs on all four platforms. React Native Testing Library
-renders on iOS, Android and Windows, and Testing Library on web, so import
-the one for the platform where the test needs it:
+### An Expo Router app
 
 ```tsx
-// src/where/shared.test.tsx
-import {Platform, Text} from 'react-native';
+// src/where/app.test.tsx
+import {Text} from 'react-native';
+import {device, screen} from 'expo-vitest';
 import {renderApp} from 'expo-vitest/router';
 
-it('mounts an in-memory Expo Router app', async () => {
-  await renderApp({index: () => <Text>Home</Text>});
-  if (Platform.OS === 'web') {
-    const {screen} = await import('@testing-library/react');
-    expect(await screen.findByText('Home')).toBeTruthy();
-  } else {
-    const {screen} = await import('@testing-library/react-native');
-    expect(await screen.findByText('Home')).toBeOnTheScreen();
-  }
+it('opens a route of an in-memory app', async () => {
+  await renderApp({index: () => <Text>Home</Text>, settings: () => <Text>Settings</Text>});
+  await expect(screen.getByText('Home')).toBeVisible();
+  await device.open('/settings');
+  await expect(screen.getByText('Settings')).toBeVisible();
 });
 ```
 
@@ -219,7 +230,7 @@ text table rounds away.
 
 ## In CI
 
-The component projects need no simulator, emulator or Windows machine. They
+The unit projects need no simulator, emulator or Windows machine. They
 run on a Linux runner:
 
 ```yaml
@@ -232,6 +243,8 @@ Windows build. [CI](ci.md) has a job for each.
 
 ## Next steps
 
+- Read what a unit test can do on [Unit tests](unit-tests.md), and the
+  queries and matchers on [Locators](locators.md) and [Matchers](matchers.md).
 - Drive the running app with [device tests](device-tests.md).
 - Assert on what SwiftUI, Compose or C++ receives with the
   [helpers](helpers.md).
@@ -243,8 +256,9 @@ Windows build. [CI](ci.md) has a job for each.
 **`jest is not defined`.** Jest compatibility is off. Use `vi.fn()`,
 `vi.mock()` and `vi.spyOn()`.
 
-**An update lands in the next test, or there are `act` warnings.** A `render`
-or `fireEvent` from React Native Testing Library 14 was not awaited.
+**An update lands in the next test, or there are `act` warnings.** Something
+was not awaited: `render`, an action or a matcher, or, used directly,
+React Native Testing Library's `render` or `fireEvent`.
 
 **A Windows test loads `index.tsx` instead of `index.windows.tsx`.** Only
 relative imports of the code under test resolve `.windows.*` first. For a

@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {Journal} from './evidence.ts';
-import {LOCATOR_MATCHERS} from './expectations.ts';
+import {LOCATOR_MATCHERS, alongside} from './expectations.ts';
 import type {LocatorHost} from './locator.ts';
 import {Locator} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
@@ -227,5 +227,23 @@ describe('the journal', () => {
       ['verified', 'expect(getByText("Saved")) to be visible', 'ok', 'step 1 took effect', undefined],
       ['assert', 'expect(getByText("Gone")) to be visible', 'failed', 'not so within 0 ms', ['gone']],
     ]);
+  });
+});
+
+describe('alongside', () => {
+  it("waits on a locator, hands anything else to the library's matcher of the same name, and keeps one the library lacks", async () => {
+    const theirs = vi.fn(function (this: {isNot?: boolean}, received: unknown) {
+      return {pass: received === 'element', message: () => 'theirs'};
+    });
+    const matchers = alongside({toBeVisible: theirs, toBeOnTheScreen: theirs, toHaveText: 'not a function'});
+    expect(Object.keys(matchers)).toEqual(Object.keys(LOCATOR_MATCHERS));
+    expect(matchers.toHaveText).toBe(LOCATOR_MATCHERS.toHaveText);
+    expect(matchers.toBeHidden).toBe(LOCATOR_MATCHERS.toBeHidden);
+    expect(matchers.toBeOnTheScreen).toBeUndefined();
+    expect(matchers.toBeVisible?.call({isNot: false}, 'element')).toEqual({pass: true, message: expect.any(Function)});
+    expect(theirs).toHaveBeenCalledOnce();
+    const verdict = await (matchers.toBeVisible?.call({isNot: false}, rig(() => [saved]).locate(query('text', 'Saved'))) as Promise<{pass: boolean}>);
+    expect(verdict.pass).toBe(true);
+    expect(theirs).toHaveBeenCalledOnce();
   });
 });

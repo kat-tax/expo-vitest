@@ -11,6 +11,7 @@
 | `src/setup/` | Each project's setup file. |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | The helpers. |
 | `src/device/` | The device test API and its matchers. |
+| `src/render/` | A unit test's device: the tree a render left, read as a device's, and acted on through React Native Testing Library or user-event. |
 | `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter. |
 | `src/harness/` | The drivers and the `expo-harness` command. |
 | `src/cli/` | `init`, `guide` and `cache`. |
@@ -59,8 +60,12 @@ which answers the `.ts` from source and the `.js` when compiled.
 ## The fixture
 
 `fixture/` is a library the size of one constant, with a file per platform and
-one test for each rule a test file's name follows. Its manifest is what an app
-that tests with `expo-vitest` has installed.
+one test for each rule a test file's name follows. One of them renders a
+component on all four platforms and asserts the same tree on each, and keeps
+a snapshot in each platform's folder, which is committed, so CI fails where a
+platform's snapshot is not where it should be. Its manifest is what an app
+that tests with `expo-vitest` has installed: the app's own packages and
+vitest.
 
 ```sh
 bun run test:fixture
@@ -87,7 +92,7 @@ instead, and `HARNESS_CDP` in a Chromium already running. The copy's own
 with, since it takes no build but its own.
 
 Last, it takes the copy's configs and tests away, runs `init --yes` from the
-packed package's command, and runs the component tests on what `init` wrote,
+packed package's command, and runs the unit tests on what `init` wrote,
 which proves that a project set up that way runs.
 
 It is how the package is known to work installed, which its source cannot

@@ -35,6 +35,7 @@ import type {Claim} from './pool.ts';
 import {claimDevice, sessionName} from './pool.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
 import {Journal} from './evidence.ts';
+import type {ComponentType, ReactElement, ReactNode as ReactChildren} from 'react';
 import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
 import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
 import {Locator} from './locator.ts';
@@ -46,13 +47,15 @@ import type {Attribute, ExpectOptions} from './expectations.ts';
 import type {FindOptions, Queries, RoleQueryOptions, TextQueryOptions} from './screen.ts';
 import {queriesOn, scopeOf} from './screen.ts';
 import {describeOption, downloadFile, expressionOf, inputFiles} from './web.ts';
+import type {Rendered, RenderOptions} from './surface.ts';
+import {currentSurface} from './surface.ts';
 import {modeFrom} from '../harness/platforms/web-browsers.ts';
 import type {VideoMode} from './video.ts';
 import {videoModeOf} from './video.ts';
 
 export {by, defineHarness, HarnessError, isHarnessError, Journal, Locator, reactNodeOf, withComponents};
 export type {AppConfig, Capability, CommandConfig, DialogAnswer, HarnessConfig, HostedDevice, OptionChoice, Orientation, Permission, WebCookie, WebRequest, WebRoute};
-export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
+export type {Attribute, ExpectOptions, FindOptions, HarnessCode, Kind, ReactNode, ReactTree, Rendered, RenderOptions, Step, StepEvent, TreeDigest, LocatorState, Queries, QueryOptions, RoleQueryOptions, Selector, Snapshot, SnapshotNode, TextMatch, TextMatchOptions, TextQueryOptions, WaitOptions};
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
@@ -216,6 +219,7 @@ class Device {
       ...(device ? {device} : {}),
       ...(this.config.app ? {app: this.config.app} : {}),
       ...(this.platform === 'web' ? {browser: modeFrom(process.env).browser} : {}),
+      ...(currentSurface() ? {unit: true} : {}),
     };
   }
 
@@ -245,7 +249,9 @@ class Device {
     const {platform, url, scheme, target, force, app, statusBar, actionTimeout} = this.config;
     const options: DriverOptions = {root: ROOT, url, scheme, target, force, ...(app ? {app} : {}), ...(statusBar ? {statusBar} : {}), ...(actionTimeout ? {actionTimeout} : {})};
     const run = currentRun();
-    const driver = run?.devices ? await this.claimFrom(run.devices, run, options) : driverFor(platform, options);
+    // A unit test's device is the tree the test rendered, which its project's setup file names.
+    const surface = currentSurface();
+    const driver = surface ? surface.driver() : run?.devices ? await this.claimFrom(run.devices, run, options) : driverFor(platform, options);
     const state = await driver.available();
     if (!state.ready) {
       await driver.close();
@@ -312,6 +318,8 @@ class Device {
       const file = path.join(ROOT, '.harness', `${name}.png`);
       const result = await (await this.ready()).screenshot(file);
       if (!result.ok) throw failure(result, this.platform, 'ACTION_FAILED');
+      // A unit test draws nothing, and a path to no picture would fail later for a reason that is not there.
+      if (result.skipped) throw new HarnessError('UNSUPPORTED_CAPABILITY', result.message, {platform: this.platform});
       return file;
     });
   }
@@ -717,11 +725,32 @@ export function requires(capabilities: Capability[], suite: () => void): void {
   });
 }
 
-/** The device: on the run a project's setup file resolved from the harness config, or on the environment alone. */
+/**
+ * The device: in a unit test, the tree the test rendered, with no wait for
+ * the screen to hold still after a step, since a render changes in the
+ * test's own process and a matcher waits for what follows; in a device
+ * test, the run a project's setup file resolved from the harness config, or
+ * the environment alone.
+ */
 export const device = new Device(() => {
+  const surface = currentSurface();
+  if (surface) return {...configFromEnvironment(), platform: surface.platform, settle: 0, transition: 0};
   const run = currentRun();
   return run ? configFromRun(run, process.env) : configFromEnvironment();
 });
+
+/**
+ * Renders a component for a unit test, which `screen` and `device` then read
+ * and act on as they do a running app, so the test reads the same as a
+ * device test. A device test has the app already, and opens a route of it
+ * with `device.open`.
+ */
+export async function render(ui: ReactElement, options: {wrapper?: ComponentType<{children?: ReactChildren}>} = {}): Promise<Rendered> {
+  const surface = currentSurface();
+  if (!surface) throw new HarnessError('INVALID_ARGUMENT', 'render mounts a component in a unit test; a device test drives the running app, and opens a route of it with device.open', {platform: device.platform});
+  device.feed.invalidate();
+  return surface.render(ui, options as RenderOptions);
+}
 
 /**
  * React Native Testing Library's queries over the device's tree:

@@ -37,7 +37,7 @@ const outside = node('@e3', 'button', 'OK', {kind: 'button', testId: 'ok-outside
 describe('the queries', () => {
   it("are RNTL's six families of seven predicates", () => {
     const {queries} = rig(() => []);
-    const names = Object.keys(queries).sort();
+    const names = Object.keys(queries).filter(name => name !== 'tree').sort();
     expect(names).toHaveLength(42);
     for (const family of ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy']) {
       for (const word of ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText']) expect(names).toContain(`${family}${word}`);
@@ -85,6 +85,20 @@ describe('the queries', () => {
     );
     await expect(queries.findByRole('button', {}, {timeout: 300})).rejects.toThrow(failure('LOCATOR_AMBIGUOUS', /matches 2 nodes;[^]*\n {2}and still did after 300 ms$/));
     await expect(queries.findAllByRole('slider', {}, {timeout: 0})).rejects.toThrow(failure('LOCATOR_NOT_FOUND', /^getAllByRole\("slider"\) matched nothing within 0 ms/));
+  });
+});
+
+describe('the tree', () => {
+  it('prints what the queries read without refs, for a snapshot, and inside a scope its node and what is in it', async () => {
+    const {host, queries} = rig(() => [dialog, ok, outside]);
+    // Indented by what holds what, and named by kind: the button outside the dialog is at the left.
+    expect(await queries.tree()).toBe('dialog "Confirm"\n  button "OK" #ok\nbutton "OK" #ok-outside');
+    expect(await queriesOn(host, scopeOf(queries.getByRole('dialog'))).tree()).toBe('dialog "Confirm"\n  button "OK" #ok');
+    expect(await queriesOn(host, scopeOf(queries.getByRole('button', {name: 'OK'}).last())).tree()).toBe('button "OK" #ok-outside');
+    expect(await queriesOn(host, scopeOf(queries.getByRole('alert'))).tree()).toBe('');
+    const field = node('@e5', 'input', 'Name', {kind: 'textbox', depth: 7, parent: '@e9'});
+    const loop = [node('@e6', 'group', 'A', {parent: '@e7', depth: 3}), node('@e7', 'group', 'B', {parent: '@e6', depth: 4})];
+    expect(await rig(() => [field, ...loop]).queries.tree()).toBe('textbox "Name"\n  group "A"\n  group "B"');
   });
 });
 

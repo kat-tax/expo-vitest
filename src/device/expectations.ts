@@ -285,6 +285,32 @@ export const LOCATOR_MATCHERS = {
   },
 };
 
+/** A matcher as `expect.extend` takes one, whatever it reads. */
+type AnyMatcher = (this: any, received: unknown, ...rest: unknown[]) => any;
+
+/**
+ * The locator matchers beside a testing library's of the same names, as a
+ * unit test registers them: a locator is waited on as in a device test, and
+ * anything else, as an element React Native Testing Library or Testing
+ * Library gave, goes to that library's own matcher, as a test written for it
+ * expects. A name the library lacks is the locator matcher alone.
+ */
+export function alongside(theirs: Record<string, unknown>): Record<string, AnyMatcher> {
+  const ours = LOCATOR_MATCHERS as unknown as Record<string, AnyMatcher>;
+  return Object.fromEntries(
+    Object.entries(ours).map(([name, matcher]) => {
+      const other = theirs[name];
+      if (typeof other !== 'function') return [name, matcher];
+      return [
+        name,
+        function (this: unknown, received: unknown, ...rest: unknown[]) {
+          return (hostOf(received) ? matcher : (other as AnyMatcher)).call(this, received, ...rest);
+        },
+      ];
+    }),
+  );
+}
+
 // The device matchers' types, here rather than in the setup file so that
 // `expo-vitest`, which re-exports a type from this file, brings
 // them into any program that imports it. Vitest 4 re-exports `Matchers`

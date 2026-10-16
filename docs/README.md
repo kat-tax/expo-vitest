@@ -1,14 +1,16 @@
 # expo-vitest documentation
 
 `expo-vitest` tests Expo code with Vitest on iOS, Android, web and Windows:
-component tests in a project per platform, and device tests that drive the
-running app. New here? Start with [Getting started](getting-started.md).
+unit tests in a project per platform, and device tests that drive the
+running app, both reading the screen with the same queries, actions and
+matchers. New here? Start with [Getting started](getting-started.md).
 
-## Component tests
+## Unit tests
 
 | Page | What is in it |
 | --- | --- |
 | [Getting started](getting-started.md) | Install, configure, a test for each platform, coverage, CI, troubleshooting. |
+| [Unit tests](unit-tests.md) | `render`, and reading and acting on what it rendered with the device's `screen`, actions and matchers, and snapshots of the tree. |
 | [Projects](projects.md) | The four projects, which tests run where, how each platform's project works, and the limits. |
 | [Configuration](configuration.md) | Every option of `expoProjects`, `nodeProject` and `deviceConfig`, and the harness config. |
 | [Helpers](helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
@@ -46,7 +48,7 @@ running app. New here? Start with [Getting started](getting-started.md).
 
 | Import | Exports |
 | --- | --- |
-| `expo-vitest` | What a test imports: `device`, `screen`, `within`, `element`, `by`, `Locator`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
+| `expo-vitest` | What a test imports: `render`, `device`, `screen`, `within`, `element`, `by`, `Locator`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
 | `expo-vitest/config` | What a config imports: `expoProjects`, `nodeProject`, `deviceConfig`, `defineHarness`, `forbidModules`, `windowsResolution`, `metroCompat`, `EXPO_WEB_PACKAGES`, `TEST_TIMEOUT` |
 | `expo-vitest/matchers` | A setup file that registers the device matchers, for a config of your own. |
 | `expo-vitest/native` | `nodes`, `host`, `modifier`, `byComposeTestID`, `stackHeaders` |

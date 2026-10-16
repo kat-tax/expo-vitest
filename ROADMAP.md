@@ -113,6 +113,8 @@ These wait on an API key, and the runs are billed.
   or `scroll_to` there.
 - A menu flyout in the Windows tree, by reading the app's other top-level
   windows. Two of the test app's tests are skipped on Windows for it.
+- A swipe in a unit test, and a hover on iOS, Android and Windows there.
+  Nothing is laid out in a unit test, so a swipe has no distance to draw.
 - Quiet unit tests of an Expo Router app on Windows. There Expo Router takes
   the branches it takes off iOS and Android, which load packages through
   Node that also ship an ESM build, and vitest-native warns of each, as

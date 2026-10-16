@@ -17,11 +17,12 @@
  */
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {SnapshotNode} from '../harness/lib/snapshot.ts';
+import {renderSnapshot} from '../harness/lib/snapshot.ts';
 import type {LocatorHost} from './locator.ts';
 import {Locator} from './locator.ts';
 import {duration, poll} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch, TextMatchOptions} from './queries.ts';
-import {ambiguity, describeQuery, resolve, suggestions} from './queries.ts';
+import {ambiguity, describeQuery, inside, resolve, suggestions} from './queries.ts';
 
 /** RNTL's word for each predicate, as its query names spell it. */
 const PREDICATES = {Role: 'role', Text: 'text', LabelText: 'label', PlaceholderText: 'placeholder', DisplayValue: 'value', TestId: 'testId', HintText: 'hint'} as const satisfies Record<string, Predicate>;
@@ -45,8 +46,15 @@ export interface FindOptions {
 
 type OptionsOf<W extends Word> = W extends 'Role' ? RoleQueryOptions : TextQueryOptions;
 
-/** The forty-two queries, `getByRole` to `findAllByHintText`. */
-export type Queries = {[W in Word as `getBy${W}`]: (match: TextMatch, options?: OptionsOf<W>) => Locator} & {
+/** The forty-two queries, `getByRole` to `findAllByHintText`, and the tree they read as text. */
+export type Queries = {
+  /**
+   * The tree as text, a node a line, as `expo-harness tree` prints it but
+   * without refs, for a snapshot to keep: `expect(await screen.tree()).toMatchSnapshot()`.
+   * Inside a scope, the scope's node and what is inside it.
+   */
+  tree(): Promise<string>;
+} & {[W in Word as `getBy${W}`]: (match: TextMatch, options?: OptionsOf<W>) => Locator} & {
   [W in Word as `getAllBy${W}`]: (match: TextMatch, options?: OptionsOf<W>) => Locator;
 } & {[W in Word as `queryBy${W}`]: (match: TextMatch, options?: OptionsOf<W>) => Promise<SnapshotNode | null>} & {
   [W in Word as `queryAllBy${W}`]: (match: TextMatch, options?: OptionsOf<W>) => Promise<SnapshotNode[]>;
@@ -105,6 +113,22 @@ export function queriesOn(host: LocatorHost, scope?: LocatorQuery): Queries {
     queries[`findBy${word}`] = async (match: TextMatch, options?: QueryOptions, wait?: FindOptions) => (await find(query(match, options), count => count === 1, wait))[0];
     queries[`findAllBy${word}`] = async (match: TextMatch, options?: QueryOptions, wait?: FindOptions) => find(query(match, options, 'many'), count => count > 0, wait);
   }
+  queries.tree = async () => {
+    const snapshot = await host.feed.next();
+    const outer = scope ? resolve(scope, snapshot) : null;
+    const nodes = !outer ? snapshot.nodes : outer.length === 1 ? [outer[0] as SnapshotNode, ...inside(snapshot, outer[0] as SnapshotNode)] : [];
+    // Indented by which printed node holds which, rather than by each
+    // platform's own depth, which counts what it leaves out: a page's
+    // elements, a device's containers.
+    const byRef = new Map(nodes.map(node => [node.ref, node]));
+    const depthOf = (node: SnapshotNode, seen = new Set<SnapshotNode>()): number => {
+      const parent = node.parent === undefined ? undefined : byRef.get(node.parent);
+      if (!parent || seen.has(parent)) return 0;
+      seen.add(node);
+      return depthOf(parent, seen) + 1;
+    };
+    return renderSnapshot({...snapshot, nodes: nodes.map(node => ({...node, depth: depthOf(node)}))}, {refs: false, kinds: true});
+  };
   return queries as Queries;
 }
 

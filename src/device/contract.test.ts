@@ -25,7 +25,7 @@ import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
 import type {AppConfig, Capability, DeviceConfig, DialogAnswer, HarnessCode, HarnessConfig, HostedDevice, Kind, OptionChoice, Queries, Selector, Snapshot, SnapshotNode, WebCookie, WebRoute} from './index.ts';
-import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, requires, screen, skipOn, withComponents, within} from './index.ts';
+import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, render, requires, screen, skipOn, withComponents, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -316,10 +316,15 @@ describe('element', () => {
 });
 
 describe('screen', () => {
-  it("has RNTL's forty-two queries, and within the same", () => {
+  it('is the one a unit test reads what it rendered with, and render refuses a device test, which opens the app', async () => {
+    expectTypeOf(render).returns.resolves.toEqualTypeOf<{rerender(ui: unknown): Promise<void>; unmount(): Promise<void>}>();
+    await expect(render(null as never)).rejects.toThrow(failure('INVALID_ARGUMENT', 'render mounts a component in a unit test; a device test drives the running app, and opens a route of it with device.open'));
+  });
+
+  it("has RNTL's forty-two queries and the tree they read, and within the same", () => {
     const families = ['getBy', 'getAllBy', 'queryBy', 'queryAllBy', 'findBy', 'findAllBy'];
     const words = ['Role', 'Text', 'LabelText', 'PlaceholderText', 'DisplayValue', 'TestId', 'HintText'];
-    const expected = families.flatMap(family => words.map(word => `${family}${word}`)).sort();
+    const expected = [...families.flatMap(family => words.map(word => `${family}${word}`)), 'tree'].sort();
     expect(Object.keys(screen).sort()).toEqual(expected);
     expect(Object.keys(within(screen.getByRole('dialog'))).sort()).toEqual(expected);
   });
@@ -449,7 +454,7 @@ describe('deviceConfig', () => {
     });
   });
 
-  it("is given a harness config's type by defineHarness, from the device subpath", () => {
+  it("is given a harness config's type by defineHarness", () => {
     const config = {app: {web: {url: 'http://localhost:8081'}}};
     expect(defineHarness(config)).toBe(config);
     expectTypeOf(defineHarness).parameter(0).toEqualTypeOf<HarnessConfig>();

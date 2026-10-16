@@ -1,6 +1,6 @@
 ---
 name: expo-vitest
-description: "Test Expo code with Vitest on iOS, Android, web and Windows: component tests routed by file name, device tests against a running app, and the expo-harness command. Use when writing or running a test in a project that uses expo-vitest, or when a device test failed and left evidence under .harness/."
+description: "Test Expo code with Vitest on iOS, Android, web and Windows: unit tests routed by file name, device tests against a running app, and the expo-harness command. Use when writing or running a test in a project that uses expo-vitest, or when a device test failed and left evidence under .harness/."
 argument-hint: "[projects|device|evidence|harness|agent|mcp|explore|bug-bash]"
 allowed-tools: Bash(npx vitest *), Bash(npx expo-harness *), Bash(npx expo-vitest *), Bash(bunx vitest *), Bash(bunx expo-harness *), Bash(bunx expo-vitest *), Read, Grep
 metadata:
@@ -12,10 +12,11 @@ metadata:
 This project tests its Expo code with Vitest through `expo-vitest`. There are
 two kinds of test, each with its own config:
 
-- **Component tests**, `vitest.config.mts`: a Vitest project per platform,
+- **Unit tests**, `vitest.config.mts`: a Vitest project per platform,
   `ios`, `android`, `web` and `windows`. The name of a test file says which
   of them run it. Nothing native runs: React Native's JavaScript renders with
-  the native boundary mocked.
+  the native boundary mocked, and a test reads the render as a device test
+  reads the app.
 - **Device tests**, `vitest.config.device.mts`, under `device/`: they drive
   the real app and assert on its accessibility tree, the one a screen reader
   reads. Web is a headless Chromium, or Firefox or WebKit under
@@ -26,7 +27,7 @@ two kinds of test, each with its own config:
 
 | What | Command |
 | --- | --- |
-| Every component test | `npx vitest run` |
+| Every unit test | `npx vitest run` |
 | One platform | `npx vitest run --project ios` |
 | One file | `npx vitest run src/button.test.tsx` |
 | The device tests | `npx vitest run --config vitest.config.device.mts` |
@@ -47,13 +48,30 @@ A test runs on every platform unless its name picks some. Each platform
 loads its own files of the code under test, and keeps its own snapshots, in
 `__snapshots__/<platform>/`.
 
-## Write a component test
+## Write a unit test
 
+```tsx
+import {render, screen} from 'expo-vitest';
+import {Settings} from './settings';
+
+it('saves the name', async () => {
+  await render(<Settings/>);
+  await screen.getByRole('textbox', {name: 'Name'}).fill('Ada');
+  await screen.getByRole('button', {name: 'Save'}).press();
+  await expect(screen.getByText('Saved')).toBeVisible();
+  expect(await screen.tree()).toMatchSnapshot();
+});
+```
+
+- `render` and `screen` come from `expo-vitest`, the same `screen`, actions
+  and matchers as a device test's, on every platform. Await `render`, each
+  action and each matcher.
+- `screen.tree()` is the accessibility tree as text, the same on every
+  platform, for a snapshot.
 - `describe`, `it`, `expect` and `vi` are globals. Jest compatibility is off:
   `vi.fn()`, `vi.mock()`, `vi.spyOn()`, never `jest.*`.
-- React Native Testing Library 14 is asynchronous: `await render(...)`,
-  `await fireEvent(...)`.
-- Web tests use `@testing-library/react` and the jest-dom matchers.
+- An Expo Router app: `renderApp(routes)` from `expo-vitest/router`, then
+  `device.open(route)` to move to a route.
 
 ## Write a device test
 

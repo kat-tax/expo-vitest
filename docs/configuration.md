@@ -133,7 +133,7 @@ export default defineConfig({
 ## deviceConfig
 
 Device tests drive a real app, so they get a config of their own and never run
-with the component tests.
+with the unit tests.
 
 ```ts
 // vitest.config.device.mts
@@ -146,7 +146,7 @@ export default defineConfig(deviceConfig());
 | Option | What it does | Default |
 | --- | --- | --- |
 | `include` | The test files. | `['device/**/*.test.ts']` |
-| `timeout` | How long one test or hook may take. A real app is slower than a component test by a lot. | 120 seconds |
+| `timeout` | How long one test or hook may take. A real app is slower than a unit test by a lot. | 120 seconds |
 | `settle` | How long the screen must hold still after a step before the next one, in ms; `0` or `false` for no wait. See [waiting for the screen](device-tests.md#waiting-for-the-screen). | 150 |
 | `transition` | How long a control the last step brought in or moved is given before it is pressed, in ms; `0` or `false` for none. | 500 |
 | `assertionTimeout` | How long an action looks for its node, and a `findBy*` or a `waitFor` waits, in ms. See [waiting](locators.md#waiting). | 5000 |

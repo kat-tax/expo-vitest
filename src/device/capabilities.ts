@@ -31,12 +31,21 @@ export interface Circumstances {
   app?: AppOptions;
   /** Web: the browser the run drives. */
   browser?: BrowserName;
+  /** A unit test, whose device is the tree the test rendered. */
+  unit?: boolean;
 }
+
+/** The steps a unit test's render has: what a person does to a component, with no screen drawn and no device to control. */
+export const UNIT_ACTIONS: Capability[] = ['open', 'press', 'fill', 'type', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView'];
 
 const major = (version?: string): number => Number.parseInt(version ?? '', 10);
 
 /** Why a capability is not there for this platform and device, or null where it is. */
 export function absentBecause(capability: Capability, platform: Platform, circumstances: Circumstances = {}): string | null {
+  if (circumstances.unit) {
+    if (!UNIT_ACTIONS.includes(capability)) return `a unit test has no ${capability}, which a device test has on the running app`;
+    return capability === 'hover' && platform !== 'web' ? `a unit test on ${platform} has no pointer to move` : null;
+  }
   const control = (CONTROLS as Capability[]).includes(capability);
   if (!control && !ACTIONS[platform].includes(capability)) return `the ${platform} harness has no ${capability}`;
   const lacks = control ? LACKS[platform][capability as ControlName] : undefined;

@@ -2,9 +2,10 @@
 
 [Docs home](README.md) · [Platforms](platforms.md) · [Locators](locators.md) · [Matchers](matchers.md)
 
-A component test cannot see a whole app: its own Babel configuration, a real
+A unit test cannot see a whole app: its own Babel configuration, a real
 renderer, a real screen reader tree. A device test drives a running build and
-reads what it drew.
+reads what it drew, with the `screen`, the actions and the matchers a [unit
+test](unit-tests.md) reads a render with.
 
 The assertion is the accessibility tree rather than the pixels. A tree is the
 same across machines and scale factors, it diffs legibly in review, and it is
@@ -28,7 +29,7 @@ iOS and Android, and a built app on Windows. `npx expo-harness doctor` says
 what this machine can drive.
 
 Device tests get a Vitest config of their own, and never run with the
-component tests, since they need a real app somewhere:
+unit tests, since they need a real app somewhere:
 
 ```ts
 // vitest.config.device.mts
@@ -255,7 +256,7 @@ A snapshot is `{platform, source, nodes}`. Each node has:
 The fields from `help` down are absent unless the platform reported them, and
 the absence is a finding: a control that sets none reads differently to a
 screen reader from one that sets them, and a missing `live` or `inSet` is
-invisible in a component test and obvious to a user. Windows fills all of
+invisible in a unit test and obvious to a user. Windows fills all of
 them but `placeholder`. The other platforms fill what their own trees carry.
 
 On web, what a screen reader is told to pass over, under `aria-hidden="true"`,

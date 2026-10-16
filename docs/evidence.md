@@ -2,11 +2,13 @@
 
 [Docs home](README.md) · [Device tests](device-tests.md) · [Matchers](matchers.md)
 
-A device test that fails leaves what a person needs to see what went wrong:
-the screen when it failed, the tree, and a trace of the steps it took, with
-what each did to the screen. Nothing is to set up: the device project's setup
-file records the steps and writes the evidence. A [recording](#video) of the
-screen through the test is one setting away.
+A test that fails leaves what a person needs to see what went wrong: the
+screen when it failed, the tree, and a trace of the steps it took, with what
+each did to the screen. Nothing is to set up: the project's setup file
+records the steps and writes the evidence. A [recording](#video) of the
+screen through a device test is one setting away. A [unit
+test](unit-tests.md) leaves its trace and its tree, and no picture, since it
+draws nothing.
 
 ```
 evidence: .harness/results/web/device/settings/opens-the-profile-form-3f9a1c/trace.md

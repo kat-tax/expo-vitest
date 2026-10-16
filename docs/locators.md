@@ -2,11 +2,12 @@
 
 [Docs home](README.md) · [Device tests](device-tests.md) · [Matchers](matchers.md)
 
-`screen` finds nodes in a running app's accessibility tree with React Native
-Testing Library's queries, so a device test reads like a component test. A
-`getBy*` query gives a locator: a query held, not yet run. Each action and
-each read resolves it against the tree as it is then, so a locator made
-before the screen changed still finds what is on it after.
+`screen` finds nodes in the accessibility tree with React Native Testing
+Library's queries: a running app's in a device test, and in a [unit
+test](unit-tests.md) what the test rendered, read as a device's. A `getBy*`
+query gives a locator: a query held, not yet run. Each action and each read
+resolves it against the tree as it is then, so a locator made before the
+screen changed still finds what is on it after.
 
 ```ts
 // device/profile.test.ts
@@ -22,8 +23,8 @@ it('saves a new name', async () => {
 });
 ```
 
-Device test files do not import React Native Testing Library. One that did
-would have two `screen`s.
+A test that imports React Native Testing Library's or Testing Library's
+`screen` as well has two, so it names one of them apart.
 
 ## The queries
 

@@ -97,9 +97,9 @@ A wait for something to be gone that did not hold says how long it must.
 Library and jest-dom name some of them too: `toBeVisible`, `toBeEnabled`,
 `toBeDisabled`, `toBeChecked`, `toBeSelected`, `toBeExpanded`, `toBePressed`,
 `toHaveAccessibleName`, `toHaveValue`, `toHaveRole` and `toHaveAttribute`.
-Where a project loads their types as well, a component test reads them as it
-did, and a device test takes the forms above. A call with no timeout then
-types as theirs, which is the same call.
+In a unit test each of those waits on a locator, and takes an element one of
+the libraries gave as that library's own matcher does. A call with no
+timeout types as theirs, which is the same call.
 
 ## On a snapshot or the device
 
@@ -143,6 +143,8 @@ checked.
 
 Use a screenshot for what a tree cannot see: spacing, colour, the thing
 actually being drawn. The tree is still the better assertion for behaviour.
+A unit test draws nothing, so there it passes, saying nothing was compared,
+and a test shared with a device test still runs.
 
 ```ts
 await expect(device).toMatchScreenshot('settings');

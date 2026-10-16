@@ -170,7 +170,7 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
       for (const command of commands) console.log(`  ${shown(command)}`);
     }
     console.log('\nNext:');
-    console.log(`  ${script(detection, 'test').padEnd(26)}the component tests`);
+    console.log(`  ${script(detection, 'test').padEnd(26)}the unit tests`);
     if (choices.device) console.log(`  ${script(detection, 'test:device').padEnd(26)}the device tests, which start the app through harness.config.ts`);
     if (choices.agent) console.log(`\nFor a coding agent, add this line to AGENTS.md or CLAUDE.md, which init leaves to you:\n  ${AGENT_LINE}`);
     if (choices.mcp) console.log(`\nClaude Code asks before it first starts a server a project names. For Claude Code alone, this writes the same entry:\n  ${MCP_ADD}`);

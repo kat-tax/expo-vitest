@@ -266,8 +266,14 @@ export function centreOf(node: SnapshotNode): Point | null {
   return {x: Math.round(node.bounds.x + node.bounds.width / 2), y: Math.round(node.bounds.y + node.bounds.height / 2)};
 }
 
-/** The tree as indented text, for a person reading a log. */
-export function renderSnapshot(snapshot: Snapshot): string {
+/**
+ * The tree as indented text, for a person reading a log. For a snapshot a
+ * test keeps, `{refs: false}` leaves the refs out, since a ref numbers a
+ * node in one reading and a node added above it would renumber every line
+ * after, and `{kinds: true}` names each node by its kind where it has one,
+ * the word every platform shares, so one platform's tree reads as another's.
+ */
+export function renderSnapshot(snapshot: Snapshot, {refs = true, kinds = false}: {refs?: boolean; kinds?: boolean} = {}): string {
   return snapshot.nodes
     .map(node => {
       const indent = '  '.repeat(Math.min(node.depth, 12));
@@ -303,10 +309,10 @@ export function renderSnapshot(snapshot: Snapshot): string {
         node.secure && 'secure',
       ].filter(Boolean).join(' ');
       // The kind beside the role where they differ, so a reader sees the word getByRole takes.
-      const role = node.kind && node.kind !== node.role.toLowerCase() ? `${node.role}/${node.kind}` : node.role;
+      const role = kinds && node.kind ? node.kind : node.kind && node.kind !== node.role.toLowerCase() ? `${node.role}/${node.kind}` : node.role;
       // The component that drew it, where the React tree was read alongside.
       const drawn = node.component ? ` <${node.component}>` : '';
-      return `${indent}${node.ref} ${role} ${JSON.stringify(node.name)}${drawn}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
+      return `${indent}${refs ? `${node.ref} ` : ''}${role} ${JSON.stringify(node.name)}${drawn}${id}${state ? ` [${state}]` : ''}${says ? ` (${says})` : ''}${missing}`;
     })
     .join('\n');
 }

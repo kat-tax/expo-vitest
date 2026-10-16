@@ -166,6 +166,10 @@ expect.extend({
     const locator = hostOf(received) ? (received as Locator) : null;
     const camera = (locator ? hostOf(received) : received) as unknown as Photographable;
     const platform = camera.platform;
+    // A unit test draws nothing to compare, and a test shared with a device test still runs there.
+    if (camera.can?.('screenshot') === false) {
+      return {pass: !this.isNot, message: () => `${name} was not compared: ${platform} takes no screenshot here, as in a unit test, which draws nothing`};
+    }
     const timeout = camera.polling?.assertionTimeout ?? 5000;
     // An element is brought on screen where the platform scrolls, then found, strictly, as an action finds its node.
     if (locator && camera.can?.('scrollIntoView')) await locator.scrollIntoView();

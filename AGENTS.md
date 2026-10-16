@@ -15,6 +15,7 @@ topic. A change to a feature changes its page. What is left to build is in
 | `src/setup/` | the setup file of each project |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | the test helpers, one subpath each |
 | `src/device/` | the device object and its matchers, over the harness's drivers |
+| `src/render/` | a unit test's device: the tree a render left, read as a device's, and acted on through React Native Testing Library or user-event |
 | `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter |
 | `src/harness/` | the drivers and the `expo-harness` command |
 | `src/cli/` | `init`, `guide` and `cache`, which the command runs by either name |

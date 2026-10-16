@@ -1,13 +1,16 @@
-# The component projects
+# The unit projects
 
 `expoProjects()` in `vitest.config.mts` makes one Vitest project per platform.
 `npx vitest run --project <name>` runs one of them.
 
-| Project | What runs the code | `Platform.OS` | Queries |
+| Project | What runs the code | `Platform.OS` | Renders through |
 | --- | --- | --- | --- |
 | `ios`, `android` | React Native's own JavaScript with the native boundary mocked, through `vitest-expo` | the platform | React Native Testing Library 14 |
-| `web` | react-native-web in jsdom | `web` | `@testing-library/react`, with the jest-dom matchers |
+| `web` | react-native-web in jsdom | `web` | Testing Library, with the jest-dom matchers |
 | `windows` | React Native's JavaScript, told it is Windows, with `.windows.*` files resolved first | `windows` | React Native Testing Library 14 |
+
+Every project reads a render through `render` and `screen` from
+`expo-vitest`, the same way.
 
 ## The file-name rule
 
@@ -27,8 +30,11 @@ only. Files resolve in Metro's order: `.ios.tsx`, then `.native.tsx`, then
 ## Writing one
 
 - Globals: `describe`, `it`, `expect`, `vi`. No `jest.*`.
-- React Native Testing Library 14: `await render(<Button/>)`,
-  `await fireEvent.press(screen.getByRole('button'))`.
+- `await render(<Button/>)`, then `await screen.getByRole('button').press()`
+  and `await expect(screen.getByText('Done')).toBeVisible()`, from
+  `expo-vitest`. A matcher waits for the tree to agree.
+- `expect(await screen.tree()).toMatchSnapshot()` keeps the tree; each
+  platform keeps its own, in `__snapshots__/<platform>/`.
 - Mock a module for one file with `vi.mock('expo-haptics', () => ({...}))`.
 - A module with no Windows implementation can be forbidden in the config, so
   importing it fails the Windows test rather than the app at launch.
@@ -41,5 +47,5 @@ only. Files resolve in Metro's order: `.ios.tsx`, then `.native.tsx`, then
 | `expo-vitest/windows` | `island`, `islands`, `fireIsland`: find a Windows native component and fire its events as C++ would. |
 | `expo-vitest/router` | `renderApp`: mount an Expo Router app from an in-memory `app/` folder. |
 
-More: `node_modules/expo-vitest/docs/projects.md`, `configuration.md` and
-`helpers.md`.
+More: `node_modules/expo-vitest/docs/unit-tests.md`, `projects.md`,
+`configuration.md` and `helpers.md`.

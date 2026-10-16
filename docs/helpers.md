@@ -27,8 +27,9 @@ whose props are the payload handed to SwiftUI or Compose.
 | `stackHeaders()` | The `headerConfig` of each mounted native stack item, which is where the native stack's header options end up. |
 
 ```tsx
-import {render, screen} from '@testing-library/react-native';
+import {screen} from '@testing-library/react-native';
 import {Platform} from 'react-native';
+import {render} from 'expo-vitest';
 import {byComposeTestID, host, modifier} from 'expo-vitest/native';
 
 it('hands SwiftUI the prominent style', async () => {
@@ -67,7 +68,7 @@ renders as a host view named after it (`ExpoInterfaceButton`,
 | `fireIsland(view, event, payload?)` | Fires a native event as the C++ side dispatches it, with the payload as `nativeEvent`. Always awaited. |
 
 ```tsx
-import {render} from '@testing-library/react-native';
+import {render} from 'expo-vitest';
 import {fireIsland, island} from 'expo-vitest/windows';
 
 const TOGGLE = 'ExpoInterfaceToggleSwitch';
@@ -105,6 +106,7 @@ On every platform.
 ```tsx
 import {Stack} from 'expo-router';
 import {Text} from 'react-native';
+import {device, screen} from 'expo-vitest';
 import {renderApp} from 'expo-vitest/router';
 
 it('opens the settings route', async () => {
@@ -116,22 +118,15 @@ it('opens the settings route', async () => {
     },
     '/settings',
   );
+  await expect(screen.getByText('Settings')).toBeVisible();
+  await device.open('/');
+  await expect(screen.getByText('Home')).toBeVisible();
 });
 ```
 
-Query with React Native Testing Library's `screen` on iOS, Android and
-Windows, and with `@testing-library/react`'s on web. In a test that runs on
-both kinds, import the one for the platform:
-
-```tsx
-if (Platform.OS === 'web') {
-  const {screen} = await import('@testing-library/react');
-  expect(await screen.findByText('Settings')).toBeTruthy();
-} else {
-  const {screen} = await import('@testing-library/react-native');
-  expect(await screen.findByText('Settings')).toBeOnTheScreen();
-}
-```
+`screen` reads the app on every platform, as it reads what `render`
+rendered, and `device.open(route)` goes to a route of it through Expo
+Router's own navigation.
 
 On web it renders `ExpoRoot` into the DOM, since React Native Testing
 Library's renderer produces no DOM for react-native-web's output. It also

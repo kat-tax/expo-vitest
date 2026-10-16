@@ -15,12 +15,16 @@ export default defineConfig({
 });
 ```
 
-| Project | Engine | `Platform.OS` | Testing library |
+| Project | Engine | `Platform.OS` | Renders through |
 | --- | --- | --- | --- |
-| `ios` | vitest-native's iOS engine | `ios` | `@testing-library/react-native` |
-| `android` | vitest-native's Android engine | `android` | `@testing-library/react-native` |
-| `web` | react-native-web in jsdom | `web` | `@testing-library/react` with jest-dom |
-| `windows` | The iOS engine, told it is Windows | `windows` | `@testing-library/react-native` |
+| `ios` | vitest-native's iOS engine | `ios` | React Native Testing Library |
+| `android` | vitest-native's Android engine | `android` | React Native Testing Library |
+| `web` | react-native-web in jsdom | `web` | Testing Library, with jest-dom |
+| `windows` | The iOS engine, told it is Windows | `windows` | React Native Testing Library |
+
+A test renders with `render` and reads with `screen`, from `expo-vitest`, on
+every project alike: [Unit tests](unit-tests.md) has how. The libraries'
+own APIs work beside them.
 
 ## Which tests run where
 
@@ -51,8 +55,6 @@ These run on vitest-native's engine, through `vitest-expo`: React Native's own
 JavaScript with the native boundary mocked, `Platform.OS` set, and platform
 files resolved in Metro's order (`.ios.tsx`, then `.native.tsx`, then `.tsx`).
 
-Tests use React Native Testing Library, which is asynchronous in version 14:
-`await render(...)`, `await fireEvent(...)`.
 
 The native setup gives `@expo/ui` the two things its generic mock lacks:
 `ObservableState`, behind `useNativeState`, and `getMaterialColors`, which the
@@ -64,9 +66,9 @@ props are the payload handed to SwiftUI or Compose.
 
 ## Web
 
-The web project is react-native-web in jsdom. Tests use
-`@testing-library/react` and the jest-dom matchers, which the project's setup
-registers.
+The web project is react-native-web in jsdom. `screen` reads the DOM it
+renders as the web driver reads a browser's page, and the jest-dom matchers
+are registered too, for a test that uses Testing Library directly.
 
 Expo's packages only load there once Vite's dependency optimizer has
 pre-bundled them with the Metro behaviours they rely on. `metroCompat`
