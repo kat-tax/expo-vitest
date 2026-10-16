@@ -128,7 +128,13 @@ chain of components above it:
 ```
 
 A `## Console` part lists what the app wrote to its console during the
-test, and the errors it did not catch, on web, the last fifty lines.
+test, and the errors it did not catch, the last fifty lines: on web the
+page's, and on iOS, Android and Windows a development build's, over a
+connection to Metro's inspector held open for the test file and opened
+again after a restart. The page is chosen as for the [React
+tree](device-tests.md#the-react-tree), the app's own alone, and not where
+connecting would close another debugger; a release build has no Metro, and
+no console here.
 
 An [agent's](agent.md) steps each leave a line among the steps, its actions
 before it, and a section of their own in an `## Agent` part: what the step

@@ -2,7 +2,7 @@ import http from 'node:http';
 import type {AddressInfo} from 'node:net';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {InspectorPage, Socket} from './metro.ts';
-import {cdp, choosePage, metroFrom, readReact} from './metro.ts';
+import {cdp, choosePage, consoleLine, followConsole, metroFrom, readReact} from './metro.ts';
 
 const page = (id: string, extra: Partial<InspectorPage> = {}): InspectorPage => ({
   id,
@@ -32,6 +32,101 @@ function fakeSocket() {
 
 afterEach(() => vi.useRealTimers());
 
+describe("the app's console", () => {
+  it('is read from what the runtime sends: a call to console, or an exception nothing caught', () => {
+    const args = [{type: 'string', value: 'low'}, {type: 'number', value: 3}, {type: 'object', description: 'Object'}, {type: 'number', unserializableValue: 'NaN'}, {type: 'undefined'}, {}];
+    expect(consoleLine({method: 'Runtime.consoleAPICalled', params: {type: 'warn', args}})).toEqual({level: 'warn', text: 'low 3 Object NaN undefined '});
+    expect(consoleLine({method: 'Runtime.consoleAPICalled'})).toEqual({level: 'log', text: ''});
+    expect(consoleLine({method: 'Runtime.exceptionThrown', params: {exceptionDetails: {text: 'Uncaught', exception: {description: 'TypeError: x is undefined'}}}})).toEqual({level: 'uncaught', text: 'TypeError: x is undefined'});
+    expect(consoleLine({method: 'Runtime.exceptionThrown', params: {exceptionDetails: {text: 'Uncaught'}}})).toEqual({level: 'uncaught', text: 'Uncaught'});
+    expect(consoleLine({method: 'Runtime.exceptionThrown'})).toEqual({level: 'uncaught', text: 'an exception nothing caught'});
+    // A terminal's colours are taken out, and React Native's note to a debugger that is not its DevTools left out.
+    const escape = String.fromCharCode(27);
+    expect(consoleLine({method: 'Runtime.consoleAPICalled', params: {type: 'log', args: [{type: 'string', value: `${escape}[1mbold${escape}[22m text`}]}})).toEqual({level: 'log', text: 'bold text'});
+    const note = `${escape}[48;2;253;247;231m${escape}[30m${escape}[1mNOTE: ${escape}[22mYou are using an unsupported debugging client. Use the Dev Menu in your app to open React Native DevTools.`;
+    expect(consoleLine({method: 'Runtime.consoleAPICalled', params: {type: 'info', args: [{type: 'string', value: note}]}})).toBeNull();
+    expect(consoleLine({method: 'Debugger.paused'})).toBeNull();
+    expect(consoleLine({})).toBeNull();
+  });
+
+  it('is followed over a connection held open, looked for again while there is no page, and again once the app is back', async () => {
+    const sockets: ReturnType<typeof fakeSocket>[] = [];
+    const lists = [[], [page('1', {appId: 'com.example.app'})], [page('2', {appId: 'com.example.app'})]];
+    let looks = 0;
+    const waits: number[] = [];
+    const lines: string[] = [];
+    const following = followConsole(
+      {
+        url: 'http://metro',
+        take: false,
+        app: 'com.example.app',
+        fetch: async () => ({ok: true, json: async () => lists[Math.min(looks++, lists.length - 1)]}),
+        connect: () => {
+          const socket = fakeSocket();
+          sockets.push(socket);
+          return socket;
+        },
+      },
+      (level, text) => lines.push(`${level}: ${text}`),
+      async ms => void waits.push(ms),
+    );
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const first = sockets[0] as ReturnType<typeof fakeSocket>;
+    first.emit('open');
+    expect(first.sent).toEqual([{id: 1, method: 'Runtime.enable', params: {}}]);
+    first.emit('message', JSON.stringify({method: 'Runtime.consoleAPICalled', params: {type: 'log', args: [{type: 'string', value: 'hello'}]}}));
+    first.emit('message', 'not json');
+    first.emit('message', JSON.stringify({id: 1, result: {}}));
+    // The app restarted: its page went, and a new one is listed.
+    first.emit('close');
+    await vi.waitFor(() => expect(sockets).toHaveLength(2));
+    const second = sockets[1] as ReturnType<typeof fakeSocket>;
+    second.emit('message', JSON.stringify({method: 'Runtime.exceptionThrown', params: {exceptionDetails: {text: 'boom'}}}));
+    // A connection that fails is looked for again, as one that closed is.
+    second.emit('error');
+    await vi.waitFor(() => expect(sockets).toHaveLength(3));
+    following.stop();
+    expect((sockets[2] as ReturnType<typeof fakeSocket>).closed).toBe(true);
+    expect(lines).toEqual(['log: hello', 'uncaught: boom']);
+    expect(waits).toEqual([1000, 1000, 1000]);
+  });
+
+  it('looks again a second after a miss, then twice as long each time, up to ten, and stops between looks', async () => {
+    const waits: number[] = [];
+    const following = followConsole({url: 'http://metro', take: false, fetch: () => Promise.reject(new Error('refused'))}, () => {}, async ms => {
+      waits.push(ms);
+      if (waits.length === 6) following.stop();
+    });
+    await vi.waitFor(() => expect(waits).toHaveLength(6));
+    expect(waits).toEqual([1000, 2000, 4000, 8000, 10_000, 10_000]);
+  });
+
+  it('connects to nothing once stopped, though the page comes, and waits without holding the process open', async () => {
+    let following: ReturnType<typeof followConsole> | undefined;
+    const connect = vi.fn(() => fakeSocket());
+    following = followConsole({
+      url: 'http://metro',
+      take: false,
+      app: 'com.example.app',
+      fetch: async () => {
+        // A look already under way when the follow is stopped.
+        await Promise.resolve();
+        following?.stop();
+        return {ok: true, json: async () => [page('1', {appId: 'com.example.app'})]};
+      },
+      connect,
+    }, () => {});
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(connect).not.toHaveBeenCalled();
+    let calls = 0;
+    const idle = followConsole({url: 'http://metro', take: false, fetch: async () => (calls++, {ok: true, json: async () => []})}, () => {});
+    await vi.waitFor(() => expect(calls).toBe(1));
+    // Into its pause, whose timer holds nothing open, before it is stopped.
+    await new Promise(resolve => setTimeout(resolve, 20));
+    idle.stop();
+  });
+});
+
 describe('metroFrom', () => {
   it("is HARNESS_METRO, or Expo's port, and takes a page over only when HARNESS_REACT=take says so", () => {
     expect(metroFrom({} as NodeJS.ProcessEnv)).toEqual({url: 'http://localhost:8081', take: false});
@@ -54,6 +149,14 @@ describe('choosePage', () => {
     expect(choosePage(pages, {take: false, app: 'com.example.app', target: 'Pixel_9_Pro_XL'})).toEqual({page: pages[2]});
     expect(choosePage([pages[1] as InspectorPage, page('4')], {take: false, app: 'com.example.app'})).toEqual({refused: 'Metro lists no page for com.example.app, only for com.example.other, App 4: it serves another app'});
     expect(choosePage([], {take: false, app: 'com.example.app'})).toEqual({refused: 'Metro lists no app to read: a development build has to be running against it'});
+  });
+
+  it('takes only a page the app or the target names where it is to be held open', () => {
+    const pages = [page('1', {appId: 'com.example.other'}), page('2', {deviceName: 'Windows', title: 'TestApp'})];
+    expect(choosePage(pages, {take: false, target: 'testapp', only: true})).toEqual({page: pages[1]});
+    expect(choosePage(pages, {take: false, target: 'MyApp', only: true})).toEqual({refused: 'Metro lists no page that MyApp names'});
+    expect(choosePage(pages, {take: false, only: true})).toEqual({refused: 'nothing names the app to follow'});
+    expect(choosePage(pages, {take: false, app: 'com.example.other', only: true})).toEqual({page: pages[0]});
   });
 
   it('refuses where no app is there, or reading would close another debugger, unless told to take it', () => {

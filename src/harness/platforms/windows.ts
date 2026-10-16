@@ -13,7 +13,7 @@ import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} fr
 import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {metroFrom, readReact} from '../lib/metro.ts';
+import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
@@ -189,6 +189,8 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
   const backend = hostBackend(processName);
   // Kept under .harness/ too, since each device test file makes a driver of its own.
   const quiet = desk(fileStore(path.join(options.root, '.harness', 'windows-desk.json')));
+  /** Stops following the app's console, once `onConsole` has started to. */
+  let stopConsole = () => {};
 
   async function snapshot(snapshotOptions: SnapshotOptions = {}): Promise<Snapshot> {
     let tree: RawTree;
@@ -590,7 +592,15 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
       return quiet.quiet(await backend.idle());
     },
 
+    onConsole(listener: (level: string, text: string) => void): () => void {
+      // A debug build's, through Metro's inspector, from the page the process names alone.
+      const following = followConsole({...metroFrom(process.env), ...(processName ? {target: processName} : {})}, listener);
+      stopConsole = () => following.stop();
+      return stopConsole;
+    },
+
     async close(): Promise<void> {
+      stopConsole();
       await backend.close();
     },
 

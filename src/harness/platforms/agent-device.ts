@@ -7,7 +7,7 @@ import {asSelector, centreOf, describeTarget, findNode, follow, isPoint, seenIns
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
-import {metroFrom, readReact} from '../lib/metro.ts';
+import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
 import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, readsAlike, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
@@ -35,6 +35,8 @@ const OPEN_IN_MS = 10_000;
 export function agentDeviceDriver(platform: Platform, options: DriverOptions): Driver {
   const name = PLATFORM_NAMES[platform] ?? platform;
   let connecting: Promise<AgentDeviceTransport> | null = null;
+  /** Stops following the app's console, once `onConsole` has started to. */
+  let stopConsole = () => {};
 
   /** The transport, chosen on first use and kept until `close()`. */
   function transport(): Promise<AgentDeviceTransport> {
@@ -480,7 +482,15 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return null;
     },
 
+    onConsole(listener: (level: string, text: string) => void): () => void {
+      // A development build's, through Metro, from its own page alone, as the React tree is read.
+      const following = followConsole({...metroFrom(process.env), ...(options.app?.bundleId ? {app: options.app.bundleId} : {}), ...(options.target ? {target: options.target} : {})}, listener);
+      stopConsole = () => following.stop();
+      return stopConsole;
+    },
+
     async close(): Promise<void> {
+      stopConsole();
       const closing = connecting;
       connecting = null;
       await (await closing?.catch(() => null))?.close();

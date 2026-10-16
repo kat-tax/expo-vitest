@@ -10,8 +10,9 @@
  * one opens, unless the page says it takes more than one. Connecting would
  * then close a developer's React Native DevTools, and their opening it would
  * close this. So a page is read only where it says so, or where
- * `HARNESS_REACT=take` says to take it over. Only `Runtime.evaluate` is sent:
- * nothing that pauses, or that the runtime keeps after the connection goes.
+ * `HARNESS_REACT=take` says to take it over. Only `Runtime.evaluate` is sent,
+ * and for the console `Runtime.enable`: nothing that pauses, or that the
+ * runtime keeps after the connection goes.
  */
 import type {ReactTree} from './react.ts';
 import {walkExpression} from './react.ts';
@@ -43,7 +44,7 @@ export function metroFrom(environment: NodeJS.ProcessEnv): {url: string; take: b
  * one is given, the newest otherwise. Refused where reading it would close
  * another debugger.
  */
-export function choosePage(pages: InspectorPage[], options: {take: boolean; app?: string; target?: string}): {page: InspectorPage} | {refused: string} {
+export function choosePage(pages: InspectorPage[], options: {take: boolean; app?: string; target?: string; only?: boolean}): {page: InspectorPage} | {refused: string} {
   const connectable = pages.filter(page => page.webSocketDebuggerUrl && page.reactNative);
   const app = options.app?.toLowerCase();
   const own = app ? connectable.filter(page => page.appId?.toLowerCase() === app) : connectable;
@@ -52,6 +53,8 @@ export function choosePage(pages: InspectorPage[], options: {take: boolean; app?
   }
   const wanted = options.target?.toLowerCase();
   const named = wanted ? own.filter(page => [page.appId, page.title, page.description, page.deviceName].some(field => field?.toLowerCase().includes(wanted))) : [];
+  // A connection held open the whole test is to a page the app or the target names, never to whichever is newest.
+  if (options.only && !app && named.length === 0) return {refused: options.target ? `Metro lists no page that ${options.target} names` : 'nothing names the app to follow'};
   const page = (named.length > 0 ? named : own).at(-1);
   if (!page) return {refused: 'Metro lists no app to read: a development build has to be running against it'};
   if (!page.reactNative?.capabilities?.supportsMultipleDebuggers && !options.take) {
@@ -113,6 +116,8 @@ export interface MetroOptions {
   /** The app under test, by its id: a page of another app is not read. */
   app?: string;
   target?: string;
+  /** A page the app or the target names, or none: never the newest in their place. */
+  only?: boolean;
   /** How a page list is fetched, and a socket opened: Node's own by default. */
   fetch?: (url: string) => Promise<{ok: boolean; json(): Promise<unknown>}>;
   connect?: (url: string) => Socket;
@@ -128,12 +133,9 @@ function opened(socket: Socket): Promise<void> {
   });
 }
 
-/** The React tree of the app Metro serves, or why it cannot be read. */
-export async function readReact(options: MetroOptions): Promise<ReactTree | {unavailable: string}> {
+/** The page of the app under test that Metro lists, or why there is none to connect to. */
+async function pageFrom(options: MetroOptions): Promise<{page: InspectorPage} | {unavailable: string}> {
   const fetching = options.fetch ?? ((url: string) => fetch(url));
-  // Metro's inspector proxy takes a debugger only from an origin on the host it is reached at, and Node's WebSocket
-  // sends none of its own, so it is given that host's, through the headers Node's WebSocket takes beside the standard's.
-  const connect = options.connect ?? ((url: string) => new WebSocket(url, {headers: {Origin: new URL(url.replace(/^ws/, 'http')).origin}} as unknown as string[]) as unknown as Socket);
   let pages: InspectorPage[];
   try {
     const answer = await fetching(`${options.url}/json/list`);
@@ -143,9 +145,101 @@ export async function readReact(options: MetroOptions): Promise<ReactTree | {una
     return {unavailable: `no Metro answers at ${options.url}; set HARNESS_METRO to where it runs`};
   }
   const chosen = choosePage(Array.isArray(pages) ? pages : [], options);
-  if ('refused' in chosen) return {unavailable: chosen.refused};
+  return 'refused' in chosen ? {unavailable: chosen.refused} : chosen;
+}
+
+/** A socket to a page's debugger. */
+function connectTo(page: InspectorPage, options: MetroOptions): Socket {
+  // Metro's inspector proxy takes a debugger only from an origin on the host it is reached at, and Node's WebSocket
+  // sends none of its own, so it is given that host's, through the headers Node's WebSocket takes beside the standard's.
+  const connect = options.connect ?? ((url: string) => new WebSocket(url, {headers: {Origin: new URL(url.replace(/^ws/, 'http')).origin}} as unknown as string[]) as unknown as Socket);
   // Metro lists its debugger at localhost, which Node's WebSocket may try as ::1 alone, where Metro need not listen.
-  const socket = connect((chosen.page.webSocketDebuggerUrl as string).replace(/^ws:\/\/localhost(?=[:/])/, 'ws://127.0.0.1'));
+  return connect((page.webSocketDebuggerUrl as string).replace(/^ws:\/\/localhost(?=[:/])/, 'ws://127.0.0.1'));
+}
+
+/** The escapes that colour a terminal's text, which a console line may carry. */
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
+
+/** How React Native's note to a debugger that is not its DevTools begins. */
+const NOT_DEVTOOLS = 'NOTE: You are using an unsupported debugging client.';
+
+/** A line of the app's console from a message its runtime sent: a call to console, or an exception nothing caught. */
+export function consoleLine(message: {method?: string; params?: unknown}): {level: string; text: string} | null {
+  if (message.method === 'Runtime.consoleAPICalled') {
+    type Argument = {type?: string; value?: unknown; unserializableValue?: string; description?: string};
+    const {type = 'log', args = []} = (message.params ?? {}) as {type?: string; args?: Argument[]};
+    const shown = (arg: Argument) => (typeof arg.value === 'string' ? arg.value : arg.value !== undefined ? JSON.stringify(arg.value) : (arg.unserializableValue ?? arg.description ?? arg.type ?? ''));
+    const line = args.map(shown).join(' ').replace(ANSI, '');
+    // React Native's inspector tells a debugger that is not its DevTools to use those, as a console line of its own: not the app's.
+    return line.startsWith(NOT_DEVTOOLS) ? null : {level: type, text: line};
+  }
+  if (message.method === 'Runtime.exceptionThrown') {
+    const {exceptionDetails: details} = (message.params ?? {}) as {exceptionDetails?: {text?: string; exception?: {description?: string}}};
+    return {level: 'uncaught', text: details?.exception?.description ?? details?.text ?? 'an exception nothing caught'};
+  }
+  return null;
+}
+
+/** A pause that does not hold the process open. */
+const pause = (ms: number) => new Promise<void>(resolve => (setTimeout(resolve, ms) as unknown as {unref(): void}).unref());
+
+/**
+ * Follows what the app Metro serves writes to its console, and the
+ * exceptions nothing catches, over a connection held open with
+ * `Runtime.enable`, the page chosen as for the React tree, but only one the
+ * app's id or the target names. The connection
+ * ends when the app does, as on a restart, and is opened again once a page
+ * is listed; where Metro lists none, or would close another debugger, it
+ * looks again a moment later, a second at first and up to ten, until
+ * stopped.
+ */
+export function followConsole(given: MetroOptions, listener: (level: string, text: string) => void, wait: (ms: number) => Promise<void> = pause): {stop(): void} {
+  const options = {...given, only: true};
+  let stopped = false;
+  let socket: Socket | null = null;
+  void (async () => {
+    let misses = 0;
+    while (!stopped) {
+      const chosen = await pageFrom(options);
+      if ('page' in chosen && !stopped) {
+        const open = connectTo(chosen.page, options);
+        socket = open;
+        await new Promise<void>(ended => {
+          open.addEventListener('open', () => open.send(JSON.stringify({id: 1, method: 'Runtime.enable', params: {}})));
+          open.addEventListener('message', event => {
+            let message: {method?: string; params?: unknown};
+            try {
+              message = JSON.parse(String(event.data));
+            } catch {
+              return;
+            }
+            const line = consoleLine(message);
+            if (line) listener(line.level, line.text);
+          });
+          open.addEventListener('close', () => ended());
+          open.addEventListener('error', () => ended());
+        });
+        socket = null;
+        misses = 0;
+      } else {
+        misses += 1;
+      }
+      if (!stopped) await wait(Math.min(1000 * 2 ** Math.max(misses - 1, 0), 10_000));
+    }
+  })();
+  return {
+    stop() {
+      stopped = true;
+      socket?.close();
+    },
+  };
+}
+
+/** The React tree of the app Metro serves, or why it cannot be read. */
+export async function readReact(options: MetroOptions): Promise<ReactTree | {unavailable: string}> {
+  const chosen = await pageFrom(options);
+  if ('unavailable' in chosen) return chosen;
+  const socket = connectTo(chosen.page, options);
   const session = cdp(socket);
   const timeout = options.timeout ?? 15_000;
   let timer: ReturnType<typeof setTimeout> | undefined;

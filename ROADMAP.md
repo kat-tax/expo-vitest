@@ -138,8 +138,7 @@ These wait on an API key, and the runs are billed.
 
 - The file and line of the component behind a failed press. React 19 has no
   `_debugSource`; Metro's `/symbolicate` may give it from a stack.
-- The app's console on a device, as web has it. It needs a connection held
-  open with `Runtime.enable`.
+
 
 ### The run
 

@@ -21,8 +21,9 @@ did to the screen: the nodes that appeared and went, and where the focus
 moved. A step that changed nothing, before a step that failed, is usually the
 cause. A test's own `step(title, body)` shows as `step "title"`, with the
 steps inside it after `title ›`. A `## Component` section names the React
-component behind the node the failing step was after, and on web the page's
-console follows.
+component behind the node the failing step was after, and the app's console
+follows: the page's on web, and a development build's, through Metro, on a
+device and on Windows.
 
 ## What to do with it
 
