@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -394,6 +394,15 @@ describe('the wait after an action', () => {
     expect(settleRequest()).toEqual({});
     expect(settleArgs({quietMs: 150, timeoutMs: 2000})).toEqual(['--settle', '--settle-quiet', '150', '--timeout', '2000']);
     expect(settleArgs()).toEqual([]);
+  });
+});
+
+describe('typing', () => {
+  it('leaves a gap between characters on iOS, in the client\'s words and on its command line, and none elsewhere', () => {
+    expect(typingRequest('ios')).toEqual({delayMs: IOS_TYPING_DELAY});
+    expect(typingArgs('ios')).toEqual(['--delay-ms', String(IOS_TYPING_DELAY)]);
+    expect(typingRequest('android')).toEqual({});
+    expect(typingArgs('android')).toEqual([]);
   });
 });
 

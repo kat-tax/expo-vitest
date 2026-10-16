@@ -324,6 +324,25 @@ export function settleArgs(wait?: Wait): string[] {
   return wait ? ['--settle', '--settle-quiet', String(wait.quietMs), '--timeout', String(wait.timeoutMs)] : [];
 }
 
+/**
+ * The gap between typed characters on iOS, in ms. agent-device types as fast
+ * as it can, which on a simulator is faster than a React Native field that
+ * keeps its text in state takes it in: characters are dropped, as
+ * "ada@example.com" arriving as "ada@examplecom". This is a quick typist's
+ * pace. Android takes the text in one piece.
+ */
+export const IOS_TYPING_DELAY = 50;
+
+/** The gap between typed characters as the Node client takes it. */
+export function typingRequest(platform: string): {delayMs?: number} {
+  return platform === 'ios' ? {delayMs: IOS_TYPING_DELAY} : {};
+}
+
+/** The gap between typed characters as the command line takes it. */
+export function typingArgs(platform: string): string[] {
+  return platform === 'ios' ? ['--delay-ms', String(IOS_TYPING_DELAY)] : [];
+}
+
 /** An agent-device failure, as its code and its message. */
 export interface AgentFailure {
   code?: string;

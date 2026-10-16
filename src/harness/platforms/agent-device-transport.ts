@@ -44,6 +44,8 @@ import {
   settleArgs,
   settleRequest,
   targetArgs,
+  typingArgs,
+  typingRequest,
 } from './agent-device-mapping.ts';
 
 /** How long one step may take before it is given up on. */
@@ -255,7 +257,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
       await call(signal => client.interactions.press({...select, ...clientTarget(target), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
-      await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...settleRequest(wait), signal}), 'ACTION_FAILED');
+      await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...typingRequest(options.platform), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
     async longPress(target, duration, wait) {
       await call(signal => client.interactions.longPress({...select, ...clientTarget(target), ...(duration === undefined ? {} : {durationMs: duration}), ...settleRequest(wait), signal}), 'ACTION_FAILED');
@@ -270,7 +272,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
       await call(signal => client.interactions.swipe({...select, from, to, signal}), 'ACTION_FAILED');
     },
     async type(text) {
-      await call(signal => client.interactions.type({...select, text, signal}), 'ACTION_FAILED');
+      await call(signal => client.interactions.type({...select, text, ...typingRequest(options.platform), signal}), 'ACTION_FAILED');
     },
     async screenshot(file, statusBar) {
       await call(signal => client.capture.screenshot({path: file, ...screenshotRequest(options.platform, statusBar), signal}), 'ACTION_FAILED');
@@ -356,7 +358,7 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
       await agent(['press', ...targetArgs(target), ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
-      await agent(['fill', ...targetArgs(target), text, ...settleArgs(wait)], 'ACTION_FAILED');
+      await agent(['fill', ...targetArgs(target), text, ...typingArgs(options.platform), ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async longPress(target, duration, wait) {
       await agent(['longpress', ...targetArgs(target), ...(duration === undefined ? [] : [String(duration)]), ...settleArgs(wait)], 'ACTION_FAILED');
@@ -371,7 +373,7 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
       await agent(['swipe', String(from.x), String(from.y), String(to.x), String(to.y)], 'ACTION_FAILED');
     },
     async type(text) {
-      await agent(['type', text], 'ACTION_FAILED');
+      await agent(['type', text, ...typingArgs(options.platform)], 'ACTION_FAILED');
     },
     async screenshot(file, statusBar) {
       await agent(['screenshot', file, ...screenshotArgs(options.platform, statusBar)], 'ACTION_FAILED');
