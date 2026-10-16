@@ -96,13 +96,16 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       const question = tree ? openInQuestion(tree) : undefined;
       if (question) {
         // agent-device answers the question itself with its accept, where it
-        // opened the app; its Open button is pressed where that fails.
-        const open = tree?.nodes.find(node => node.parent === question.ref && node.name === 'Open');
-        await current.command({command: 'alert', action: 'accept'}).catch(async (error: unknown) => {
-          if (!open) throw error;
-          await current.press({ref: open.ref});
-        });
-        return `, and answered Open to ${JSON.stringify(question.name)}`;
+        // opened the app; its Open button is pressed where that fails, by its
+        // label, since the accept, as a device action, retires the ref.
+        const answered = `, and answered Open to ${JSON.stringify(question.name)}`;
+        try {
+          await current.command({command: 'alert', action: 'accept'});
+          return answered;
+        } catch (error) {
+          await current.press({label: 'Open'});
+          return `${answered} with its button, since the alert's accept failed: ${firstLine((error as Error).message)}`;
+        }
       }
       if (Date.now() >= until) return '';
       await new Promise(resolve => setTimeout(resolve, 250));
