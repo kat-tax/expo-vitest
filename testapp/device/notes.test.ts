@@ -66,6 +66,13 @@ rowMenu('archives a note from its row, which leaves the list for the archive', a
   await expect(row('Groceries')).toBeVisible();
 });
 
+listChanges('throws away a new note left without a word', async () => {
+  await screen.getByRole('button', {name: 'New note'}).press();
+  await screen.getByRole('button', {name: 'Cancel'}).press();
+  await expect(search()).toBeVisible();
+  await expect(row('Untitled note')).toBeHidden();
+});
+
 it('opens a new note in the editor', async () => {
   await screen.getByRole('button', {name: 'New note'}).press();
   await expect(field('Title', 'note-title')).toHaveValue('Untitled note');

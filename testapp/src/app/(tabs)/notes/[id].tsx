@@ -1,6 +1,7 @@
 // A note: read it, edit it, save it with a toast, leave an edit with its
 // changes only after saying so, and favourite, archive or delete it from a
-// menu, a delete being undoable for a few seconds.
+// menu, a delete being undoable for a few seconds. A new note left before
+// its first save is thrown away.
 import {router, useLocalSearchParams} from 'expo-router';
 import {Alert, Button, EmptyState, FieldGroup, ListItem, Menu, Screen, Stack, TextField, useToast} from 'expo-interface';
 import {useState} from 'react';
@@ -20,6 +21,8 @@ export default function NoteScreen() {
   const [body, setBody] = useState(note?.body ?? '');
   const [saving, setSaving] = useState(false);
   const [asking, setAsking] = useState<'discard' | 'delete' | null>(null);
+  // A note made by New note, until its first save.
+  const [fresh, setFresh] = useState(edit === '1');
 
   if (!note) {
     return (
@@ -39,12 +42,21 @@ export default function NoteScreen() {
     setSaving(true);
     await new Promise(resolve => setTimeout(resolve, SAVE_DELAY));
     updateNote(note.id, {title: title.trim() || 'Untitled note', body, edited: 'Today'});
+    setFresh(false);
     setSaving(false);
     setEditing(false);
     toast.show('Saved');
   };
+  const throwAway = () => {
+    deleteNote(note.id);
+    router.back();
+  };
   const discard = () => {
     setAsking(null);
+    if (fresh) {
+      throwAway();
+      return;
+    }
     setTitle(note.title);
     setBody(note.body);
     setEditing(false);
@@ -67,7 +79,7 @@ export default function NoteScreen() {
           </FieldGroup.Section>
           <FieldGroup.Section>
             <Button label="Save" onPress={() => void save()} disabled={!changed} loading={saving} testID="note-save" />
-            <Button label="Cancel" variant="text" onPress={() => (changed ? setAsking('discard') : setEditing(false))} testID="note-cancel" />
+            <Button label="Cancel" variant="text" onPress={() => (changed ? setAsking('discard') : fresh ? throwAway() : setEditing(false))} testID="note-cancel" />
           </FieldGroup.Section>
         </FieldGroup>
       ) : (
