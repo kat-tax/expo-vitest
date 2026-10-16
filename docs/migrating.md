@@ -79,7 +79,7 @@ A flow is a test file, and each command a line of it.
 | `MAESTRO_*` variables | `HARNESS_*` | renamed |
 | `--format junit`, `--output` | Vitest's `junit` reporter and `--outputFile` | renamed |
 | `--format html` | Vitest's `html` reporter | renamed |
-| `properties` on a JUnit test | | not yet |
+| `properties` on a JUnit test | `annotate(value, name)` from the test's context, which Vitest's `junit` reporter writes as a property | renamed |
 | `--shards`, `--shard-split` | Vitest's `--shard` | renamed |
 | `maestro record` | [`video`](evidence.md#video) | renamed |
 | `maestro test -c`, Maestro Studio | Vitest's watch mode, and [`expo-harness`](harness.md) by hand | renamed |
