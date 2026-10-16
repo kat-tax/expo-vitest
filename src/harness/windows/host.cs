@@ -77,6 +77,14 @@ public static class HarnessHost {
 
   static CacheRequest tree;
 
+  // The number each element was given, by its process and runtime id, kept
+  // for the host's life: a ref lasts as long as its element, as a web ref
+  // does, so nodes coming and going around it, such as an overlay's, leave it
+  // as it was, and a ref read before they went still names that element, not
+  // the node that came to stand where it was.
+  static readonly Dictionary<string, int> numbers = new Dictionary<string, int>();
+  static int lastNumber;
+
   // The newest snapshot's elements by ref, for the operations that act on one.
   static Dictionary<string, AutomationElement> refs = new Dictionary<string, AutomationElement>();
 
@@ -277,6 +285,7 @@ public static class HarnessHost {
     request.TreeFilter = Automation.ControlViewCondition;
     request.AutomationElementMode = AutomationElementMode.Full;
     AutomationProperty[] properties = new AutomationProperty[] {
+      AutomationElement.RuntimeIdProperty,
       AutomationElement.ControlTypeProperty,
       AutomationElement.NameProperty,
       AutomationElement.AutomationIdProperty,
@@ -313,6 +322,10 @@ public static class HarnessHost {
     public RECT Window;
     /** Each property read from the app as it is reached, rather than from the cache. */
     public bool Live;
+    /** The app's process, whose runtime ids number its elements. */
+    public int Pid;
+    /** The numbers given in this walk, so that no two of its nodes share a ref. */
+    public HashSet<int> Given = new HashSet<int>();
   }
 
   static Walk Start(bool interactive, int max, RECT window, bool live) {
@@ -329,6 +342,7 @@ public static class HarnessHost {
     RECT window = WindowRect(process);
     AutomationElement found = AutomationElement.FromHandle(process.MainWindowHandle);
     Walk walk = Start(interactive, max, window, false);
+    walk.Pid = process.Id;
     try {
       Visit(walk, found.GetUpdatedCache(TreeRequest()), 0, null);
     } catch (IndexOutOfRangeException) {
@@ -336,6 +350,7 @@ public static class HarnessHost {
       // react-native-windows' screens, inside GetUpdatedCache. The same tree
       // read an element at a time is slower and does not fail.
       walk = Start(interactive, max, window, true);
+      walk.Pid = process.Id;
       Visit(walk, found, 0, null);
     }
     refs = walk.Refs;
@@ -371,6 +386,20 @@ public static class HarnessHost {
     }
   }
 
+  /** The number an element's ref carries: the one it was given before, or the next. An element with no runtime id, or one this walk gave already, is numbered afresh. */
+  static int Number(Walk walk, AutomationElement element) {
+    int[] id = null;
+    try { id = (walk.Live ? element.GetCurrentPropertyValue(AutomationElement.RuntimeIdProperty) : element.GetCachedPropertyValue(AutomationElement.RuntimeIdProperty)) as int[]; } catch (Exception) { }
+    int number;
+    string key = id == null || id.Length == 0 ? null : walk.Pid + ":" + string.Join(".", id);
+    if (key == null || !numbers.TryGetValue(key, out number) || walk.Given.Contains(number)) {
+      number = ++lastNumber;
+      if (key != null) numbers[key] = number;
+    }
+    walk.Given.Add(number);
+    return number;
+  }
+
   /**
    * Writes one element when it is kept, and says whether to go on into it.
    * `childParent` is the parent its children name: its own ref when it is
@@ -399,7 +428,7 @@ public static class HarnessHost {
     bool listed = interactive || !string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(testId);
     if (!listed) return true;
     walk.Count++;
-    string reference = "@e" + walk.Count;
+    string reference = "@e" + Number(walk, element);
     walk.Refs[reference] = element;
     if (interactive || !walk.OnlyInteractive) {
       childParent = reference;

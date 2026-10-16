@@ -43,9 +43,8 @@ const PRESSES = new Set(['Invoke', 'Toggle', 'SelectionItem']);
 /**
  * What an action on a node is pointed at: its ref. Every backend can act on
  * one from the snapshot the node came from: agent-device keeps that
- * snapshot's refs until the next, the web driver keeps a ref for as long as
- * its element stays, and a Windows ref names the same node in every snapshot
- * of a screen.
+ * snapshot's refs until the next, and the web driver and the Windows host
+ * keep a ref for as long as its element stays.
  *
  * A Windows text has no pattern to press it by, so a press on one goes to the
  * control it sits in when that control has Invoke, and is pressed through the

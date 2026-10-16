@@ -151,8 +151,8 @@ state it read. A `waitFor` for a node to go that never goes is
 
 An action presses the node by its ref, from the snapshot the locator just
 read, on every platform: agent-device keeps that snapshot's refs until the
-next, a web ref lasts as long as its element, and a Windows ref names the
-same node in every snapshot of a screen. A press then works as
+next, and a web or a Windows ref lasts as long as its element, however the
+nodes around it come and go. A press then works as
 [`element`'s does](#by-and-element): through a control's UI Automation
 pattern on Windows where it has one, and as a person would elsewhere.
 
