@@ -110,11 +110,12 @@ export async function relaunch(first: Locator): Promise<void> {
 /**
  * A text field by the name a person hears for it. expo-interface names a
  * field by its placeholder alone, which Android takes away once the field
- * holds text, so there the field is found by its testID. sign-in.test.ts
- * shows the gap, marked failing on Android until the kit names its fields.
+ * holds text and iOS does not count as a name at all, so on both the field
+ * is found by its testID. sign-in.test.ts shows the gap, marked failing on
+ * both until the kit names its fields.
  */
 export function field(name: string, testId: string): Locator {
-  return device.platform === 'android' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
+  return device.platform === 'android' || device.platform === 'ios' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
 }
 
 /** The notes' search field. */
