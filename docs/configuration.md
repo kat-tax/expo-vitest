@@ -314,6 +314,12 @@ then SIGKILL after `shutdownTimeout`. On Windows its tree is ended with
 end. Something still answering at `readyUrl` after that fails the run,
 naming the process.
 
+A run that ends without its teardown, killed or with its terminal closed,
+still ends the command. The command runs under a small Node process of the
+package's that holds a channel to the run, and when the run's process goes,
+that process ends the command the same way, so the next run does not find
+it still answering.
+
 ## The plugins, on their own
 
 `expoProjects` is made of Vite plugins that are exported for a config that

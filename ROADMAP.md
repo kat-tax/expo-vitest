@@ -152,8 +152,6 @@ These wait on an API key, and the runs are billed.
 
 ### The run
 
-- Ending the app's command on SIGINT. A hard kill of Vitest leaves the dev
-  server running, and the next local run reuses it.
 - Ending a timed-out child's whole process tree on Windows, with
   `taskkill /T`. Now only the one process ends.
 - Platforms side by side in one run. Vitest holds one file at a time for

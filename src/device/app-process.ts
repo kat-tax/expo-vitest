@@ -125,6 +125,14 @@ export function launchOf(command: Pick<ResolvedCommand, 'executable' | 'args' | 
   return {file: variable(env, 'COMSPEC') ?? 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], verbatim: true};
 }
 
+/** What the keeper is handed: the launch, and how long the command has to stop when the run has gone. */
+export interface KeptLaunch extends Launch {
+  shutdownTimeout: number;
+}
+
+/** What the keeper answers with: the command's pid, or why it could not be started. */
+export type KeeperAnswer = {started: number} | {refused: string};
+
 /** What a process can be told to stop with. */
 export interface Signals {
   platform: NodeJS.Platform;
@@ -176,12 +184,18 @@ export interface ChildLike {
   pid?: number;
   once(event: 'exit', listener: (code: number | null, signal: string | null) => void): unknown;
   once(event: 'error', listener: (error: Error) => void): unknown;
+  once(event: 'message', listener: (message: unknown) => void): unknown;
   unref(): void;
+  /** The IPC channel, which holds the run open unless it is unref'd too. */
+  channel?: {unref(): void} | null;
 }
 
 /** Everything starting a command touches. */
 export interface System extends Signals {
   env: NodeJS.ProcessEnv;
+  /** The Node that runs the keeper, and the keeper's file, `keeper.ts` beside this one. */
+  node: string;
+  keeper: string;
   exists(file: string): boolean;
   spawn(file: string, args: string[], options: SpawnOptions): ChildLike;
   /** Opens the log for writing from the start, and answers with its descriptor. */
@@ -229,12 +243,25 @@ export function commandEnvironment(env: NodeJS.ProcessEnv, own: Record<string, s
   return {...Object.fromEntries(Object.entries(env).filter(entry => !runner(entry))), ...own} as NodeJS.ProcessEnv;
 }
 
+/** The keeper's first word, or how it ended before it said one. */
+function answerOf(child: ChildLike): Promise<KeeperAnswer | {ended: Exit}> {
+  return new Promise(resolve => {
+    child.once('message', message => resolve(message as KeeperAnswer));
+    child.once('exit', (code, signal) => resolve({ended: {code, signal}}));
+  });
+}
+
 /**
  * Starts a platform's command, unless one already answers at its ready url:
  * that one is used when `reuseExisting` allows, and is otherwise an error,
  * since in CI it would be testing whatever build it serves. A command that
  * ends, or does not answer in `startupTimeout`, is stopped, and the error
  * carries the end of its log.
+ *
+ * The command runs under the keeper, `keeper.ts`, which ends it if the run's
+ * process goes without stopping it. On macOS and Linux the keeper leads a
+ * process group the command is in, and on Windows it roots the command's
+ * tree, so what stops the keeper's group or tree stops the command.
  */
 export async function startCommand(platform: Platform, command: ResolvedCommand, readyUrl: string, system: System): Promise<Started> {
   const key = commandKey(command);
@@ -244,18 +271,17 @@ export async function startCommand(platform: Platform, command: ResolvedCommand,
     if (command.reuseExisting) return {key, pid: null, reused: true, log: false, stop: async () => {}};
     throw new HarnessError('APP_ALREADY_RUNNING', `something already answers at ${readyUrl}, so ${shown} was not started: stop it, or set app.${platform}.command.reuseExisting to true to use it`, {platform});
   }
-  const launch = launchOf(command, system.platform, system.env, system.exists);
+  const kept: KeptLaunch = {...launchOf(command, system.platform, system.env, system.exists), shutdownTimeout: command.shutdownTimeout};
   const log = command.log;
   const out = log === false ? 'ignore' : system.openLog(log);
-  const child = system.spawn(launch.file, launch.args, {
+  const child = system.spawn(system.node, [system.keeper, JSON.stringify(kept)], {
     cwd: command.cwd,
     env: commandEnvironment(system.env, command.env),
-    stdio: ['ignore', out, out],
+    stdio: ['ignore', out, out, 'ipc'],
     shell: false,
     windowsHide: true,
-    windowsVerbatimArguments: launch.verbatim,
-    // Its own process group, so the whole of it can be stopped; on Windows this would open a console.
-    detached: system.platform !== 'win32',
+    // Detached, so that it outlives the run's process to end the command; see `keeper.ts`.
+    detached: true,
   });
   // The child has its own copy of the descriptor.
   if (out !== 'ignore') system.closeLog(out);
@@ -276,6 +302,11 @@ export async function startCommand(platform: Platform, command: ResolvedCommand,
     throw new HarnessError('APP_UNREACHABLE', `${shown} could not be started: ${(error as Error | null)?.message ?? 'no process came of it'}`, {platform});
   }
   const pid = child.pid;
+  const answer = await answerOf(child);
+  // Held until the keeper answered, since nothing else may be keeping the process alive meanwhile.
+  child.channel?.unref();
+  if ('refused' in answer) throw new HarnessError('APP_UNREACHABLE', `${shown} could not be started: ${answer.refused}`, {platform});
+  if ('ended' in answer) throw new HarnessError('APP_UNREACHABLE', withLog(`${shown} could not be started: the process it runs under ended ${shownExit(answer.ended)}`), {platform});
   const end = () => {
     try {
       if (system.platform === 'win32') system.killTree(pid);

@@ -181,9 +181,9 @@ describe('what is spawned', () => {
   });
 });
 
-/** A spawned process, or one that never started, which has no pid. */
+/** A spawned keeper, or one that never started, which has no pid. */
 function fakeChild(started = true) {
-  return Object.assign(new EventEmitter(), {pid: started ? 4242 : undefined, unref: vi.fn()});
+  return Object.assign(new EventEmitter(), {pid: started ? 4242 : undefined, unref: vi.fn(), channel: {unref: vi.fn()}});
 }
 
 describe('stopping a process', () => {
@@ -269,11 +269,11 @@ const resolved = (extra: Partial<ResolvedCommand> = {}): ResolvedCommand => ({
 });
 
 /**
- * A machine with a fake process and a fake server: the server is up for
- * each look in `up` in turn, and the last after; the process ends on the
- * signals in `endsOn`.
+ * A machine with a fake keeper and a fake server: the server is up for
+ * each look in `up` in turn, and the last after; the keeper answers with
+ * `answer` once it is spawned, and ends on the signals in `endsOn`.
  */
-function machine(options: {up?: boolean[]; endsOn?: string[]; platform?: NodeJS.Platform; child?: ReturnType<typeof fakeChild>} = {}) {
+function machine(options: {up?: boolean[]; endsOn?: string[]; platform?: NodeJS.Platform; child?: ReturnType<typeof fakeChild>; answer?: unknown} = {}) {
   const up = options.up ?? [false, true, false];
   const child = options.child ?? fakeChild();
   const undo = vi.fn();
@@ -284,8 +284,14 @@ function machine(options: {up?: boolean[]; endsOn?: string[]; platform?: NodeJS.
   const system = {
     platform: options.platform ?? 'linux',
     env: {PATH: '/usr/bin', HOME: '/home/me'} as unknown as NodeJS.ProcessEnv,
+    node: '/usr/bin/node',
+    keeper: '/app/node_modules/expo-vitest/dist/device/keeper.js',
     exists: vi.fn((_file: string) => false),
-    spawn: vi.fn(() => child),
+    spawn: vi.fn(() => {
+      // The keeper answers once it has spawned the command, after spawn has returned it.
+      if (child.pid !== undefined) process.nextTick(() => child.emit('message', options.answer ?? {started: 4343}));
+      return child;
+    }),
     signal: vi.fn((_pid: number, signal: string) => end(signal)),
     killTree: vi.fn(() => end('taskkill')),
     openLog: vi.fn(() => 7),
@@ -319,22 +325,24 @@ describe('starting a command', () => {
     expect(system.spawn).not.toHaveBeenCalled();
   });
 
-  it('spawns it with no shell, in its own group, writing to its log, and waits for it', async () => {
+  it('spawns it under the keeper, with no shell, in its own group, writing to its log, and waits for it', async () => {
     const {system, child} = machine({up: [false, false, true]});
     const started = await startCommand('web', resolved(), 'http://localhost:8081', system);
     expect(started).toMatchObject({pid: 4242, reused: false, log: '/app/.harness/app-web.log'});
-    expect(system.spawn).toHaveBeenCalledWith('npx', ['expo', 'start'], {
+    const launch = {file: 'npx', args: ['expo', 'start'], verbatim: false, shutdownTimeout: 500};
+    expect(system.spawn).toHaveBeenCalledWith('/usr/bin/node', ['/app/node_modules/expo-vitest/dist/device/keeper.js', JSON.stringify(launch)], {
       cwd: '/app',
       env: {PATH: '/usr/bin', HOME: '/home/me', EXPO_NO_DEV_MENU: '1'},
-      stdio: ['ignore', 7, 7],
+      stdio: ['ignore', 7, 7, 'ipc'],
       shell: false,
       windowsHide: true,
-      windowsVerbatimArguments: false,
       detached: true,
     });
     expect(system.openLog).toHaveBeenCalledWith('/app/.harness/app-web.log');
     expect(system.closeLog).toHaveBeenCalledWith(7);
+    // Neither the process nor its channel holds the run open.
     expect(child.unref).toHaveBeenCalled();
+    expect(child.channel.unref).toHaveBeenCalled();
     expect(system.clock.at).toBe(100);
   });
 
@@ -346,12 +354,13 @@ describe('starting a command', () => {
     expect((system.spawn.mock.calls[0] as unknown as [string, string[], {env: NodeJS.ProcessEnv}])[2].env).toEqual({PATH: '/usr/bin', VITE_API: 'x', EXPO_NO_DEV_MENU: '1'});
   });
 
-  it('runs a .cmd through cmd.exe on Windows, in the same console', async () => {
+  it('hands the keeper a .cmd as cmd.exe with an escaped line on Windows, detached there too', async () => {
     const {system} = machine({platform: 'win32'});
     system.env.PATH = 'C:\\nodejs';
     system.exists.mockImplementation((file: string) => file === 'C:\\nodejs\\npx.CMD');
     await startCommand('web', resolved({log: false}), 'http://localhost:8081', system);
-    expect(system.spawn).toHaveBeenCalledWith('cmd.exe', ['/d', '/s', '/c', '"C:\\nodejs\\npx.CMD ^^^"expo^^^" ^^^"start^^^""'], expect.objectContaining({stdio: ['ignore', 'ignore', 'ignore'], windowsVerbatimArguments: true, detached: false}));
+    const launch = {file: 'cmd.exe', args: ['/d', '/s', '/c', '"C:\\nodejs\\npx.CMD ^^^"expo^^^" ^^^"start^^^""'], verbatim: true, shutdownTimeout: 500};
+    expect(system.spawn).toHaveBeenCalledWith('/usr/bin/node', [system.keeper, JSON.stringify(launch)], expect.objectContaining({stdio: ['ignore', 'ignore', 'ignore', 'ipc'], detached: true}));
     expect(system.openLog).not.toHaveBeenCalled();
     expect(system.closeLog).not.toHaveBeenCalled();
   });
@@ -395,15 +404,35 @@ describe('starting a command', () => {
     );
   });
 
-  it("names what spawn could not start, and Node's reason", async () => {
+  it("names what the keeper could not start, and Node's reason", async () => {
+    const {system} = machine({answer: {refused: 'spawn npxx ENOENT'}});
+    await expect(startCommand('web', resolved({executable: 'npxx'}), 'http://localhost:8081', system)).rejects.toThrow(
+      expect.objectContaining({code: 'APP_UNREACHABLE', message: 'npxx expo start could not be started: spawn npxx ENOENT'}),
+    );
+    expect(system.fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('says how the keeper ended where it ended before it answered, with the end of its log', async () => {
+    const child = fakeChild();
+    const {system} = machine({child});
+    system.spawn.mockImplementation(() => {
+      process.nextTick(() => child.emit('exit', 1, null));
+      return child;
+    });
+    await expect(startCommand('web', resolved(), 'http://localhost:8081', system)).rejects.toThrow(
+      'npx expo start could not be started: the process it runs under ended with code 1. The end of its log, /app/.harness/app-web.log:\nStarting Metro Bundler\nError: port taken',
+    );
+  });
+
+  it("names Node's reason where the keeper itself could not be started", async () => {
     const child = fakeChild(false);
     const {system} = machine({child});
     system.spawn.mockImplementation(() => {
-      process.nextTick(() => child.emit('error', new Error('spawn npxx ENOENT')));
+      process.nextTick(() => child.emit('error', new Error('spawn /usr/bin/node ENOENT')));
       return child;
     });
-    await expect(startCommand('web', resolved({executable: 'npxx'}), 'http://localhost:8081', system)).rejects.toThrow(
-      expect.objectContaining({code: 'APP_UNREACHABLE', message: 'npxx expo start could not be started: spawn npxx ENOENT'}),
+    await expect(startCommand('web', resolved(), 'http://localhost:8081', system)).rejects.toThrow(
+      expect.objectContaining({code: 'APP_UNREACHABLE', message: 'npx expo start could not be started: spawn /usr/bin/node ENOENT'}),
     );
     const silent = machine({child: fakeChild(false)});
     await expect(startCommand('web', resolved(), 'http://localhost:8081', silent.system)).rejects.toThrow('npx expo start could not be started: no process came of it');

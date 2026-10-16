@@ -5,6 +5,7 @@
  */
 import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import {prepare} from '../harness/lib/run.ts';
 import {realClock} from '../harness/lib/settle.ts';
 import type {System} from './app-process.ts';
@@ -12,6 +13,9 @@ import type {System} from './app-process.ts';
 export const system: System = {
   platform: process.platform,
   env: process.env,
+  node: process.execPath,
+  // Source here, compiled once installed, as this file is.
+  keeper: fileURLToPath(new URL(import.meta.url.endsWith('.ts') ? 'keeper.ts' : 'keeper.js', import.meta.url)),
   exists: fs.existsSync,
   spawn: (file, args, options) => spawn(file, args, options),
   signal: (pid, signal) => process.kill(pid, signal),
