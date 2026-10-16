@@ -644,8 +644,13 @@ export function webDriver(options: DriverOptions): Driver {
           case 'back': {
             const current = await open();
             lastRead = null;
-            const went = await current.goBack({waitUntil: 'load', timeout: navigation});
-            return ok(went ? `went back to ${current.url()}` : 'there was no page to go back to');
+            const from = current.url();
+            // Until the navigation commits rather than until the page loads: a page
+            // the back/forward cache restores fires no load, and a browser reached
+            // over CDP keeps that cache, where one Playwright launches has it off.
+            // Such a page can come back with no response, so the url says it went.
+            const went = await current.goBack({waitUntil: 'commit', timeout: navigation});
+            return ok(went || current.url() !== from ? `went back to ${current.url()}` : 'there was no page to go back to');
           }
           case 'openLink': {
             if (!/^https?:/i.test(request.url)) return cannot(request, 'web', CANNOT.webLink);
