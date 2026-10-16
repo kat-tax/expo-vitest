@@ -1,0 +1,6 @@
+{
+  "areas": [
+    {"name": "sign-in", "goals": ["sign in with a wrong password, and see whether the app says so"]},
+    {"name": "account", "goals": ["sign in with the demo email and a password that is not its own"]}
+  ]
+}
