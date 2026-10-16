@@ -145,6 +145,11 @@ emulator with 4 GB (`emulator -avd <name> -memory 4096`). The tests that
 show expo-interface's Android bugs are marked failing there, as two are on
 web.
 
+Its harness config gives the agent a model of rules, `testapp/device/rules.mts`,
+which explores a sign-in with a wrong password, so `expo-harness explore`
+runs against the app with no key, as `expo-harness mcp` serves it to a
+coding agent.
+
 After changing `testapp/package.json`:
 
 ```sh

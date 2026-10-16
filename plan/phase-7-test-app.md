@@ -1,6 +1,6 @@
 # Phase 7. The test app
 
-Status: in progress. The app and its suite are built and run from the packed package: on web every test passes but the two expo-interface bugs mark; on the Android emulator two full runs each passed 19 tests and failed the 8 marked ones as marked, and each lost one test, a different one each time, when the app left for the home screen as the emulator stopped answering adb. Open: Windows, which needs the .NET SDK and PowerShell 7 this machine lacks, iOS (no Mac), and explore and the MCP server against the app · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
+Status: in progress. The app and its suite are built and run from the packed package: on web every test passes but the two expo-interface bugs mark; on the Android emulator two full runs each passed 19 tests and failed the 8 marked ones as marked, and each lost one test, a different one each time, when the app left for the home screen as the emulator stopped answering adb. An explore and the MCP server drove it on web. Open: Windows, which needs the .NET SDK and PowerShell 7 this machine lacks, and iOS (no Mac) · Size: L · Depends on: Phase 3, Phase 4, Phase 6 · Unblocks: the Windows checks the earlier phases left open
 
 One app, kept in this repository, that behaves like a typical product app on
 iOS, Android, web and Windows, so that the device layer, the agent, explore,
@@ -67,6 +67,14 @@ build is what holds.
   - Android: a `Switch`, a `Checkbox` and a `Slider` have their label
     beside the control rather than on it, so nothing names them, and a
     checkbox's label cannot be pressed. The `Picker` draws nothing to press.
+- **The agent.** The harness config gives the agent a model of rules,
+  `testapp/device/rules.mts`, which explores a sign-in with a wrong
+  password. `expo-harness explore` on web took 7 model calls, reported
+  nothing and concluded that the app said the password was wrong; the model
+  waits two seconds before its look after the press, as a real model's answer
+  would take, since the pretend server answers after 700 ms. A scripted MCP
+  client over `expo-harness mcp` on web opened a session on the
+  onboarding, tapped Skip, read the sign-in form and closed the session.
 - **Where the platforms differ, which the tests say rather than hide.** On
   Android a chip is a checkbox where web draws a pressed button, a menu's
   items and the tab bar's tabs have no role, an alert is a window of its own
@@ -76,7 +84,7 @@ build is what holds.
 - **Open.** Windows: expo-windows' `ci/build.sh` stops at `expo-windows
   init`, since the react-native-windows CLI loads its commands through the
   .NET SDK and PowerShell 7, and this machine has neither. iOS needs a Mac.
-  An explore and the MCP server against the app are not run yet. On Android a
+  An explore and the MCP server on Android. On Android a
   scroll looks for a row by agent-device's own labels, so a button named by
   the tree's reading of its text is scrolled to by that text.
 
