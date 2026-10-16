@@ -4,6 +4,7 @@
  * to take, whether a baseline is to be written, and what a mismatch says.
  * The matcher in `matchers.ts` takes the pictures and reads the tree.
  */
+import path from 'node:path';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {Rect} from '../harness/lib/image.ts';
 import {cropImage, maskImage, scaleRect} from '../harness/lib/image.ts';
@@ -32,6 +33,18 @@ export interface ScreenshotOptions extends Allowance {
 }
 
 /** Whether what a mask or a clip was given is a rectangle rather than a query. */
+/**
+ * Where a baseline is kept: per platform, since the platforms draw alike no
+ * more than two machines do, and per app where the harness config gives it
+ * an `identity`, so two apps, or two builds of one, keep their own. The
+ * identity is a folder's name, anything but letters, digits, `.`, `_` and
+ * `-` a dash.
+ */
+export function baselinePath(root: string, platform: string, name: string, identity?: string): string {
+  const app = identity ? [identity.replace(/[^\w.-]+/g, '-')] : [];
+  return path.join(root, 'device', '__screenshots__', platform, ...app, `${name}.png`);
+}
+
 export function isRect(value: unknown): value is Rect {
   const rect = value as Partial<Rect> | null;
   return typeof rect === 'object' && rect !== null && ['x', 'y', 'width', 'height'].every(key => typeof rect[key as keyof Rect] === 'number');

@@ -1,8 +1,9 @@
+import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Image} from '../harness/lib/png.ts';
 import {compareImages} from '../harness/lib/png.ts';
 import type {Clock} from '../harness/lib/settle.ts';
-import {allowanceOf, isRect, mismatchMessage, regionOf, scaleFactor, stillPicture, subjectOf, updatingBaselines, withinAllowance} from './screenshots.ts';
+import {allowanceOf, baselinePath, isRect, mismatchMessage, regionOf, scaleFactor, stillPicture, subjectOf, updatingBaselines, withinAllowance} from './screenshots.ts';
 
 function fakeClock(): Clock & {at: number} {
   const clock = {at: 0, now: () => clock.at, sleep: async (ms: number) => void (clock.at += ms)};
@@ -41,6 +42,14 @@ describe('the allowance', () => {
     expect(withinAllowance(result, allowanceOf({maxRatio: 0.01, maxDiffPixels: 10}))).toBe(false);
     expect(withinAllowance(result, allowanceOf({maxRatio: 0.05, maxDiffPixels: 2}))).toBe(true);
     expect(withinAllowance(compareImages(picture(2, 2), picture(3, 3)), allowanceOf({maxRatio: 1}))).toBe(false);
+  });
+});
+
+describe('where a baseline is', () => {
+  it("is the platform's folder, and in it a folder by the app's identity where it has one", () => {
+    expect(baselinePath('/app', 'web', 'home')).toBe(path.join('/app', 'device', '__screenshots__', 'web', 'home.png'));
+    expect(baselinePath('/app', 'android', 'home', 'com.example.app')).toBe(path.join('/app', 'device', '__screenshots__', 'android', 'com.example.app', 'home.png'));
+    expect(baselinePath('/app', 'web', 'home', 'http://localhost:8081/ staging')).toBe(path.join('/app', 'device', '__screenshots__', 'web', 'http-localhost-8081-staging', 'home.png'));
   });
 });
 

@@ -225,6 +225,7 @@ parameter properties.
 | `app.<platform>.scheme` | The app's URI scheme, for deep links. | |
 | `app.<platform>.bundleId` | iOS and Android: the installed app, which a [restart](controls.md) relaunches. | |
 | `app.<platform>.appPath` | iOS and Android: a build `installApp` installs; Windows: an `.msix`. From the root. | |
+| `app.<platform>.identity` | What keeps this app's [screenshot baselines](matchers.md#tomatchscreenshot), in a folder of its own, and keys the agent's [replay cache](agent.md), so two apps, or two builds of one, keep their own. | for the cache, the `bundleId` or the `url` |
 | `app.<platform>.launchArguments` | What each [fresh launch](controls.md#a-fresh-launch) is given. | none |
 | `app.<platform>.permissions` | `grant`, `deny` or `reset` by permission, set before each fresh launch. | none |
 | `app.<platform>.stateDir` | Windows: the folder `clearState` deletes, from the root. | |

@@ -71,6 +71,8 @@ it('matches a masked baseline with the clock moved on, and not without the mask'
     .catch((error: unknown) => error);
   expect(isHarnessError(unmasked) && unmasked.code).toBe('SCREENSHOT_MISMATCH');
   for (const kind of ['expected', 'actual', 'diff']) expect(fs.existsSync(path.join(process.cwd(), '.harness', `web-masked.${kind}.png`)), kind).toBe(true);
+  // The harness config gives the app an identity, which keeps its baselines in a folder of their own.
+  expect(fs.existsSync(path.join(process.cwd(), 'device', '__screenshots__', 'web', 'fixture', 'masked.png'))).toBe(true);
 });
 
 it("restarts the app in a fresh context, and clears what it kept", async () => {

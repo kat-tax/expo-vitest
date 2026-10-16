@@ -154,7 +154,10 @@ await expect(screen.getByRole('button', {name: 'Pay'})).toMatchScreenshot('pay')
 await expect(device).toMatchScreenshot('chart', {threshold: 0.1, maxDiffPixels: 50});
 ```
 
-Baselines are kept at `device/__screenshots__/<platform>/<name>.png`.
+Baselines are kept at `device/__screenshots__/<platform>/<name>.png`, and at
+`device/__screenshots__/<platform>/<identity>/<name>.png` where the harness
+config gives the app an [`identity`](configuration.md#harnessconfigts), so two
+apps, or two builds of one, keep their own.
 
 | Option | What it is | Default |
 | --- | --- | --- |

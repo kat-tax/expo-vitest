@@ -16,20 +16,22 @@ import {maskImage} from '../harness/lib/image.ts';
 import {compareImages, decodePng, encodePng} from '../harness/lib/png.ts';
 import type {Selector, Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {describeTarget, findNode} from '../harness/lib/snapshot.ts';
+import type {Platform} from '../harness/lib/types.ts';
+import {currentHarness} from './config.ts';
 import {LOCATOR_MATCHERS} from './expectations.ts';
 import type {Locator} from './locator.ts';
 import {hostOf} from './locator.ts';
 import type {ScreenshotOptions} from './screenshots.ts';
-import {allowanceOf, isRect, mismatchMessage, regionOf, scaleFactor, stillPicture, subjectOf, updatingBaselines, withinAllowance} from './screenshots.ts';
+import {allowanceOf, baselinePath, isRect, mismatchMessage, regionOf, scaleFactor, stillPicture, subjectOf, updatingBaselines, withinAllowance} from './screenshots.ts';
 // The evidence a failing test leaves: the screen, the tree and a trace.
 import './evidence-hook.ts';
 
 /** The project under test: where the tests are run from, unless `HARNESS_ROOT` names it. */
 const ROOT = path.resolve(process.env.HARNESS_ROOT ?? process.cwd());
 
-/** What a screenshot is compared against, kept per platform because they do not look alike. */
+/** What a screenshot is compared against: per platform, and per app where the harness config names its `identity`. */
 export function baselineFor(platform: string, name: string): string {
-  return path.join(ROOT, 'device', '__screenshots__', platform, `${name}.png`);
+  return baselinePath(ROOT, platform, name, currentHarness()?.app?.[platform as Platform]?.identity);
 }
 
 /** Something that can take its own picture: the device, in practice. The tree and the waits are for masks, clips and an element. */
