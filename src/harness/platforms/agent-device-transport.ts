@@ -50,6 +50,12 @@ import {
 const STEP_TIMEOUT = 30_000;
 /** An `open` may boot a device and install agent-device's runner on it, which takes about a minute and a half. */
 const OPEN_TIMEOUT = 180_000;
+/**
+ * The first call a run makes, asking what the device can do, which starts
+ * agent-device's daemon and readies the device, and for an iOS simulator on
+ * a macOS runner just started takes longer than a step's 30 s.
+ */
+const FIRST_TIMEOUT = OPEN_TIMEOUT;
 
 export interface AgentDeviceTransport {
   readonly kind: 'client' | 'cli';
@@ -234,7 +240,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     kind: 'client',
     description: `agent-device ${version}'s Node client`,
     async capabilities() {
-      const capabilities = (await call(signal => client.devices.capabilities({...select, signal}), 'DRIVER_UNAVAILABLE')) as Capabilities;
+      const capabilities = (await call(signal => client.devices.capabilities({...select, signal}), 'DRIVER_UNAVAILABLE', FIRST_TIMEOUT)) as Capabilities;
       return {line: describeDevice(capabilities), device: factsOf(capabilities)};
     },
     async open(to) {
@@ -337,7 +343,7 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     kind: 'cli',
     description: 'the agent-device command line',
     async capabilities() {
-      const capabilities = capabilitiesFrom(parsePayload(await agent(['capabilities', '--json'], 'DRIVER_UNAVAILABLE')));
+      const capabilities = capabilitiesFrom(parsePayload(await agent(['capabilities', '--json'], 'DRIVER_UNAVAILABLE', FIRST_TIMEOUT)));
       return capabilities ? {line: describeDevice(capabilities), device: factsOf(capabilities)} : {line: 'a device agent-device did not describe'};
     },
     async open(to) {
