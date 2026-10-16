@@ -9,13 +9,13 @@ test depends on it.
 
 | Platform | Driven by | Needs |
 | --- | --- | --- |
-| web | `playwright-core`: a headless Chromium, its Firefox or WebKit, or a Chromium already running, over CDP | `playwright-core` in the project and a browser it installed |
+| web | `playwright-core`: a headless Chromium, its Firefox or WebKit, or a Chromium already running, over CDP | A browser `npx expo-harness install` fetched |
 | windows | A host this package runs: UI Automation, and synthetic input where a control has no pattern | A Windows machine and a built app |
-| android | [`agent-device`](https://www.npmjs.com/package/agent-device), through its Node client | `agent-device`, and an emulator or a phone over adb |
-| ios | `agent-device`, through its Node client | A Mac, `agent-device`, and a simulator |
+| android | [`agent-device`](https://www.npmjs.com/package/agent-device), through its Node client | An emulator or a phone over adb |
+| ios | `agent-device`, through its Node client | A Mac and a simulator |
 
-Nothing is installed in the app under test, and it needs no SDK and no
-rebuild. `npx expo-harness doctor` says what this machine can drive, and what
+`playwright-core` and `agent-device` come with `expo-vitest`. Nothing is
+installed in the app under test, and it needs no SDK and no rebuild. `npx expo-harness doctor` says what this machine can drive, and what
 is missing:
 
 ```
@@ -24,7 +24,7 @@ what this machine can drive:
   yes  web      Chromium at chromium_headless_shell-1243
                 chromium installed, chromium-1243, the one a run uses
                 firefox  installed, firefox-1543
-                webkit   not installed: run `npx playwright-core install webkit`
+                webkit   not installed: run `npx expo-harness install webkit`
   no   windows  no app to drive: build one (`expo-windows run`) and pass --target <exe or process name>
   yes  android  1 device: emulator-5554
   no   ios      the iOS simulator only runs on macOS
@@ -40,9 +40,14 @@ failing, so one test runs on all four and says what it could not do.
 ### Setup
 
 ```sh
-npm install --save-dev playwright-core
-npx playwright-core install chromium
+npx expo-harness install
 ```
+
+That fetches the headless shell of Chromium, which a run launches, for the
+playwright-core the harness loads. `npx expo-harness install chromium` fetches
+the full browser, which a window to watch needs, and `firefox` or `webkit` the
+others. A project that lists playwright-core itself has its own version
+loaded, and this command fetches that version's builds.
 
 Serve the app with `npx expo start --web`, or give the platform a
 [command](configuration.md#the-command) in `harness.config.ts`, which starts
@@ -61,9 +66,9 @@ expo-harness -p web --cdp http://127.0.0.1:9222 open / tree
 ```
 
 Firefox and WebKit are builds that work only with the `playwright-core` that
-installed them, so fetch them with the project's own: `npx playwright-core
-install webkit`. `doctor` lists each browser, installed or not, and the one a
-run would use.
+installed them, so fetch them with `npx expo-harness install webkit`, which
+uses the one the harness loads. `doctor` lists each browser, installed or not,
+and the one a run would use.
 
 The tree, the steps, screenshots and video work in all three. What differs
 is what a browser grants a page:
@@ -208,13 +213,10 @@ refused, since it cannot be pictured without raising it. The `raise` step of
 
 ### Setup
 
-```sh
-npm install --global agent-device
-```
-
-Or install it in the project. The harness finds it in either, and in bun's
-global folder; `HARNESS_AGENT_DEVICE` names somewhere else. Then an emulator
-or a phone that `adb devices` lists, with the app installed:
+agent-device comes with expo-vitest, and the harness loads the project's own
+where the project lists it. `HARNESS_AGENT_DEVICE` names an install
+elsewhere. What the machine needs is an emulator or a phone that
+`adb devices` lists, with the app installed:
 `npx expo run:android`, or a release build with `adb install`. A development
 build loads its JavaScript from a dev server, which the run can start for it:
 [An Expo development build](controls.md#an-expo-development-build) has how.
@@ -273,8 +275,7 @@ installs agent-device's runner on it gets the same. Every other step has
 
 ### Setup
 
-A Mac with Xcode, `agent-device` as for Android, and a simulator with the app
-installed: `npx expo run:ios`, or a simulator build with `xcrun simctl
+A Mac with Xcode, and a simulator with the app installed: `npx expo run:ios`, or a simulator build with `xcrun simctl
 install`. Name the simulator with `HARNESS_TARGET` or `app.ios.device`, by
 its name or its UDID.
 

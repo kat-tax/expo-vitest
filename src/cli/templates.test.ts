@@ -93,47 +93,29 @@ describe('the edits', () => {
   });
 
   it("add the types and the harness's folder", () => {
-    expect(TYPES).toEqual(['vitest-expo/types', 'expo-vitest/types']);
+    expect(TYPES).toEqual(['expo-vitest/types']);
     expect(IGNORED).toEqual(['.harness/']);
     expect(AGENT_LINE).toContain('npx expo-vitest guide');
   });
 });
 
 describe('what is installed', () => {
-  it('is the runner and the engines, RNTL for a native platform, the DOM pair for web, and Chromium for web device tests', () => {
-    expect(packagesFor(found(), chose(), {})).toEqual([
-      'expo-vitest',
-      'vitest',
-      'vitest-expo',
-      'vitest-native',
-      '@testing-library/react-native',
-      'test-renderer',
-      '@testing-library/react',
-      '@testing-library/jest-dom',
-      'jsdom',
-      'playwright-core',
-    ]);
-    expect(packagesFor(found({rntl: 13}), chose({platforms: ['android'], device: false}), {})).toEqual(['expo-vitest', 'vitest', 'vitest-expo', 'vitest-native', '@testing-library/react-native']);
-    expect(packagesFor(found(), chose({platforms: ['web'], device: false}), {})).not.toContain('@testing-library/react-native');
+  it('is this package and the runner, whatever the platforms, since the rest comes with this package', () => {
+    expect(packagesFor({})).toEqual(['expo-vitest', 'vitest']);
   });
 
   it('leaves out what the project has', () => {
-    expect(packagesFor(found(), chose({platforms: ['web']}), {dependencies: {jsdom: '26'}, devDependencies: {vitest: '4.1.0', 'playwright-core': '1.63.0'}})).toEqual([
-      'expo-vitest',
-      'vitest-expo',
-      'vitest-native',
-      '@testing-library/react',
-      '@testing-library/jest-dom',
-    ]);
+    expect(packagesFor({devDependencies: {vitest: '4.1.0'}})).toEqual(['expo-vitest']);
+    expect(packagesFor({dependencies: {'expo-vitest': '0.2.0'}, devDependencies: {vitest: '4.1.0'}})).toEqual([]);
   });
 
   it("goes through expo install in an Expo app, and the manager's add elsewhere", () => {
     expect(installCommands(found(), chose({platforms: ['web']}), {}).map(shown)).toEqual([
-      'npx expo install --dev expo-vitest vitest vitest-expo vitest-native @testing-library/react @testing-library/jest-dom jsdom playwright-core',
-      'npx playwright-core install chromium --only-shell',
+      'npx expo install --dev expo-vitest vitest',
+      'npx expo-harness install',
     ]);
     expect(installCommands(found({manager: 'yarn', expoSdk: null}), chose({platforms: ['windows'], device: false}), {}).map(shown)).toEqual([
-      'yarn add --dev expo-vitest vitest vitest-expo vitest-native @testing-library/react-native test-renderer',
+      'yarn add --dev expo-vitest vitest',
     ]);
     expect(installCommands(found({manager: 'bun', expoSdk: null}), chose({platforms: ['android'], device: false}), {})[0]?.command).toBe('bun');
     expect(installCommands(found({manager: 'pnpm', expoSdk: null}), chose({platforms: ['android'], device: false}), {})[0]?.args.slice(0, 2)).toEqual(['add', '--save-dev']);
@@ -141,7 +123,7 @@ describe('what is installed', () => {
   });
 
   it('runs nothing where everything is there', () => {
-    const all = Object.fromEntries(packagesFor(found(), chose({platforms: ['ios'], device: false}), {}).map(name => [name, '1']));
+    const all = Object.fromEntries(packagesFor({}).map(name => [name, '1']));
     expect(installCommands(found(), chose({platforms: ['ios'], device: false}), {devDependencies: all})).toEqual([]);
   });
 

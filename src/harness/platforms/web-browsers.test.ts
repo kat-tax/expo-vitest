@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, noClipboard} from './web-browsers.ts';
+import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installArguments, installHint, isShell, launchOptions, modeFrom, noClipboard, playwrightBases} from './web-browsers.ts';
 
 const env = (values: Record<string, string> = {}) => values as unknown as NodeJS.ProcessEnv;
 
@@ -47,8 +47,8 @@ describe('the browsers', () => {
   });
 
   it('are fetched by the project\'s own playwright-core, which takes no build but its own', () => {
-    expect(installHint('webkit')).toBe('run `npx playwright-core install webkit`');
-    expect(installHint('ffmpeg')).toBe('run `npx playwright-core install ffmpeg`');
+    expect(installHint('webkit')).toBe('run `npx expo-harness install webkit`');
+    expect(installHint('ffmpeg')).toBe('run `npx expo-harness install ffmpeg`');
   });
 
   it('grant a page what each grants, and pass over the rest', () => {
@@ -73,7 +73,7 @@ describe('the browsers', () => {
   it('are listed for the doctor, installed or with what fetches each, and which a run uses', () => {
     expect(browserLines({chromium: 'chromium-1243', webkit: 'webkit-2359'}, 'webkit')).toEqual([
       'chromium installed, chromium-1243',
-      'firefox  not installed: run `npx playwright-core install firefox`',
+      'firefox  not installed: run `npx expo-harness install firefox`',
       'webkit   installed, webkit-2359, the one a run uses',
     ]);
   });
@@ -118,6 +118,17 @@ describe('launchOptions', () => {
   });
 
   it('says what to install where only the shell is there', () => {
-    expect(HEADED_NEEDS_FULL).toBe('headed mode needs the full Chromium; run `npx playwright-core install chromium` without --only-shell');
+    expect(HEADED_NEEDS_FULL).toBe('headed mode needs the full Chromium; run `npx expo-harness install chromium`');
+  });
+
+  it('install the headless shell bare, a named browser as named, and Chromium beside flags alone', () => {
+    expect(installArguments([])).toEqual(['install', 'chromium', '--only-shell']);
+    expect(installArguments(['webkit'])).toEqual(['install', 'webkit']);
+    expect(installArguments(['--with-deps', 'firefox'])).toEqual(['install', '--with-deps', 'firefox']);
+    expect(installArguments(['--with-deps'])).toEqual(['install', '--with-deps', 'chromium']);
+  });
+
+  it("load playwright-core from the project's own install first, then this package's", () => {
+    expect(playwrightBases(path.resolve('/work/app'), '/pkg/dist/harness/platforms/web.js')).toEqual([path.join(path.resolve('/work/app'), 'package.json'), '/pkg/dist/harness/platforms/web.js']);
   });
 });

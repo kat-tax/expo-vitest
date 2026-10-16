@@ -45,6 +45,15 @@ function run(command, args, options = {}) {
 try {
   fs.cpSync(app, scratch, {recursive: true, filter: source => source === app || !made.has(path.basename(source))});
 
+  // The app installs expo-vitest and vitest, and expo-vitest brings the rest,
+  // which npm, bun and yarn put beside the app's own: named in the copy's
+  // manifest, they are installed so from the lockfile, as scripts/fixture.js
+  // does. The app's own pins, such as its playwright-core, win.
+  const brought = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies;
+  const own = JSON.parse(fs.readFileSync(path.join(scratch, 'package.json'), 'utf8'));
+  own.devDependencies = {...brought, ...own.devDependencies};
+  fs.writeFileSync(path.join(scratch, 'package.json'), `${JSON.stringify(own, null, 2)}\n`);
+
   console.log(`==== The app, installed in ${scratch}`);
   run('bun', ['install', ...(update ? [] : ['--frozen-lockfile'])], {shell});
   if (update) {

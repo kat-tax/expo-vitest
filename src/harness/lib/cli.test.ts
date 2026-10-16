@@ -75,6 +75,7 @@ describe('parse', () => {
     expect(parse(['mcp', '--platform', 'web'])).toMatchObject({command: 'mcp', args: ['--platform', 'web']});
     expect(parse(['explore', 'find bugs', '-p', 'web'])).toMatchObject({command: 'explore', args: ['find bugs', '-p', 'web']});
     expect(parse(['bug-bash', '--parallel', '2'])).toMatchObject({command: 'bug-bash', args: ['--parallel', '2']});
+    expect(parse(['install', '--with-deps', 'webkit'])).toMatchObject({command: 'install', args: ['--with-deps', 'webkit']});
     expect(() => parse(['-p', 'web', 'init'])).toThrow('init is not a step; try --help');
   });
 

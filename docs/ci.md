@@ -12,9 +12,9 @@ own.
 
 | Platform | Runner | Before the tests |
 | --- | --- | --- |
-| web | Linux | `npx playwright-core install --with-deps chromium`, or `firefox` or `webkit` for [`HARNESS_BROWSER`](platforms.md#the-browser). The harness config's [command](configuration.md#the-command) serves the app. |
-| android | Linux with KVM | `agent-device`, an emulator booted, and the app built and installed. |
-| ios | macOS | `agent-device`, a simulator booted on a runtime the image has, and a simulator build installed. |
+| web | Linux | `npx expo-harness install --with-deps chromium`, or `firefox` or `webkit` for [`HARNESS_BROWSER`](platforms.md#the-browser). The harness config's [command](configuration.md#the-command) serves the app. |
+| android | Linux with KVM | An emulator booted, and the app built and installed. agent-device comes with expo-vitest. |
+| ios | macOS | A simulator booted on a runtime the image has, and a simulator build installed. |
 | windows | Windows | The app built, at the path the harness config's `target` names, and `HARNESS_FORCE=1`, since no one is at the desk. |
 
 `--project device:<platform>` runs one platform's tests. In CI a platform the
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-node@v7
         with: {node-version: 24, cache: npm}
       - run: npm ci
-      - run: npx playwright-core install --with-deps chromium
+      - run: npx expo-harness install --with-deps chromium
       - run: npx vitest run --config vitest.config.device.mts --project device:web
         env: {GITHUB_TOKEN: '${{ github.token }}'}
       - uses: actions/upload-artifact@v7
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with: {node-version: 24, cache: npm}
-      - run: npm ci && npm install --global agent-device
+      - run: npm ci
       - uses: actions/cache@v6
         with:
           path: ~/.agent-device
@@ -91,7 +91,7 @@ jobs:
         with: {node-version: 24, cache: npm}
       - uses: actions/setup-java@v6
         with: {distribution: temurin, java-version: 17}
-      - run: npm ci && npm install --global agent-device
+      - run: npm ci
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -217,15 +217,11 @@ runner, which it builds for a device the first time it drives one.
 
 ```yaml
 - uses: actions/cache@v6
-  id: browsers
   with:
     path: ~/.cache/ms-playwright
     key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-- run: npx playwright-core install --with-deps chromium
-  if: steps.browsers.outputs.cache-hit != 'true'
-# A cache keeps the browser, not the system packages it needs.
-- run: npx playwright-core install-deps chromium
-  if: steps.browsers.outputs.cache-hit == 'true'
+# With the browser cached this fetches nothing, and installs the system packages it needs, which a cache does not keep.
+- run: npx expo-harness install --with-deps chromium
 
 - uses: actions/cache@v6
   with:
@@ -295,7 +291,6 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - run: npm install --global agent-device
       - uses: eas/download_build
         id: download_build
         with:
@@ -309,7 +304,7 @@ jobs:
           yes | "$TOOLS/sdkmanager" --licenses
           yes | "$TOOLS/sdkmanager" --install platform-tools emulator "$IMAGE"
           echo no | "$TOOLS/avdmanager" create avd --force --name ci --package "$IMAGE" --device pixel_6
-          agent-device boot --platform android --device ci --headless
+          npx agent-device boot --platform android --device ci --headless
       - run: adb install -r "${{ steps.download_build.outputs.artifact_path }}"
       - run: npx vitest run --config vitest.config.device.mts --project device:android
       - uses: eas/upload_artifact
@@ -353,7 +348,6 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - run: npm install --global agent-device
       - uses: eas/download_build
         id: download_build
         with:
@@ -361,7 +355,7 @@ jobs:
           extensions: [app]
       - name: Boot a simulator, and install the app
         run: |
-          agent-device boot --platform ios --device "iPhone 17"
+          npx agent-device boot --platform ios --device "iPhone 17"
           xcrun simctl install booted "${{ steps.download_build.outputs.artifact_path }}"
       - run: npx vitest run --config vitest.config.device.mts --project device:ios
       - uses: eas/upload_artifact
@@ -408,7 +402,6 @@ workflows:
             - content: |-
                 set -euo pipefail
                 npm ci
-                npm install --global agent-device
                 npx expo prebuild --platform ios
       - xcode-build-for-simulator@3:
           inputs:
@@ -450,7 +443,6 @@ workflows:
             - content: |-
                 set -euo pipefail
                 npm ci
-                npm install --global agent-device
                 npx expo prebuild --platform android
       - avd-manager@2:
           inputs:
@@ -507,7 +499,7 @@ workflows:
       events: [pull_request]
     scripts:
       - name: Install
-        script: npm ci && npm install --global agent-device && npx expo prebuild --platform ios
+        script: npm ci && npx expo prebuild --platform ios
       - name: Build for the simulator
         script: |
           xcodebuild -workspace ios/MyApp.xcworkspace -scheme MyApp \
@@ -536,7 +528,7 @@ workflows:
       events: [pull_request]
     scripts:
       - name: Install
-        script: npm ci && npm install --global agent-device && npx expo prebuild --platform android
+        script: npm ci && npx expo prebuild --platform android
       - name: Build the APK
         script: cd android && ./gradlew :app:assembleRelease
       - name: Boot the emulator, and install the app

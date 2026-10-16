@@ -49,6 +49,16 @@ function run(command, args, options = {}) {
 try {
   fs.cpSync(fixture, scratch, {recursive: true, filter: source => path.basename(source) !== 'node_modules'});
 
+  // An app installs expo-vitest and vitest, and expo-vitest brings the rest:
+  // its dependencies, which npm, bun and yarn put beside the app's own.
+  // Named in the copy's manifest, they are installed so from the lockfile, and
+  // the package is unpacked over them below, which is the layout an install of
+  // it leaves. The app's own manifest, fixture/package.json, names none of them.
+  const brought = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies;
+  const app = JSON.parse(fs.readFileSync(path.join(scratch, 'package.json'), 'utf8'));
+  app.devDependencies = {...brought, ...app.devDependencies};
+  fs.writeFileSync(path.join(scratch, 'package.json'), `${JSON.stringify(app, null, 2)}\n`);
+
   console.log(`==== What an app has installed, in ${scratch}`);
   run('bun', ['install', ...(update ? [] : ['--frozen-lockfile'])], {shell});
   if (update) {
@@ -105,7 +115,7 @@ try {
   // nothing where they are already there.
   const own = ['ffmpeg', ...(['firefox', 'webkit'].includes(process.env.HARNESS_BROWSER) ? [process.env.HARNESS_BROWSER] : [])];
   console.log(`==== The fixture's playwright-core, with its ${own.join(' and ')}`);
-  run(process.execPath, [path.join(modules, 'playwright-core', 'cli.js'), 'install', ...own]);
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'install', ...own]);
   // Every call the agent makes is kept, so the grep after the runs reads them too.
   const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on', HARNESS_AI_TRACE: '1'};
   console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);

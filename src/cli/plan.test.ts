@@ -58,7 +58,7 @@ describe('the plan for a new project', () => {
       ].join('\n'),
     );
     const types = steps.find(step => step.path === 'tsconfig.json');
-    expect(types?.kind === 'edit' && JSON.parse(types.content)).toEqual({extends: 'expo/tsconfig.base', compilerOptions: {types: ['vitest-expo/types', 'expo-vitest/types']}});
+    expect(types?.kind === 'edit' && JSON.parse(types.content)).toEqual({extends: 'expo/tsconfig.base', compilerOptions: {types: ['expo-vitest/types']}});
     expect(steps.at(-1)).toEqual({kind: 'create', path: '.gitignore', content: '.harness/\n'});
   });
 
@@ -95,7 +95,7 @@ describe('a project that has some of it', () => {
       kind: 'print',
       path: 'tsconfig.json',
       why: 'tsconfig.json is not plain JSON, as one with comments is not, so init cannot edit it; add the types by hand',
-      content: '{"compilerOptions": {"types": ["vitest-expo/types","expo-vitest/types"]}}',
+      content: '{"compilerOptions": {"types": ["expo-vitest/types"]}}',
     });
     const typed = JSON.stringify({compilerOptions: {types: ['vitest-expo/types', 'expo-vitest/types', 'node']}});
     expect(planInit(found(), chose(), project({'package.json': manifest, 'tsconfig.json': typed})).find(step => step.path === 'tsconfig.json')?.kind).toBe('keep');

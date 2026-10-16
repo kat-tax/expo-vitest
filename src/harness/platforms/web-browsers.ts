@@ -92,9 +92,29 @@ export function noClipboard(browser: BrowserName): string | null {
   return browser === 'chromium' ? null : `the clipboard is driven in Chromium alone, and this is ${TITLES[browser]}`;
 }
 
-/** The command that fetches a browser, or ffmpeg, for the playwright-core the project has, which takes no build but its own. */
+/** The command that fetches a browser, or ffmpeg, for the playwright-core the harness loads, which takes no build but its own. */
 export function installHint(what: BrowserName | 'ffmpeg'): string {
-  return `run \`npx playwright-core install ${what}\``;
+  return `run \`npx expo-harness install ${what}\``;
+}
+
+/**
+ * What `expo-harness install` gives playwright-core's own installer. Bare,
+ * the headless shell of Chromium, which is what a run launches. With
+ * flags and no browser, Chromium beside the flags, since playwright-core
+ * installs every browser where none is named.
+ */
+export function installArguments(args: readonly string[]): string[] {
+  if (args.length === 0) return ['install', 'chromium', '--only-shell'];
+  return args.some(each => !each.startsWith('-')) ? ['install', ...args] : ['install', ...args, 'chromium'];
+}
+
+/**
+ * The files a `require` of playwright-core is made from, in turn: the
+ * project's own, so a project can pin its version, then this package's,
+ * which depends on it.
+ */
+export function playwrightBases(root: string, self: string): string[] {
+  return [path.join(root, 'package.json'), self];
 }
 
 /** The folder a build is kept in, such as `chromium_headless_shell-1243`, from its executable's path. */
@@ -168,4 +188,4 @@ export function launchOptions(mode: Pick<BrowserMode, 'headed' | 'slowMo'>, exec
 }
 
 /** What a headed run says where only the shell is installed. */
-export const HEADED_NEEDS_FULL = 'headed mode needs the full Chromium; run `npx playwright-core install chromium` without --only-shell';
+export const HEADED_NEEDS_FULL = 'headed mode needs the full Chromium; run `npx expo-harness install chromium`';

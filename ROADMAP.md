@@ -253,8 +253,9 @@ Filing an issue waits on the owner.
   API. The executor slot accepts one.
 - **Packages for hosted providers.** Browsers are reached over CDP, and
   devices through agent-device's own `connect`.
-- **Runtime dependencies, telemetry, or a second test runner.** No Zod, no
-  MCP SDK and no image library either.
+- **Telemetry, or a second test runner.** The packages that come with
+  expo-vitest are the ones its tests run on: no Zod, no MCP SDK and no image
+  library.
 - **A maintained driver in place of ours.** None tried could press a
   react-native-windows view, or did better on web or mobile. agent-desktop's
   Windows adapter is the one to try again, above.

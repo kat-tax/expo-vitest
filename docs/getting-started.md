@@ -24,16 +24,18 @@ The rest of this page is what `init` does, by hand.
 ## 1. Install
 
 ```sh
-npx expo install --dev expo-vitest vitest vitest-expo vitest-native \
-  @testing-library/react-native test-renderer \
-  @testing-library/react @testing-library/jest-dom jsdom
+npx expo install --dev expo-vitest vitest
 ```
 
-| Package | Why |
+`vitest` is the runner, and the project's own, so the editor and the command
+line find it where they expect. `expo-vitest` brings the rest:
+
+| Comes with it | For |
 | --- | --- |
-| `vitest`, `vitest-expo`, `vitest-native` | The runner, and the engines that run React Native's JavaScript under it. |
-| `@testing-library/react-native`, `test-renderer` | Rendering and queries for the iOS, Android and Windows projects. Version 14 renders through `test-renderer`. |
-| `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` | The same for the web project. Leave them out if you have no web project. |
+| `vitest-expo`, `vitest-native` | The engines that run React Native's JavaScript under Vitest. |
+| `@testing-library/react-native`, `test-renderer` | Rendering for the iOS, Android and Windows projects. |
+| `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` | The same for the web project. |
+| `playwright-core`, `agent-device` | What drives a running app on web, and on iOS and Android. |
 
 The web project also needs `react-dom` and `react-native-web`, which an app
 with a web target has.
@@ -68,7 +70,7 @@ Add the types for the globals (`describe`, `it`, `expect`, `vi`) and the
 jest-dom matchers on `expect`:
 
 ```json
-{"compilerOptions": {"types": ["vitest-expo/types", "expo-vitest/types"]}}
+{"compilerOptions": {"types": ["expo-vitest/types"]}}
 ```
 
 And the scripts:

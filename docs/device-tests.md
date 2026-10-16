@@ -21,10 +21,11 @@ feel. The app needs no SDK and no rebuild, and nothing is installed in it.
 
 ## Setup
 
-Install what drives each platform you test, as [Platforms](platforms.md)
-says: `playwright-core` and a browser for web, `agent-device` for iOS and
-Android, and nothing more on Windows. `npx expo-harness doctor` says what
-this machine can drive.
+What drives each platform comes with expo-vitest. Each needs only what it
+runs on, as [Platforms](platforms.md) says: a browser for web, which
+`npx expo-harness install` fetches, a simulator, an emulator or a phone for
+iOS and Android, and a built app on Windows. `npx expo-harness doctor` says
+what this machine can drive.
 
 Device tests get a Vitest config of their own, and never run with the
 component tests, since they need a real app somewhere:

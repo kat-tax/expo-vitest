@@ -104,28 +104,20 @@ export function scripts(choices: Choices): Record<string, string> {
   return {test: 'vitest run', 'test:watch': 'vitest', ...(choices.device ? {'test:device': 'vitest run --config vitest.config.device.mts'} : {})};
 }
 
-/** The types `tsconfig.json` needs, for the globals and the matchers on `expect`. */
-export const TYPES = ['vitest-expo/types', 'expo-vitest/types'];
+/** The types `tsconfig.json` needs, for the globals and the matchers on `expect`, which bring the engine's with them. */
+export const TYPES = ['expo-vitest/types'];
 
 /** What `.gitignore` needs: the folder the harness writes its evidence to. */
 export const IGNORED = ['.harness/'];
 
-/** The packages a project with these choices needs, less the ones it has. */
-export function packagesFor(detection: Detection, choices: Choices, manifest: Manifest): string[] {
-  const native = choices.platforms.some(platform => platform !== 'web');
-  const wanted = [
-    'expo-vitest',
-    'vitest',
-    'vitest-expo',
-    'vitest-native',
-    ...(native ? ['@testing-library/react-native'] : []),
-    // RNTL 14 renders through test-renderer, which 13 has built in.
-    ...(native && (detection.rntl === null || detection.rntl >= 14) ? ['test-renderer'] : []),
-    ...(choices.platforms.includes('web') ? ['@testing-library/react', '@testing-library/jest-dom', 'jsdom'] : []),
-    ...(choices.device && devicePlatforms(choices).includes('web') ? ['playwright-core'] : []),
-  ];
+/**
+ * The packages a project needs, less the ones it has: this one and the
+ * runner. Everything else, the engines, the testing libraries, jsdom and
+ * the drivers, comes with this one, whatever the project's platforms.
+ */
+export function packagesFor(manifest: Manifest): string[] {
   const has = (name: string) => manifest.dependencies?.[name] !== undefined || manifest.devDependencies?.[name] !== undefined;
-  return wanted.filter(name => !has(name));
+  return ['expo-vitest', 'vitest'].filter(name => !has(name));
 }
 
 /** A command `init` runs, as it is shown before it runs. */
@@ -137,7 +129,7 @@ export interface Command {
 
 /** The commands that install what is missing: through `expo install` in an Expo app, which picks versions that fit the SDK, and the manager's own add elsewhere. */
 export function installCommands(detection: Detection, choices: Choices, manifest: Manifest): Command[] {
-  const packages = packagesFor(detection, choices, manifest);
+  const packages = packagesFor(manifest);
   const [command, ...through] = runner(detection.manager);
   const commands: Command[] = [];
   if (packages.length) {
@@ -149,7 +141,7 @@ export function installCommands(detection: Detection, choices: Choices, manifest
     );
   }
   if (choices.device && devicePlatforms(choices).includes('web')) {
-    commands.push({command, args: [...through, 'playwright-core', 'install', 'chromium', '--only-shell'], why: 'the Chromium the web device tests drive'});
+    commands.push({command, args: [...through, 'expo-harness', 'install'], why: 'the Chromium the web device tests drive'});
   }
   return commands;
 }

@@ -78,7 +78,7 @@ whose tests are skipped with the driver's reason, and fail when the run
 requires it. Web needs a Chromium in place:
 
 ```sh
-bunx playwright-core install chromium --only-shell
+bunx expo-harness install
 ```
 
 `HARNESS_BROWSER=webkit` or `firefox` runs the device tests in that browser

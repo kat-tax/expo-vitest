@@ -17,8 +17,11 @@
  * Everything is relative to the project the command is run in, or to
  * `HARNESS_ROOT` when that is set.
  */
+import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
 import {FEWEST, bench, iterationsFrom, renderBench} from './lib/bench.ts';
 import type {Options} from './lib/cli.ts';
 import {USAGE, parse, screenshotPath, unmangleRoute} from './lib/cli.ts';
@@ -26,6 +29,7 @@ import {driverFor} from './lib/drivers.ts';
 import {codeOf} from './lib/errors.ts';
 import {DEFAULT_TIMING, timingFor, withTiming} from './lib/settle.ts';
 import {isWindowsDriver} from './platforms/windows.ts';
+import {installArguments, playwrightBases} from './platforms/web-browsers.ts';
 import {renderSnapshot} from './lib/snapshot.ts';
 import type {Driver, StepResult} from './lib/types.ts';
 import {PLATFORMS, elsewhere, failed, ok} from './lib/types.ts';
@@ -106,6 +110,27 @@ async function doctor(options: Options): Promise<number> {
   return 0;
 }
 
+/**
+ * `install`: a browser for the web tests, fetched by the installer of the
+ * playwright-core the web driver loads, so it is the build that version
+ * launches. `npx playwright-core install` could be another version, or one
+ * fetched from the registry where the project does not list it.
+ */
+function install(args: string[]): number {
+  for (const base of playwrightBases(ROOT, fileURLToPath(import.meta.url))) {
+    let manifest: string;
+    try {
+      manifest = createRequire(base).resolve('playwright-core/package.json');
+    } catch {
+      continue;
+    }
+    const ran = spawnSync(process.execPath, [path.join(path.dirname(manifest), 'cli.js'), ...installArguments(args)], {stdio: 'inherit'});
+    return ran.status ?? 1;
+  }
+  console.error('playwright-core did not load: it comes with expo-vitest, so install expo-vitest again');
+  return 1;
+}
+
 /** `cache`: the agent's replay cache, in the folder the harness config's `cache.dir` names, else `.harness/cache`. */
 async function cacheCommand(args: string[]): Promise<number> {
   const [{findHarnessFile, loadHarnessSync}, {cacheSettings}, {cache}] = await Promise.all([import('../device/config.ts'), import('../agent/cache.ts'), import('../cli/cache.ts')]);
@@ -128,6 +153,7 @@ async function main(argv: string[]): Promise<number> {
   if (options.command === 'doctor') return doctor(options);
   // Loaded only when asked for, so a step does not pay for what it does not use.
   if (options.command === 'init') return (await import('../cli/init.ts')).init(options.args);
+  if (options.command === 'install') return install(options.args);
   if (options.command === 'guide') return (await import('../cli/guide.ts')).guide(options.args);
   if (options.command === 'cache') return cacheCommand(options.args);
   if (options.command === 'mcp') return (await import('./mcp/serve.ts')).serve(options.args, ROOT);

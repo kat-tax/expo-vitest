@@ -29,8 +29,8 @@ const OPEN_IN_MS = 10_000;
  * so a test written once runs on Windows too, where `agent-device` has no
  * backend at all.
  *
- * Installed separately (`npm i -g agent-device`); `available()` says so when
- * it is missing rather than failing a step.
+ * A dependency of this package, or the one `HARNESS_AGENT_DEVICE` names;
+ * `available()` says so when it does not load rather than failing a step.
  */
 export function agentDeviceDriver(platform: Platform, options: DriverOptions): Driver {
   const name = PLATFORM_NAMES[platform] ?? platform;

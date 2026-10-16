@@ -443,11 +443,24 @@ export interface Whereabouts {
   exists: (file: string) => boolean;
   /** npm's global `node_modules`, asked only when nothing before it had the package. */
   npmRoot: () => string | null;
+  /** A folder of this package's own install, whose dependency agent-device is. */
+  self?: string;
+}
+
+/** The `node_modules/agent-device` folders that exist from a folder up to the top of its disk. */
+function* installedAbove(start: string, exists: (file: string) => boolean): Generator<string> {
+  for (let folder = path.resolve(start); ; folder = path.dirname(folder)) {
+    const installed = path.join(folder, 'node_modules', 'agent-device');
+    if (exists(path.join(installed, 'package.json'))) yield installed;
+    if (path.dirname(folder) === folder) break;
+  }
 }
 
 /**
  * The folders agent-device's package may be in, in the order they are worth
  * trying: the one `HARNESS_AGENT_DEVICE` names, the project's own install,
+ * the one this package depends on, which is beside its own install where a
+ * package manager keeps a dependency's dependencies apart, as pnpm does,
  * bun's global folder, then npm's, which costs a process to ask about.
  */
 export function* packageFolders(where: Whereabouts): Generator<string> {
@@ -456,10 +469,11 @@ export function* packageFolders(where: Whereabouts): Generator<string> {
     yield named;
     yield path.join(named, 'node_modules', 'agent-device');
   }
-  for (let folder = path.resolve(where.root); ; folder = path.dirname(folder)) {
-    const installed = path.join(folder, 'node_modules', 'agent-device');
-    if (where.exists(path.join(installed, 'package.json'))) yield installed;
-    if (path.dirname(folder) === folder) break;
+  const seen = new Set<string>();
+  for (const installed of [...installedAbove(where.root, where.exists), ...(where.self ? installedAbove(where.self, where.exists) : [])]) {
+    if (seen.has(installed)) continue;
+    seen.add(installed);
+    yield installed;
   }
   yield path.join(where.home, '.bun', 'install', 'global', 'node_modules', 'agent-device');
   const npm = where.npmRoot();

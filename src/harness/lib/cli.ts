@@ -12,6 +12,7 @@ const OUT = '.harness';
 export const USAGE = `the harness: run an app on a platform and look at what it drew
 
   expo-harness doctor                    what this machine can drive
+  expo-harness install [browser]         a browser for the web tests, Chromium's headless shell unless named
   expo-harness init [--yes]              set a project up to test with expo-vitest
   expo-harness guide [topic | --list]    how to write and run the tests, for a person or an agent
   expo-harness cache [ls | stats | clear] the agent's replay cache: list it, count it, or empty it
@@ -83,8 +84,8 @@ export interface Options {
   /** `bench` prints JSON rather than a table. */
   json: boolean;
   steps: string[][];
-  command: 'doctor' | 'run' | 'help' | 'init' | 'guide' | 'cache' | 'mcp' | 'explore' | 'bug-bash';
-  /** What follows a command that reads its own arguments: `init`, `guide`, `cache`, `mcp`, `explore` or `bug-bash`. */
+  command: 'doctor' | 'run' | 'help' | 'init' | 'install' | 'guide' | 'cache' | 'mcp' | 'explore' | 'bug-bash';
+  /** What follows a command that reads its own arguments: `init`, `install`, `guide`, `cache`, `mcp`, `explore` or `bug-bash`. */
   args: string[];
 }
 
@@ -117,7 +118,7 @@ export function parse(argv: string[]): Options {
   const options: Options = {out: OUT, force: false, interactive: false, json: false, steps: [], command: 'run', args: []};
   // These take arguments of their own, and are known in the first place only, where no step is.
   const [first, ...after] = argv;
-  if (first === 'init' || first === 'guide' || first === 'cache' || first === 'mcp' || first === 'explore' || first === 'bug-bash') return {...options, command: first, args: after};
+  if (first === 'init' || first === 'install' || first === 'guide' || first === 'cache' || first === 'mcp' || first === 'explore' || first === 'bug-bash') return {...options, command: first, args: after};
   const rest: string[] = [];
   for (let at = 0; at < argv.length; at++) {
     const argument = argv[at];

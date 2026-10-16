@@ -12,7 +12,7 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import type {HarnessCode} from '../lib/errors.ts';
 import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
@@ -165,7 +165,7 @@ function findAgentDevice(root: string): Promise<Found | null> {
   let finding = loaded.get(root);
   if (!finding) {
     finding = (async () => {
-      const where = {root, env: process.env, home: os.homedir(), exists: fs.existsSync, npmRoot: globalNpmRoot};
+      const where = {root, env: process.env, home: os.homedir(), exists: fs.existsSync, npmRoot: globalNpmRoot, self: path.dirname(fileURLToPath(import.meta.url))};
       for (const folder of packageFolders(where)) {
         let manifest: Manifest;
         try {
@@ -333,7 +333,7 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     const ran = await runAsync(command, [...prefix, ...args, '--platform', options.platform, ...device, ...session], {cwd: options.root, timeout});
     if (ran.ok) return ran.stdout;
     if (ran.missing) {
-      throw new HarnessError('DRIVER_UNAVAILABLE', 'agent-device is not installed; `npm i -g agent-device` adds it', {platform: options.harnessPlatform});
+      throw new HarnessError('DRIVER_UNAVAILABLE', 'agent-device did not load: it comes with expo-vitest, so install expo-vitest again, or name another with HARNESS_AGENT_DEVICE', {platform: options.harnessPlatform});
     }
     const said = firstLine(ran.stderr) || firstLine(ran.stdout);
     const reason: AgentFailure = ran.timedOut ? {message: `agent-device gave no answer within ${timeout / 1000} s`} : parseFailure(said || 'agent-device failed with no message');

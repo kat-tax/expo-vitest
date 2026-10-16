@@ -232,6 +232,14 @@ describe('packageFolders', () => {
     expect(npmRoot).toHaveBeenCalledOnce();
   });
 
+  it("tries this package's own dependency after the project's, once", () => {
+    const store = path.resolve('/work/app/node_modules/.pnpm/expo-vitest@0.2.0/node_modules');
+    const self = path.join(store, 'expo-vitest', 'dist', 'harness', 'platforms');
+    const installed = (file: string) => [path.join(root, 'node_modules', 'agent-device', 'package.json'), path.join(store, 'agent-device', 'package.json')].includes(file);
+    const folders = [...packageFolders(where({exists: installed, self}))];
+    expect(folders.slice(0, 2)).toEqual([path.join(root, 'node_modules', 'agent-device'), path.join(store, 'agent-device')]);
+  });
+
   it('reads HARNESS_AGENT_DEVICE=cli as a choice of transport, not a folder', () => {
     expect([...packageFolders(where({env: {HARNESS_AGENT_DEVICE: 'cli'} as unknown as NodeJS.ProcessEnv}))]).toHaveLength(1);
   });

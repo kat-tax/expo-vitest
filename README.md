@@ -34,14 +34,13 @@ npm run test:device    # the device tests, if you added them
 
 ### By hand
 
-Install the packages. The last three are only needed for web tests, which
-also need the `react-dom` and `react-native-web` an app with a web target
-already has.
+Install the package and the runner. Everything else comes with
+`expo-vitest`: the engines, the testing libraries, jsdom, and what drives
+each platform. Web tests also need the `react-dom` and `react-native-web` an
+app with a web target already has.
 
 ```sh
-npx expo install --dev expo-vitest vitest vitest-expo vitest-native \
-  @testing-library/react-native test-renderer \
-  @testing-library/react @testing-library/jest-dom jsdom
+npx expo install --dev expo-vitest vitest
 ```
 
 Add a Vitest config:
@@ -61,7 +60,7 @@ matchers:
 
 ```json
 // tsconfig.json
-{"compilerOptions": {"types": ["vitest-expo/types", "expo-vitest/types"]}}
+{"compilerOptions": {"types": ["expo-vitest/types"]}}
 ```
 
 Run the tests:
@@ -177,13 +176,14 @@ it('opens the settings route', async () => {
 ### Drive the running app
 
 A device test drives a real build and checks the accessibility tree that a
-screen reader reads. Install what drives each platform you test:
+screen reader reads. What drives each platform comes with `expo-vitest`, and
+each needs only what it runs on:
 
-| Platform | Install |
+| Platform | Needs |
 | --- | --- |
-| web | `npm install --save-dev playwright-core`, then `npx playwright-core install chromium` |
-| iOS, Android | `npm install --global agent-device` |
-| Windows | Nothing: a Windows machine and a built app |
+| web | A browser: `npx expo-harness install` fetches Chromium |
+| iOS, Android | A simulator, an emulator or a phone, with the app installed |
+| Windows | A Windows machine and a built app |
 
 `npx expo-harness doctor` says what this machine can drive.
 

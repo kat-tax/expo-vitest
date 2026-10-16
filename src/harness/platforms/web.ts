@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, numbered, prepare} from '../lib/run.ts';
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
@@ -10,7 +11,7 @@ import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/contro
 import type {Availability, ControlRequest, ControlResult, DialogAnswer, Driver, DriverOptions, LongPressOptions, OptionChoice, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
-import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, noClipboard} from './web-browsers.ts';
+import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard} from './web-browsers.ts';
 import type {ReactTree} from '../lib/react.ts';
 import {walkExpression} from '../lib/react.ts';
 
@@ -321,7 +322,8 @@ export function webDriver(options: DriverOptions): Driver {
   const mode = modeFrom(process.env, {browser: options.browser, cdp: options.cdp});
   /** Who hears the page's console, from the page's first open. */
   const listeners = new Set<(level: string, text: string) => void>();
-  const require = createRequire(path.join(options.root, 'package.json'));
+  // The project's own playwright-core where it has one, else this package's.
+  const requires = playwrightBases(options.root, fileURLToPath(import.meta.url)).map(base => createRequire(base));
   const base = options.url ?? DEFAULT_URL;
   /** The size every page opens at. */
   const VIEWPORT = {width: 1280, height: 900};
@@ -424,16 +426,19 @@ export function webDriver(options: DriverOptions): Driver {
   }
 
   function playwright() {
-    try {
-      return require('playwright-core') as Record<BrowserName, BrowserType>;
-    } catch {
-      return null;
+    for (const require of requires) {
+      try {
+        return require('playwright-core') as Record<BrowserName, BrowserType>;
+      } catch {
+        // The next place it may be.
+      }
     }
+    return null;
   }
 
   async function launch(): Promise<Browser> {
     const driver = playwright();
-    if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core is not installed in this project', {platform: 'web'});
+    if (!driver) throw new HarnessError('DRIVER_UNAVAILABLE', 'playwright-core did not load: it comes with expo-vitest, so install expo-vitest again', {platform: 'web'});
     if (mode.invalid) throw new HarnessError('INVALID_ARGUMENT', mode.invalid, {platform: 'web'});
     if (mode.cdp) {
       // The browser is someone else's. The run opens contexts of its own in it, and closing them leaves the browser and its own tabs as they were.
@@ -712,7 +717,7 @@ export function webDriver(options: DriverOptions): Driver {
 
     async available(): Promise<Availability> {
       const driver = playwright();
-      if (!driver) return {ready: false, reason: 'playwright-core is not installed; add it to this project'};
+      if (!driver) return {ready: false, reason: 'playwright-core did not load: it comes with expo-vitest, so install expo-vitest again'};
       if (mode.invalid) return {ready: false, reason: mode.invalid};
       const slower = mode.slowMo ? `, ${mode.slowMo} ms slower each operation` : '';
       // An endpoint is reached at the first step: asking now would be a session of a hosted browser's for nothing.
