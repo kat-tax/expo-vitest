@@ -175,6 +175,7 @@ since a test here runs on a phone as well as a page.
 | `connectOverCDP` | [`HARNESS_CDP`](platforms.md#the-browser) | renamed |
 | `video` | [`video`](evidence.md#video) in the harness config | same |
 | the trace viewer | `trace.md`, the tree and the screenshot in each failing test's [folder](evidence.md) | by design: a trace a person or an agent reads as text |
-| `storageState`, `test.step` | | not yet |
+| `test.step(title, body)` | [`step(title, body)`](evidence.md#the-trace) from `expo-vitest` | renamed |
+| `storageState` | | not yet |
 | `expect.poll` | Vitest's `expect.poll` | same |
 

@@ -105,8 +105,8 @@ These wait on an API key, and the runs are billed.
 - What [Migrating](docs/migrating.md) marks "not yet": a pinch, a picker
   column's value, ending the app, a shake, a second app in one test, the
   system keys (lock, power, volume, a TV remote), clearing the keychain,
-  adding media, a route of locations, `getByAltText` and `getByTitle`,
-  `storageState` and `test.step`.
+  adding media, a route of locations, `getByAltText` and `getByTitle`, and
+  `storageState`.
 - Named keys on iOS and Android, which answer `'skipped'`.
 
 - A menu flyout in the Windows tree, by reading the app's other top-level

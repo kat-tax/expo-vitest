@@ -91,6 +91,29 @@ the trees the test read anyway, so recording costs no snapshot of its own.
 A `verified` step follows an assertion or a wait that ended well, and names
 the action before it, which it shows took effect.
 
+A test names a part of itself with `step(title, body)`, as Playwright's
+`test.step`. The trace lists the step as it begins, failed where `body`
+threw, and each step taken inside it with its title in front:
+
+```ts
+import {device, screen, step} from 'expo-vitest';
+
+it('signs in', async () => {
+  await step('Open the profile', async () => {
+    await device.open('/');
+    await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+  });
+});
+```
+
+```markdown
+| 1 | 0.00 s | step "Open the profile" | 179 ms | ok |  |
+| 2 | 0.00 s | Open the profile › open / | 177 ms | ok |  |
+| 3 | 0.18 s | Open the profile › assert expect(getByRole("heading", {name: "Profile"})) to be visible | 2 ms | ok | polled 1 time, 16 nodes |
+```
+
+Steps nest, and `step` answers with what `body` answers.
+
 Where the [React tree](device-tests.md#the-react-tree) can be read, the tree
 at the end names the component behind each node, and a `## Component` part
 names the one behind the node the failing step was for, with the end of the

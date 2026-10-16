@@ -39,6 +39,7 @@ export type StepEvent =
   | 'control'
   | 'agent'
   | 'web'
+  | 'step'
   | 'verified';
 
 /** The events that change the screen, which a `verified` step can vouch for. */
@@ -71,6 +72,8 @@ export interface Step {
   verifies?: number;
   /** The screen after the step, from the last full snapshot it, or the step after it, read. */
   treeAfter?: TreeDigest;
+  /** The titles of the test's own steps it was taken in, outermost first: `Check out › Pay`. */
+  within?: string;
 }
 
 /** A node as a digest keeps it: what it is, by kind or role, and its testID or name. */
@@ -155,6 +158,8 @@ export class Journal {
   privacy: Privacy | undefined;
   private began = 0;
   private running: Step | null = null;
+  /** The titles of the test's own steps under way, outermost first. */
+  private groups: string[] = [];
   private readonly listeners = new Set<StepListener>();
   private readonly now: () => number;
 
@@ -169,7 +174,29 @@ export class Journal {
     this.last = null;
     this.agents = [];
     this.running = null;
+    this.groups = [];
     this.began = this.now();
+  }
+
+  /**
+   * Runs `body` as one of the test's own steps, named `title`: a step that
+   * says so, recorded as it begins, with the steps taken inside it marked as
+   * within it. It fails where `body` throws, which is thrown on.
+   */
+  async group<T>(title: string, body: () => T | Promise<T>): Promise<T> {
+    const began = this.now();
+    const heading = this.add({event: 'step', what: JSON.stringify(title), startedAt: began - this.began, durationMs: 0, result: 'ok', message: ''});
+    this.groups.push(title);
+    try {
+      return await body();
+    } catch (error) {
+      heading.result = 'failed';
+      heading.message = (error as Error).message;
+      throw error;
+    } finally {
+      this.groups.pop();
+      heading.durationMs = this.now() - began;
+    }
   }
 
   /** The journal's clock, in ms, for a step noted once it is over. */
@@ -207,7 +234,8 @@ export class Journal {
   }
 
   private add(step: Omit<Step, 'index'>): Step {
-    const recorded = {index: this.steps.length + 1, ...step};
+    const within = this.groups.join(' › ');
+    const recorded = {index: this.steps.length + 1, ...step, ...(within ? {within} : {})};
     this.steps.push(recorded);
     for (const listener of this.listeners) listener(recorded);
     return recorded;
@@ -328,7 +356,8 @@ export function renderTrace(input: TraceInput): string {
     lines.push('| # | at | step | took | result | screen after |', '| --- | --- | --- | --- | --- | --- |');
     let before: TreeDigest | undefined;
     for (const step of input.steps) {
-      const what = step.resolved ? `${step.event} ${step.what} → ${step.resolved}` : `${step.event} ${step.what}`;
+      const did = step.resolved ? `${step.event} ${step.what} → ${step.resolved}` : `${step.event} ${step.what}`;
+      const what = step.within ? `${step.within} › ${did}` : did;
       const result = step.result === 'ok' ? 'ok' : `${step.result}${step.message ? `: ${step.message.split('\n')[0]}` : ''}`;
       lines.push(`| ${step.index} | ${(step.startedAt / 1000).toFixed(2)} s | ${cell(what)} | ${duration(step.durationMs)} | ${cell(result)} | ${cell(screenAfter(step, before))} |`);
       if (step.treeAfter) before = step.treeAfter;

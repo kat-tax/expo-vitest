@@ -25,7 +25,7 @@ import {failed, ok} from '../harness/lib/types.ts';
 import type {ExpoProjectsOptions, Platform} from '../projects.ts';
 import {deviceConfig, file, nodeProject, SELF, selfAliases} from '../projects.ts';
 import type {AppConfig, Capability, DeviceConfig, DialogAnswer, HarnessCode, HarnessConfig, HostedDevice, Kind, OptionChoice, Queries, Selector, Snapshot, SnapshotNode, WebCookie, WebRoute} from './index.ts';
-import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, render, requires, screen, skipOn, withComponents, within} from './index.ts';
+import {Locator, by, configFromEnvironment, defineHarness, device, element, isHarnessError, onlyOn, render, requires, screen, skipOn, step, withComponents, within} from './index.ts';
 import './matchers.ts';
 
 // The device makes its driver through this; a stub stands in, so no browser,
@@ -341,6 +341,21 @@ describe('screen', () => {
     const reads = snapshot.mock.calls.length;
     expect(await screen.queryByText('Save')).toBe(save);
     expect(snapshot.mock.calls.length).toBe(reads + 1);
+  });
+
+  it("runs a test's own step, answers with what it answers, and lists the steps it took under its title", async () => {
+    const save: SnapshotNode = {ref: '@e2', role: 'button', name: 'Save', depth: 1, interactive: true};
+    drive(stub({snapshot: async () => ({platform: 'web', nodes: [save]})}));
+    device.journal.begin();
+    expect(await step('Save the form', async () => {
+      await screen.getByRole('button', {name: 'Save'}).press();
+      return 'saved';
+    })).toBe('saved');
+    expect(device.journal.steps.map(each => [each.event, each.what, each.within])).toEqual([
+      ['step', '"Save the form"', undefined],
+      ['press', 'getByRole("button", {name: "Save"})', 'Save the form'],
+    ]);
+    await device.close();
   });
 
   it('reads the React tree where the backend can, and says why where it cannot', async () => {

@@ -62,6 +62,36 @@ describe('the journal', () => {
     expect(heard.map(step => step.index)).toEqual([1, 2]);
   });
 
+  it("groups the steps a test's own step took, nested, under a step that says so, recorded as it began", async () => {
+    const {time, now} = clock();
+    const journal = new Journal(now);
+    journal.begin();
+    const answer = await journal.group('Check out', async () => {
+      time.at += 10;
+      await journal.group('Pay', () => journal.run({event: 'press', what: 'getByText("Pay")'}, async () => void (time.at += 50)));
+      await journal.run({event: 'wait', what: 'getByText("Paid")'}, async () => void (time.at += 5));
+      return 42;
+    });
+    await journal.run({event: 'press', what: 'getByText("Done")'}, async () => {});
+    expect(answer).toBe(42);
+    expect(journal.steps.map(step => [step.index, step.event, step.what, step.within, step.durationMs])).toEqual([
+      [1, 'step', '"Check out"', undefined, 65],
+      [2, 'step', '"Pay"', 'Check out', 50],
+      [3, 'press', 'getByText("Pay")', 'Check out › Pay', 50],
+      [4, 'wait', 'getByText("Paid")', 'Check out', 5],
+      [5, 'press', 'getByText("Done")', undefined, 0],
+    ]);
+  });
+
+  it('marks a step of the test failed where what it ran threw, and throws it on', async () => {
+    const journal = new Journal();
+    journal.begin();
+    await expect(journal.group('Sign in', () => Promise.reject(new Error('no such button')))).rejects.toThrow('no such button');
+    expect(journal.steps).toMatchObject([{event: 'step', what: '"Sign in"', result: 'failed', message: 'no such button'}]);
+    await journal.group('Sign out', () => 'synchronous');
+    expect(journal.steps.at(-1)).toMatchObject({event: 'step', result: 'ok'});
+  });
+
   it('digests a snapshot into the step under way, or into the last step that has none yet, and keeps the last', async () => {
     const journal = new Journal();
     journal.saw(home);
@@ -142,6 +172,16 @@ describe('the trace', () => {
     {index: 4, event: 'snapshot', what: 'a | b', startedAt: 6000, durationMs: 10, result: 'ok', message: ''},
     {index: 5, event: 'wait', what: 'x', startedAt: 6100, durationMs: 1, result: 'ok', message: '', polls: 1},
   ];
+
+  it("says which of the test's own steps each step was taken in", () => {
+    const grouped: Step[] = [
+      {index: 1, event: 'step', what: '"Sign in"', startedAt: 0, durationMs: 900, result: 'ok', message: ''},
+      {index: 2, event: 'press', what: 'getByText("Go")', resolved: '@e3   button "Go"', startedAt: 10, durationMs: 90, result: 'ok', message: '', within: 'Sign in'},
+    ];
+    const trace = renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: false, duration: 1000, at: new Date(0), errors: [], steps: grouped, tree: null});
+    expect(trace).toContain('| 1 | 0.00 s | step "Sign in" | 900 ms | ok |');
+    expect(trace).toContain('| 2 | 0.01 s | Sign in › press getByText("Go") → @e3   button "Go" | 90 ms | ok |');
+  });
 
   it('reads as the test, its failure, its steps with the screen after each, and the screen at the end', () => {
     const trace = renderTrace({

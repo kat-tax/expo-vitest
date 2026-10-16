@@ -19,8 +19,10 @@ and what was there instead, such as names like the one asked for.
 Then each step, with when it ran, how long it took, how it ended, and what it
 did to the screen: the nodes that appeared and went, and where the focus
 moved. A step that changed nothing, before a step that failed, is usually the
-cause. A `## Component` section names the React component behind the node the
-failing step was after, and on web the page's console follows.
+cause. A test's own `step(title, body)` shows as `step "title"`, with the
+steps inside it after `title ›`. A `## Component` section names the React
+component behind the node the failing step was after, and on web the page's
+console follows.
 
 ## What to do with it
 

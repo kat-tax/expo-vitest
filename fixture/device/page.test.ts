@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
 import {inject} from 'vitest';
-import {by, device, isHarnessError, onlyOn, requires, screen, within} from 'expo-vitest';
+import {by, device, isHarnessError, onlyOn, requires, screen, step, within} from 'expo-vitest';
 
 afterAll(() => device.close());
 
@@ -127,12 +127,22 @@ it("drags a card onto a list, by the browser's own drag and drop, and a held poi
   await expect(screen.getByTestId('moved')).toHaveText(/^Moved [1-9]\d* times$/);
 });
 
+it('names its own steps', async () => {
+  await step('Open the profile', async () => {
+    await device.open('/');
+    await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+  });
+});
+
 it('left a trace for each test before it, with its steps', () => {
   const folder = path.join(process.cwd(), '.harness', 'results', 'web', 'device', 'page');
   const traces = fs.readdirSync(folder).map(test => fs.readFileSync(path.join(folder, test, 'trace.md'), 'utf8'));
   const first = traces.find(trace => trace.startsWith('# finds the form by role and label'));
   expect(first).toContain('| check getByRole("checkbox", {name: "Send me news"}) → ');
   expect(first).toContain('| verified expect(getByText("Saved")) to be visible |');
+  const named = traces.find(trace => trace.startsWith('# names its own steps'));
+  expect(named).toContain('| step "Open the profile" |');
+  expect(named).toContain('| Open the profile › open / |');
   expect(fs.readdirSync(folder).every(test => fs.existsSync(path.join(folder, test, 'tree.json')))).toBe(true);
 });
 

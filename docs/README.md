@@ -48,7 +48,7 @@ matchers. New here? Start with [Getting started](getting-started.md).
 
 | Import | Exports |
 | --- | --- |
-| `expo-vitest` | What a test imports: `render`, `device`, `screen`, `within`, `element`, `by`, `Locator`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
+| `expo-vitest` | What a test imports: `render`, `device`, `screen`, `within`, `element`, `by`, `Locator`, `step`, `onlyOn`, `skipOn`, `requires`, `withComponents`, `reactNodeOf`, `Journal`, `configFromEnvironment`, `HarnessError`, `isHarnessError` |
 | `expo-vitest/config` | What a config imports: `expoProjects`, `nodeProject`, `deviceConfig`, `defineHarness`, `forbidModules`, `windowsResolution`, `metroCompat`, `EXPO_WEB_PACKAGES`, `TEST_TIMEOUT` |
 | `expo-vitest/matchers` | A setup file that registers the device matchers, for a config of your own. |
 | `expo-vitest/native` | `nodes`, `host`, `modifier`, `byComposeTestID`, `stackHeaders` |

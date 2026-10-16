@@ -764,6 +764,16 @@ export function within(target: Locator | SnapshotNode): Queries {
   return queriesOn(device, scopeOf(target));
 }
 
+/**
+ * Runs `body` as one named step of the test, as Playwright's `test.step`:
+ * the trace lists it with the steps taken inside it under its title, and
+ * marks it failed where `body` throws. Steps nest. Answers with what `body`
+ * answers.
+ */
+export function step<T>(title: string, body: () => T | Promise<T>): Promise<T> {
+  return device.journal.group(title, body);
+}
+
 /** One element, found fresh each time it is acted on — a ref from an old tree is stale. */
 export function element(selector: Selector) {
   return {
