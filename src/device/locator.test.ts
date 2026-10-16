@@ -117,6 +117,22 @@ describe('an action', () => {
     expect(() => checkCount({count: 0}, 'ios')).toThrow(expect.objectContaining({platform: 'ios'}));
   });
 
+  it('drags its node to the node another locator names, both from one tree', async () => {
+    const drag = vi.fn(async (): Promise<StepResult> => ok('dragged'));
+    const {driver, locate} = rig(() => [save, cancel], {drag});
+    await locate(query('testId', 'save')).dragTo(locate(query('role', 'button', {name: 'Cancel'})), {hold: 800, timeout: 1000});
+    expect(driver.drag).toHaveBeenCalledWith({ref: '@e2'}, {ref: '@e3'}, {hold: 800});
+  });
+
+  it('cannot drag where the platform has no drag, or to a node the tree no longer holds', async () => {
+    const {locate} = rig(() => [save, cancel]);
+    await expect(locate(query('testId', 'save')).dragTo(locate(query('role', 'button', {name: 'Cancel'})))).rejects.toThrow(expect.objectContaining({code: 'UNSUPPORTED_CAPABILITY', message: 'a drag is not something the web harness can do'}));
+    let reads = 0;
+    const gone = rig(() => (++reads === 1 ? [save, cancel] : [save]), {drag: vi.fn(async (): Promise<StepResult> => ok('dragged'))});
+    await expect(gone.locate(query('testId', 'save')).dragTo(gone.locate(query('role', 'button', {name: 'Cancel'})))).rejects.toThrow(expect.objectContaining({code: 'LOCATOR_NOT_FOUND'}));
+    expect(gone.driver.drag).not.toHaveBeenCalled();
+  });
+
   it('keeps the real time on a device that names no clock of its own', async () => {
     const {driver, host} = rig(() => [save]);
     await new Locator({...host, clock: undefined}, query('testId', 'save')).press();
@@ -417,6 +433,14 @@ describe('the journal', () => {
       ['verified', 'getByTestId("save")', undefined, 'ok'],
     ]);
     expect(journal.steps.at(-1)?.verifies).toBe(1);
+  });
+
+  it('records a drag with the query it ended at', async () => {
+    const {host} = rig(() => [save, cancel], {drag: vi.fn(async (): Promise<StepResult> => ok('dragged'))});
+    const journal = new Journal(host.clock?.now);
+    const locate = (asked: LocatorQuery) => new Locator({...host, journal}, asked);
+    await locate(query('testId', 'save')).dragTo(locate(query('role', 'button', {name: 'Cancel'})));
+    expect(journal.steps.map(step => [step.event, step.what, step.result])).toEqual([['drag', 'getByTestId("save") to getByRole("button", {name: "Cancel"})', 'ok']]);
   });
 });
 

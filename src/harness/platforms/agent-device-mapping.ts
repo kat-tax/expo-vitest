@@ -353,6 +353,32 @@ export function repeatArgs(count = 1): string[] {
   return count > 2 ? ['--count', String(count)] : [];
 }
 
+/** How long a drag takes to move from one end to the other, in ms: agent-device's own. */
+export const DRAG_MOVE_MS = 500;
+
+/** A drag as the Node client takes it: between two points, a pan; between two nodes, agent-device's drag, held first. */
+export type DragRequest = {method: 'pan'; options: {x: number; y: number; dx: number; dy: number; durationMs: number}} | {method: 'drag'; options: {source: string; destination: string; sourceHoldMs: number; moveMs: number}};
+
+/**
+ * A drag from one target to another. Two points are a pan, which moves at
+ * once; two nodes are agent-device's drag, which finds each and holds the
+ * press `hold` ms before it moves, at least the 1 it takes. Both ends are
+ * points or both are not: the driver makes them so.
+ */
+export function dragRequest(from: Target, to: Target, hold = 0): DragRequest {
+  const start = asSelector(from);
+  const end = asSelector(to);
+  if (isPoint(start) && isPoint(end)) return {method: 'pan', options: {x: start.x, y: start.y, dx: end.x - start.x, dy: end.y - start.y, durationMs: DRAG_MOVE_MS}};
+  return {method: 'drag', options: {source: toAgentTarget(from), destination: toAgentTarget(to), sourceHoldMs: Math.max(1, hold), moveMs: DRAG_MOVE_MS}};
+}
+
+/** The same, as the command line takes it. */
+export function dragArgs(from: Target, to: Target, hold = 0): string[] {
+  const {method, options} = dragRequest(from, to, hold);
+  const words = method === 'pan' ? [options.x, options.y, options.dx, options.dy, options.durationMs] : [options.source, options.destination, options.sourceHoldMs, options.moveMs];
+  return ['gesture', method, ...words.map(String)];
+}
+
 /**
  * The gap between typed characters on iOS, in ms. agent-device types as fast
  * as it can, which on a simulator is faster than a React Native field that

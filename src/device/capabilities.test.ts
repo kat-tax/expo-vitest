@@ -5,7 +5,7 @@ const pixel = {name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'};
 
 describe('the capabilities', () => {
   it('are the steps first, then every control, each once', () => {
-    expect(CAPABILITIES.slice(0, 13)).toEqual(ACTIONS.web);
+    expect(CAPABILITIES.slice(0, 14)).toEqual(ACTIONS.web);
     expect(CAPABILITIES).toContain('restart');
     expect(CAPABILITIES).toContain('alert');
     expect(new Set(CAPABILITIES).size).toBe(CAPABILITIES.length);

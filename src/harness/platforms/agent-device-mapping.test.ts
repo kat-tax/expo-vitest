@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -424,6 +424,14 @@ describe('the wait after an action', () => {
     expect(repeatArgs()).toEqual([]);
     expect(repeatArgs(2)).toEqual(['--double-tap']);
     expect(repeatArgs(3)).toEqual(['--count', '3']);
+  });
+
+  it('drags between two nodes with agent-device drag, held at least a millisecond, and between two points with a pan', () => {
+    expect(dragRequest({ref: '@e2'}, {ref: '@e5'})).toEqual({method: 'drag', options: {source: '@e2', destination: '@e5', sourceHoldMs: 1, moveMs: DRAG_MOVE_MS}});
+    expect(dragRequest({testId: 'row'}, {ref: '@e5'}, 800)).toEqual({method: 'drag', options: {source: 'id="row"', destination: '@e5', sourceHoldMs: 800, moveMs: DRAG_MOVE_MS}});
+    expect(dragRequest({x: 10, y: 20}, {x: 110, y: 5})).toEqual({method: 'pan', options: {x: 10, y: 20, dx: 100, dy: -15, durationMs: DRAG_MOVE_MS}});
+    expect(dragArgs({ref: '@e2'}, {ref: '@e5'}, 800)).toEqual(['gesture', 'drag', '@e2', '@e5', '800', '500']);
+    expect(dragArgs({x: 10, y: 20}, {x: 110, y: 5})).toEqual(['gesture', 'pan', '10', '20', '100', '-15', '500']);
   });
 });
 

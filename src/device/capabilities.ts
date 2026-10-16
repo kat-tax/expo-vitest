@@ -9,15 +9,15 @@ import type {AppOptions, ControlName, DeviceFacts, Platform} from '../harness/li
 import type {BrowserName} from '../harness/platforms/web-browsers.ts';
 import {noClipboard} from '../harness/platforms/web-browsers.ts';
 
-export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'video' | 'web' | ControlName;
+export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'drag' | 'video' | 'web' | ControlName;
 
 /** The steps each platform's driver has, whatever the device. */
 export const ACTIONS: Record<Platform, Capability[]> = {
-  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'video', 'web'],
+  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'web'],
   // Windows has no screen recorder without a dependency.
-  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe'],
-  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'video'],
-  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'video'],
+  windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag'],
+  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video'],
+  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video'],
 };
 
 const CONTROLS = Object.keys(CHANGES_SCREEN) as ControlName[];

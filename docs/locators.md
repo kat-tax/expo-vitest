@@ -117,6 +117,7 @@ that names no node, or several, has nothing inside it.
 | `.key(name, {timeout})` | Sends a named key, `ArrowDown`, `Enter`, with the node focused, focusing it first. `'skipped'` where the platform sends no keys. |
 | `.scrollIntoView({timeout})` | Scrolls the node onto the screen where it is not there already. |
 | `.swipe(direction, {distance, timeout})` | Draws a finger across the node the way `direction` says, over half of it by default. A finger drawn up scrolls the content down. A wheel on web. On Windows, through the Scroll pattern of what scrolls under the node, else the wheel. |
+| `.dragTo(locator, {hold, timeout})` | Presses the node, draws the press to the node another locator names, and lets it go there, as for a slider or a card dropped on a list. `{hold: 800}` holds it first, as a list that reorders on a long press wants. Fails where the platform has no counterpart. |
 | `.waitFor({state, timeout})` | Waits until the nodes are `visible` (the default), `attached` (in the tree at all), `hidden` (none on screen) or `detached` (none in the tree). Gives the node, or `null` for the two states that have none. |
 | `.node()` | The node now, or `undefined`. |
 | `.all()`, `.count()` | Every node it names now, and how many. |
@@ -183,6 +184,7 @@ Playwright does.
 | `focus` | the element's own focus | UI Automation's SetFocus | a touch at its middle |
 | `scrollIntoView` | the page scrolled | the ScrollItem pattern | a scroll until it is seen |
 | `swipe` | a wheel | the Scroll pattern of what scrolls under it, else the wheel | a swipe |
+| `dragTo` | the mouse held and moved in ten steps, which the browser's drag and drop sees too | the pointer held and moved in ten steps | agent-device's drag between the two nodes |
 | `key` | the keyboard | the keyboard | `'skipped'` |
 
 On Windows, the pointer and the keyboard are synthetic input, which waits

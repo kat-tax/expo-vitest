@@ -29,6 +29,8 @@ import {
   commandRequest,
   describeDevice,
   describeFailure,
+  dragArgs,
+  dragRequest,
   factsOf,
   installArgs,
   launchArgs,
@@ -73,6 +75,8 @@ export interface AgentDeviceTransport {
   /** With a wait, agent-device's own: after the press, until the screen has been quiet a while. */
   /** A press, or `count` of them in quick succession. */
   press(target: Target, wait?: Wait, count?: number): Promise<void>;
+  /** A press drawn from one target to another, held `hold` ms first: two points or two nodes. */
+  drag(from: Target, to: Target, hold?: number): Promise<void>;
   fill(target: Target, text: string, wait?: Wait): Promise<void>;
   /** A press held for `duration` ms, or for agent-device's own length when none is given. */
   longPress(target: Target, duration?: number, wait?: Wait): Promise<void>;
@@ -138,7 +142,7 @@ interface Client {
   settings: {update: Call};
   recording: {record: Call};
   capture: {snapshot: Call; screenshot: Call};
-  interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call};
+  interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call; pan: Call; drag: Call};
   sessions: {close: Call};
 }
 
@@ -259,6 +263,11 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async press(target, wait, count) {
       await call(signal => client.interactions.press({...select, ...clientTarget(target), ...repeatRequest(count), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
+    async drag(from, to, hold) {
+      const request = dragRequest(from, to, hold);
+      if (request.method === 'pan') await call(signal => client.interactions.pan({...select, ...request.options, signal}), 'ACTION_FAILED');
+      else await call(signal => client.interactions.drag({...select, ...request.options, signal}), 'ACTION_FAILED');
+    },
     async fill(target, text, wait) {
       await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...typingRequest(options.platform), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
@@ -359,6 +368,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async press(target, wait, count) {
       await agent(['press', ...targetArgs(target), ...repeatArgs(count), ...settleArgs(wait)], 'ACTION_FAILED');
+    },
+    async drag(from, to, hold) {
+      await agent(dragArgs(from, to, hold), 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
       await agent(['fill', ...targetArgs(target), text, ...typingArgs(options.platform), ...settleArgs(wait)], 'ACTION_FAILED');

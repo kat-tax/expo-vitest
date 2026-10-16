@@ -10,7 +10,7 @@ import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from '../harness/lib/snapshot.ts';
 import {follow} from '../harness/lib/snapshot.ts';
-import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult, WebControls} from '../harness/lib/types.ts';
+import type {Direction, DragOptions, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult, WebControls} from '../harness/lib/types.ts';
 import type {Journal, StepEvent} from './evidence.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {describeReadings, duration, poll} from './polling.ts';
@@ -213,11 +213,11 @@ export class Locator {
   }
 
   /** A step in the device's journal, where it keeps one: what it did, this locator as written, the node it came to, and how the step ended. */
-  private record<T>(event: StepEvent, node: SnapshotNode | undefined, work: () => Promise<T>, doing?: string): Promise<T> {
+  private record<T>(event: StepEvent, node: SnapshotNode | undefined, work: () => Promise<T>, doing?: string, after?: string): Promise<T> {
     const journal = this.host.journal;
     if (!journal) return work();
     const judged = (value: T) => (value === 'skipped' ? {result: 'skipped' as const, message: 'the platform has no counterpart'} : {result: 'ok' as const, message: ''});
-    const what = doing ? `${doing} ${describeQuery(this.query)}` : describeQuery(this.query);
+    const what = `${doing ? `${doing} ` : ''}${describeQuery(this.query)}${after ? ` ${after}` : ''}`;
     return journal.run({event, what, ...(node ? {resolved: describeCandidate(node)} : {})}, work, judged);
   }
 
@@ -286,6 +286,23 @@ export class Locator {
     const {timeout, ...holding} = options;
     const {node, snapshot} = await this.one(timeout);
     await this.record('longPress', node, () => this.optional('a long press', driver => driver.longPress?.(targetFor(node, snapshot), holding), true));
+  }
+
+  /**
+   * A press on the node, drawn to the node `target` names and let go there,
+   * as Playwright's `dragTo`; `hold` holds the press first, as a list that
+   * reorders on a long press wants. An error where the platform has none,
+   * since a test that went on as if something had moved would fail later
+   * for the wrong reason.
+   */
+  async dragTo(target: Locator, options: DragOptions & WaitOptions = {}): Promise<void> {
+    const {timeout, ...dragging} = options;
+    // Both ends from one tree, so that neither ref is from a read the other made stale.
+    await target.one(timeout, false);
+    const {node, snapshot} = await this.one(timeout);
+    const to = target.only(target.resolve(snapshot));
+    if (!to) throw target.notFound(snapshot, timeout ?? this.host.polling.assertionTimeout);
+    await this.record('drag', node, () => this.optional('a drag', driver => driver.drag?.({ref: node.ref}, {ref: to.ref}, dragging), true), undefined, `to ${describeQuery(target.query)}`);
   }
 
   /** The pointer over the node, without a press; `skipped` on a device, which has no pointer. */

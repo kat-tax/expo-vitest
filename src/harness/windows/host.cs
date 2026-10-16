@@ -130,6 +130,7 @@ public static class HarnessHost {
       case "hold": return Hold(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "ms", 800));
       case "move": return Move(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0));
       case "wheel": return Wheel(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "dx", 0), Number(request, "dy", 0));
+      case "drag": return Drag(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "x2", 0), Number(request, "y2", 0), Number(request, "ms", 0));
       case "scroll": return Scroll(Text(request, "ref"), Number(request, "dx", 0), Number(request, "dy", 0));
       case "focus": return Focus(Text(request, "ref"));
       case "keys": return Keys(Text(request, "process"), Text(request, "keys"));
@@ -234,6 +235,38 @@ public static class HarnessHost {
     if (right != 0) mouse_event(0x01000, 0, 0, unchecked((uint)(120 * right)), UIntPtr.Zero);
     Thread.Sleep(200);
     return Json("turned the wheel " + down + " notches down and " + right + " right at " + atX + "," + atY);
+  }
+
+  // A press at one point in the window's own pixels, held `ms`, drawn to
+  // another in ten moves the app sees the pointer make, and let go there.
+  static string Drag(string name, int x, int y, int x2, int y2, int ms) {
+    int originX = 0;
+    int originY = 0;
+    uint pid = 0;
+    if (!string.IsNullOrEmpty(name)) {
+      Process process = Window(name);
+      RECT rect = WindowRect(process);
+      originX = rect.Left;
+      originY = rect.Top;
+      pid = (uint)process.Id;
+    }
+    int fromX = x + originX;
+    int fromY = y + originY;
+    int toX = x2 + originX;
+    int toY = y2 + originY;
+    Owns(pid, name, fromX, fromY, "drag");
+    Owns(pid, name, toX, toY, "drag");
+    SetCursorPos(fromX, fromY);
+    Thread.Sleep(80);
+    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
+    Thread.Sleep(Math.Max(ms, 60));
+    for (int move = 1; move <= 10; move++) {
+      SetCursorPos(fromX + (toX - fromX) * move / 10, fromY + (toY - fromY) * move / 10);
+      Thread.Sleep(20);
+    }
+    Thread.Sleep(60);
+    mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
+    return Json("dragged from " + fromX + "," + fromY + " to " + toX + "," + toY);
   }
 
   static int Notches(int pixels) {

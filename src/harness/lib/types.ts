@@ -217,6 +217,11 @@ export interface LongPressOptions extends StepTiming {
   duration?: number;
 }
 
+export interface DragOptions {
+  /** How long the press is held before it moves, in ms, as a list that reorders on a long press wants. None by default. */
+  hold?: number;
+}
+
 /** The way something is scrolled or swiped: the way the content moves for a scroll, the way the finger moves for a swipe. */
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -276,6 +281,8 @@ export interface Driver {
   scrollIntoView?(target: Target, options?: ScrollIntoViewOptions): Promise<StepResult>;
   /** A finger drawn from one point to another, in the window's own pixels. */
   swipe?(from: Point, to: Point, options?: StepTiming): Promise<StepResult>;
+  /** A press on what one target names, drawn to what another names and let go there. */
+  drag?(from: Target, to: Target, options?: DragOptions): Promise<StepResult>;
   /** The React tree behind the native one, or why it cannot be read here. */
   react?(): Promise<ReactTree | {unavailable: string}>;
   /**

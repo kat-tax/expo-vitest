@@ -5,7 +5,7 @@ import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, follow, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
@@ -231,6 +231,27 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
 
     longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {
       return resolving(what, 'long press failed', at => pressing(at, `held ${describeTarget(what)}`, 'long press failed', (current, target) => current.longPress(target, pressOptions.duration, waitFrom(pressOptions))));
+    },
+
+    async drag(from: Target, to: Target, dragOptions: DragOptions = {}): Promise<StepResult> {
+      try {
+        let ends = [await resolved(from), await resolved(to)];
+        // agent-device drags between two nodes it finds, or pans between two points, so a point at either end makes both points.
+        if (ends.some(end => isPoint(asSelector(end)))) {
+          ends = await Promise.all(
+            ends.map(async end => {
+              const selector = asSelector(end);
+              const point = isPoint(selector) ? selector : centreOf(await nodeOf(selector));
+              if (!point) throw new HarnessError('NOT_ACTIONABLE', `${describeTarget(end)} has no bounds to drag from or to`, {platform});
+              return point;
+            }),
+          );
+        }
+        await (await transport()).drag(ends[0] as Target, ends[1] as Target, dragOptions.hold);
+        return ok(`dragged ${describeTarget(from)} to ${describeTarget(to)}${dragOptions.hold ? `, held ${dragOptions.hold} ms first` : ''}`);
+      } catch (error) {
+        return failed(`drag failed: ${(error as Error).message}`, codeOf(error));
+      }
     },
 
     async focus(what: Target): Promise<StepResult> {

@@ -102,17 +102,18 @@ These wait on an API key, and the runs are billed.
 
 ### Steps and controls
 
-- What [Migrating](docs/migrating.md) marks "not yet": a pinch, a drag, a
-  picker column's value, ending the app, a shake, a second app in one test,
-  the system keys (lock, power, volume, a TV remote), clearing the keychain,
+- What [Migrating](docs/migrating.md) marks "not yet": a pinch, a picker
+  column's value, ending the app, a shake, a second app in one test, the
+  system keys (lock, power, volume, a TV remote), clearing the keychain,
   adding media, a route of locations, `getByAltText` and `getByTitle`,
   `storageState`, `test.step`, and JUnit `properties`.
 - Named keys on iOS and Android, which answer `'skipped'`.
 
 - A menu flyout in the Windows tree, by reading the app's other top-level
   windows. Two of the test app's tests are skipped on Windows for it.
-- A swipe in a unit test, and a hover on iOS, Android and Windows there.
-  Nothing is laid out in a unit test, so a swipe has no distance to draw.
+- A swipe and a drag in a unit test, and a hover on iOS, Android and Windows
+  there. Nothing is laid out in a unit test, so neither has a distance to
+  draw.
 
 ### The agent and the MCP server
 

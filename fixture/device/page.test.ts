@@ -119,6 +119,14 @@ it('double clicks, as two clicks the browser counts as one', async () => {
   await expect(screen.getByText('Opened by a double click')).toBeVisible();
 });
 
+it("drags a card onto a list, by the browser's own drag and drop, and a held pointer across", async () => {
+  await device.open('/drag');
+  await screen.getByText('Card').dragTo(screen.getByRole('region', {name: 'Done'}));
+  await expect(screen.getByText('Dropped Card on Done')).toBeVisible();
+  await screen.getByTestId('handle').dragTo(screen.getByTestId('end'));
+  await expect(screen.getByTestId('moved')).toHaveText(/^Moved [1-9]\d* times$/);
+});
+
 it('left a trace for each test before it, with its steps', () => {
   const folder = path.join(process.cwd(), '.harness', 'results', 'web', 'device', 'page');
   const traces = fs.readdirSync(folder).map(test => fs.readFileSync(path.join(folder, test, 'trace.md'), 'utf8'));

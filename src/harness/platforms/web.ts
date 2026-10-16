@@ -8,7 +8,7 @@ import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapsho
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, DialogAnswer, Driver, DriverOptions, LongPressOptions, OptionChoice, PressOptions, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DialogAnswer, DragOptions, Driver, DriverOptions, LongPressOptions, OptionChoice, PressOptions, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
 import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard} from './web-browsers.ts';
@@ -136,6 +136,9 @@ const OPTIONS = (id: number) => `(() => { const element = ${ELEMENT(id)}; return
 /** How long a long press is held when a test does not say, in ms: what a person holds for a context menu. */
 const HOLD_MS = 800;
 
+/** The moves a drag is drawn in, so that what follows the pointer sees it travel. */
+const DRAG_STEPS = 10;
+
 /** How long a read stands while the page's counter has not moved: a box can move without a mutation, as when an image loads. */
 const KEEP_MS = 2000;
 
@@ -228,7 +231,7 @@ export function webDriver(options: DriverOptions): Driver {
     addInitScript(script: string): Promise<void>;
     goto(url: string, o?: unknown): Promise<unknown>;
     screenshot(o: {path: string; fullPage?: boolean; animations?: 'disabled'; caret?: 'hide'}): Promise<unknown>;
-    mouse: {click(x: number, y: number, o?: {button?: 'left' | 'right'; clickCount?: number}): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
+    mouse: {click(x: number, y: number, o?: {button?: 'left' | 'right'; clickCount?: number}): Promise<void>; move(x: number, y: number, o?: {steps?: number}): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
     $(selector: string): Promise<ElementHandle | null>;
     evaluateHandle(fn: string): Promise<JSHandle>;
     waitForEvent(event: 'download', o?: {timeout?: number}): Promise<Download>;
@@ -965,6 +968,24 @@ export function webDriver(options: DriverOptions): Driver {
       await collect();
       const current = await open();
       return current.evaluate<ReactTree | {unavailable: string}>(walkExpression());
+    },
+
+    async drag(from: Target, to: Target, dragOptions: DragOptions = {}): Promise<StepResult> {
+      try {
+        const start = await pointFor(from);
+        const end = await pointFor(to);
+        const current = await open();
+        lastRead = null;
+        await current.mouse.move(start.point.x, start.point.y);
+        await current.mouse.down();
+        if (dragOptions.hold) await new Promise(resolve => setTimeout(resolve, dragOptions.hold));
+        // In steps, so a page that follows the pointer, and the browser's own drag and drop, see it move.
+        await current.mouse.move(end.point.x, end.point.y, {steps: DRAG_STEPS});
+        await current.mouse.up();
+        return ok(`dragged ${start.note} to ${end.note}`);
+      } catch (error) {
+        return failed((error as Error).message.split('\n')[0] ?? 'drag failed', codeOf(error));
+      }
     },
 
     async swipe(from: Point, to: Point): Promise<StepResult> {

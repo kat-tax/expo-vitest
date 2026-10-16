@@ -160,7 +160,7 @@ since a test here runs on a phone as well as a page.
 | `.click({button: 'right'})` | `device.web.secondaryTap(locator)` | renamed |
 | `.selectOption`, `.setInputFiles` | `device.web.selectOption(locator, …)`, `device.web.setInputFiles(locator, …)` | renamed |
 | `.dblclick()` | `.press({count: 2})` | renamed |
-| `.dragTo()` | | not yet |
+| `.dragTo()` | `.dragTo(locator)` | same |
 | `.first()`, `.last()`, `.nth()`, `.filter()` | the same | same |
 | `toBeVisible`, `toBeHidden`, `toHaveText`, `toContainText`, `toHaveValue`, `toBeChecked`, `toBeEnabled`, `toBeDisabled`, `toHaveCount`, `toHaveAttribute`, `toHaveAccessibleName`, `toHaveRole`, `toBeAttached` | the same | same |
 | `toHaveScreenshot` | `toMatchScreenshot` | renamed |

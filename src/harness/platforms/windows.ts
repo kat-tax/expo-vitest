@@ -11,7 +11,7 @@ import {firstLine, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
@@ -70,6 +70,8 @@ interface Backend {
   move(point: Point): Promise<string>;
   /** The wheel turned at a point, for a distance in pixels; positive moves the content down or right. */
   wheel(point: Point, dx: number, dy: number): Promise<string>;
+  /** A press at one point, held `hold` ms, drawn to another and let go there. */
+  drag(from: Point, to: Point, hold: number): Promise<string>;
   /** A control of the newest snapshot scrolled through its Scroll pattern by a distance in pixels, as `act` answers; null where the call failed. */
   scroll(ref: string, dx: number, dy: number): Promise<PatternAnswer | null>;
   keys(keys: string): Promise<string>;
@@ -123,6 +125,7 @@ function hostBackend(processName: string): Backend {
     hold: (point, ms) => host.request<string>('hold', {...windowed, x: point.x, y: point.y, ms}, 30_000),
     move: point => host.request<string>('move', {...windowed, x: point.x, y: point.y}),
     wheel: (point, dx, dy) => host.request<string>('wheel', {...windowed, x: point.x, y: point.y, dx, dy}),
+    drag: (from, to, hold) => host.request<string>('drag', {...windowed, x: from.x, y: from.y, x2: to.x, y2: to.y, ms: hold}, 30_000),
     scroll: (ref, dx, dy) => host.request<PatternAnswer>('scroll', {ref, dx, dy}).catch(() => null),
     keys: keys => host.request<string>('keys', {...windowed, keys}, 30_000),
     screen: out => host.request<string>('screen', {...windowed, out}, 30_000),
@@ -439,6 +442,21 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         return ok(`held ${note} for ${held} ms`);
       } catch (error) {
         return failed(`long press failed: ${(error as Error).message}`, codeOf(error));
+      }
+    },
+
+    async drag(from: Target, to: Target, dragOptions: DragOptions = {}): Promise<StepResult> {
+      try {
+        const start = await pointFor(from);
+        const end = await pointFor(to);
+        const refusing = await refused('a drag');
+        if (refusing) return refusing;
+        // Pointer input lands on the window at the point, so the app has to be in front.
+        if (processName) await backend.raise().catch(() => {});
+        await sending(() => backend.drag(start.point, end.point, dragOptions.hold ?? 0));
+        return ok(`dragged ${start.note} to ${end.note}`);
+      } catch (error) {
+        return failed(`drag failed: ${(error as Error).message}`, codeOf(error));
       }
     },
 
