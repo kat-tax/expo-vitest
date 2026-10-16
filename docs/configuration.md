@@ -228,6 +228,7 @@ parameter properties.
 | `app.<platform>.launchArguments` | What each [fresh launch](controls.md#a-fresh-launch) is given. | none |
 | `app.<platform>.permissions` | `grant`, `deny` or `reset` by permission, set before each fresh launch. | none |
 | `app.<platform>.stateDir` | Windows: the folder `clearState` deletes, from the root. | |
+| `app.<platform>.storageState` | Web: a file of cookies and storage, as [`device.web.storageState`](device-tests.md#a-signed-in-session) keeps them, that each fresh context begins from where the file is there, but `clearState`'s. From the root. | |
 | `app.<platform>.command` | What serves the app, started for the run. See [the command](#the-command). | none |
 | `app.<platform>.readyUrl` | Where the run looks until the command answers. | the `url` |
 | `app.<platform>.devices` | iOS and Android: a [pool](device-tests.md#pools) of devices the platform's test files share, a file to a device at a time, in place of one `device`. | |

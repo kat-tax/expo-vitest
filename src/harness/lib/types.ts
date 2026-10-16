@@ -146,6 +146,8 @@ export interface WebControls {
   cookies(): Promise<WebCookie[]>;
   setCookies(cookies: WebCookie[]): Promise<void>;
   clearCookies(): Promise<void>;
+  /** Writes the context's cookies and storage to a file, as Playwright's `storageState`, and answers with the file. */
+  storageState(file: string): Promise<string>;
   /** Runs `trigger`, waits for the download it starts, and keeps the file where `file` says, given the name the page suggested. */
   download(trigger: () => Promise<unknown>, file: (suggested: string) => string): Promise<string>;
   selectOption(target: Target, option: OptionChoice): Promise<StepResult>;
@@ -176,6 +178,8 @@ export interface AppOptions {
   permissions?: Record<string, PermissionState>;
   /** Windows: the folder `clearState` deletes. */
   stateDir?: string;
+  /** Web: the file of cookies and storage each fresh context starts from, where it is there, but for `clearState`'s. */
+  storageState?: string;
 }
 
 export interface SnapshotOptions {

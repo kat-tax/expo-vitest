@@ -3,8 +3,8 @@
 // of its url, and the run stops it after. /web is the page device.web's tests
 // drive, with a frame, a download and an API for a route to answer; /sign-in
 // is the page the agent signs in on; /press counts clicks and double clicks;
-// /drag takes a drop and follows a held pointer; every other path is the
-// profile page.
+// /drag takes a drop and follows a held pointer; /session keeps who signed
+// in; every other path is the profile page.
 import fs from 'node:fs';
 import http from 'node:http';
 
@@ -19,6 +19,7 @@ http
     if (pathname === '/sign-in') return response.writeHead(200, html).end(file('sign-in.html'));
     if (pathname === '/press') return response.writeHead(200, html).end(file('press.html'));
     if (pathname === '/drag') return response.writeHead(200, html).end(file('drag.html'));
+    if (pathname === '/session') return response.writeHead(200, html).end(file('session.html'));
     if (pathname === '/web/frame') return response.writeHead(200, html).end(file('frame.html'));
     if (pathname === '/web/report.csv') {
       return response.writeHead(200, {'content-type': 'text/csv', 'content-disposition': 'attachment; filename="report.csv"'}).end('name,drafts\nAda,3\n');

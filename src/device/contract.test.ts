@@ -488,6 +488,7 @@ describe('deviceConfig', () => {
     expectTypeOf(device.web.cookies).toEqualTypeOf<() => Promise<WebCookie[] | 'skipped'>>();
     expectTypeOf(device.web.setCookies).toEqualTypeOf<(cookies: WebCookie[]) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.web.clearCookies).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
+    expectTypeOf(device.web.storageState).toEqualTypeOf<(file: string) => Promise<string | 'skipped'>>();
     expectTypeOf(device.web.waitForDownload).toEqualTypeOf<(trigger: () => Promise<unknown>, file?: string) => Promise<string | 'skipped'>>();
     expectTypeOf(device.web.selectOption).toEqualTypeOf<(locator: Locator, option: OptionChoice) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.web.setInputFiles).toEqualTypeOf<(locator: Locator, files: string | string[]) => Promise<'done' | 'skipped'>>();
@@ -637,7 +638,7 @@ describe('the types a consumer compiled against', () => {
       transition?: number;
       assertionTimeout?: number;
       stable?: number;
-      app?: {bundleId?: string; appPath?: string; launchArguments?: string[]; permissions?: Record<string, 'grant' | 'deny' | 'reset'>; stateDir?: string};
+      app?: {bundleId?: string; appPath?: string; launchArguments?: string[]; permissions?: Record<string, 'grant' | 'deny' | 'reset'>; stateDir?: string; storageState?: string};
       statusBar?: 'fixed' | 'real';
       actionTimeout?: number;
       video?: 'on' | 'retain-on-failure' | 'off';

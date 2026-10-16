@@ -9,7 +9,7 @@ import {rules} from './device/rules.mts';
 // fixture, and a run checks neither leaves the process.
 export default defineHarness({
   app: {
-    web: {url: 'http://127.0.0.1:41731', command: {executable: 'node', args: ['device/serve.mjs', '{port}']}},
+    web: {url: 'http://127.0.0.1:41731', command: {executable: 'node', args: ['device/serve.mjs', '{port}']}, storageState: '.harness/session.json'},
   },
   assertionTimeout: 4000,
   agents: {

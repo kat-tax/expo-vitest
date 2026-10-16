@@ -654,6 +654,15 @@ class WebSide {
   }
 
   /**
+   * Keeps the page's cookies and storage at `file`, from the project root,
+   * as Playwright's `storageState`, and answers where. A context the run
+   * starts after begins from it where `app.web.storageState` names it.
+   */
+  storageState(file: string): Promise<string | 'skipped'> {
+    return this.step(`keep the cookies and storage in ${file}`, web => web.storageState(path.resolve(ROOT, file)));
+  }
+
+  /**
    * Runs `trigger`, waits for the download it starts, and keeps the file: at
    * `file`, from the project root, or in `.harness/downloads/` by the name the
    * page gave it. Answers where.

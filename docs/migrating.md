@@ -176,6 +176,6 @@ since a test here runs on a phone as well as a page.
 | `video` | [`video`](evidence.md#video) in the harness config | same |
 | the trace viewer | `trace.md`, the tree and the screenshot in each failing test's [folder](evidence.md) | by design: a trace a person or an agent reads as text |
 | `test.step(title, body)` | [`step(title, body)`](evidence.md#the-trace) from `expo-vitest` | renamed |
-| `storageState` | | not yet |
+| `context.storageState({path})`, `storageState` in a context's options | [`device.web.storageState(file)`](device-tests.md#a-signed-in-session), and `app.web.storageState` | renamed |
 | `expect.poll` | Vitest's `expect.poll` | same |
 

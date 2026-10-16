@@ -11,7 +11,7 @@ const env = (values: Record<string, string> = {}) => values as unknown as NodeJS
 /** The example the docs give, every key in use. */
 const full = defineHarness({
   app: {
-    web: {url: 'http://localhost:8081', command: {executable: 'npx', args: ['expo', 'start', '--web', '--port', '{port}']}, readyUrl: 'http://localhost:8081'},
+    web: {url: 'http://localhost:8081', command: {executable: 'npx', args: ['expo', 'start', '--web', '--port', '{port}']}, readyUrl: 'http://localhost:8081', storageState: '.harness/signed-in.json'},
     windows: {target: 'windows/x64/Release/MyApp.exe', scheme: 'myapp', launchArguments: [], stateDir: 'windows/state'},
     android: {bundleId: 'com.example.app', scheme: 'myapp', appPath: 'android/app-release.apk', permissions: {camera: 'grant', notifications: 'deny', location: 'reset'}},
     ios: {bundleId: 'com.example.app', scheme: 'myapp', device: 'iPhone 17', launchArguments: ['--initialUrl', 'http://localhost:8081'], identity: 'example'},
@@ -242,6 +242,7 @@ describe('what a run goes by', () => {
       poolTimeout: 60_000,
     });
     expect(resolveRun('windows', full, env(), root)).toMatchObject({target: 'windows/x64/Release/MyApp.exe', stateDir: at('windows', 'state')});
+    expect(resolveRun('web', full, env(), root)).toMatchObject({storageState: at('.harness', 'signed-in.json')});
     expect(resolveRun('windows', full, env(), root)).not.toHaveProperty('identity');
     expect(resolveRun('ios', full, env(), root)).toMatchObject({target: 'iPhone 17', identity: 'example', launchArguments: ['--initialUrl', 'http://localhost:8081']});
   });
@@ -449,7 +450,8 @@ describe('the run a worker hands the device', () => {
     });
     expect(configFromRun(resolveRun('ios', full, env(), root), env()).app).toEqual({bundleId: 'com.example.app', launchArguments: ['--initialUrl', 'http://localhost:8081']});
     expect(configFromRun(resolveRun('windows', full, env(), root), env()).app).toEqual({stateDir: at('windows', 'state')});
-    expect(configFromRun(resolveRun('web', full, env(), root), env())).not.toHaveProperty('app');
+    expect(configFromRun(resolveRun('web', full, env(), root), env()).app).toEqual({storageState: at('.harness', 'signed-in.json')});
+    expect(configFromRun(resolveRun('web', defineHarness({app: {web: {url: 'http://localhost:8081'}}}), env(), root), env())).not.toHaveProperty('app');
   });
 });
 

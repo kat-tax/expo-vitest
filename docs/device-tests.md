@@ -175,6 +175,7 @@ a step in the [trace](evidence.md), after which the screen is read afresh.
 | `evaluate(fn, arg)`, `evaluate(expression)` | Runs a function in the page with `arg`, or an expression, and answers the value, which must be JSON. A function goes by its source alone, so it can use nothing of the test's but `arg`. |
 | `setViewport({width, height})` | The page's size. |
 | `cookies()`, `setCookies(list)`, `clearCookies()` | The context's cookies. One set needs a `url`, or a `domain` and a `path`. |
+| `storageState(file)` | Keeps the context's cookies and storage at `file`, from the root, as Playwright's `storageState`, and answers where. A context the run starts after begins from it where `app.web.storageState` names it. |
 | `waitForDownload(trigger, file?)` | Runs `trigger`, waits for the download it starts, and keeps the file at `file`, from the root, or in `.harness/downloads/` by the name the page gave it. Answers where. |
 | `selectOption(locator, option)` | Chooses an option of a select by its label, `{value}` or `{index}`. One the select lacks fails at once with `ACTION_FAILED`, which names the options it has. |
 | `setInputFiles(locator, files)` | Gives a file input files from the project, which may not be outside it, hidden, or in a hidden folder. |
@@ -191,6 +192,32 @@ if (card !== 'skipped') await card.getByRole('textbox', {name: 'Card number'}).f
 
 The locator calls wait for their node as a press does. A frame's refs name
 the frame, as `@f1e3`, so a node read through it is acted on there.
+
+### A signed-in session
+
+A test that signs in can keep the session for the tests after it. Name the
+file in the harness config, and keep it once signed in:
+
+```ts
+// harness.config.ts
+app: {web: {url: 'http://localhost:8081', storageState: '.harness/signed-in.json'}},
+```
+
+```ts
+// device/sign-in.test.ts
+it('signs in', async () => {
+  await device.open('/sign-in');
+  await screen.getByRole('textbox', {name: 'Email'}).fill('ada@example.com');
+  await screen.getByRole('button', {name: 'Sign in'}).press();
+  await expect(screen.getByText('Welcome, Ada')).toBeVisible();
+  await device.web.storageState('.harness/signed-in.json');
+});
+```
+
+Each context the run starts once the file is there begins from it: the next
+test file's, a restart's, and the next run's. `clearState` starts one
+without it, as an app that was never signed in. The file holds the session's
+cookies, so it stays out of the repository, as `.harness/` does.
 
 ## Waiting for the screen
 

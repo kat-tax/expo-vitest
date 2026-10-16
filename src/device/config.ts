@@ -76,6 +76,8 @@ export interface AppConfig {
   permissions?: Record<string, Permission>;
   /** Windows: the folder `clearState` deletes. */
   stateDir?: string;
+  /** Web: a file of cookies and storage, as `device.web.storageState` writes, that each fresh context starts from where it is there. */
+  storageState?: string;
   /** A process started once per run. */
   command?: CommandConfig;
   /** Polled until the command is ready. The `url` unless given. */
@@ -169,7 +171,7 @@ export function poolSize(platform: Platform, config: HarnessConfig | null, envir
 }
 
 const ROOT_KEYS = ['app', 'assertionTimeout', 'stable', 'settle', 'transition', 'statusBar', 'actionTimeout', 'video', 'poolTimeout', 'agents', 'secrets', 'cache'];
-const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'command', 'readyUrl', 'devices', 'workers'];
+const APP_KEYS = ['url', 'target', 'device', 'scheme', 'bundleId', 'appPath', 'identity', 'launchArguments', 'permissions', 'stateDir', 'storageState', 'command', 'readyUrl', 'devices', 'workers'];
 const COMMAND_KEYS = ['executable', 'args', 'cwd', 'env', 'startupTimeout', 'shutdownTimeout', 'log', 'reuseExisting'];
 
 /** What a value should have been, or null when it is that. */
@@ -215,6 +217,7 @@ const APP_CHECKS: Record<string, Check> = {
   launchArguments: texts,
   permissions,
   stateDir: text,
+  storageState: text,
   readyUrl: text,
   devices,
   workers,
@@ -295,6 +298,7 @@ export interface ResolvedRun {
   launchArguments: string[];
   permissions: Record<string, Permission>;
   stateDir?: string;
+  storageState?: string;
   readyUrl?: string;
   command?: ResolvedCommand;
   assertionTimeout: number;
@@ -404,6 +408,7 @@ export function resolveRun(platform: Platform, config: HarnessConfig | null, env
     launchArguments: app.launchArguments ?? [],
     permissions: app.permissions ?? {},
     ...(app.stateDir ? {stateDir: path.resolve(root, app.stateDir)} : {}),
+    ...(app.storageState ? {storageState: path.resolve(root, app.storageState)} : {}),
     ...(readyUrl ? {readyUrl} : {}),
     ...(command ? {command} : {}),
     assertionTimeout: fromEnvironment(environment.HARNESS_ASSERTION_TIMEOUT) ?? config?.assertionTimeout ?? DEFAULTS.assertionTimeout,
@@ -476,6 +481,7 @@ function appOf(run: ResolvedRun): {app?: NonNullable<DeviceConfig['app']>} {
     ...(run.launchArguments.length ? {launchArguments: run.launchArguments} : {}),
     ...(Object.keys(run.permissions).length ? {permissions: run.permissions} : {}),
     ...(run.stateDir ? {stateDir: run.stateDir} : {}),
+    ...(run.storageState ? {storageState: run.storageState} : {}),
   };
   return Object.keys(app).length ? {app} : {};
 }

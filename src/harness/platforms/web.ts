@@ -178,6 +178,7 @@ export function webDriver(options: DriverOptions): Driver {
     cookies(): Promise<WebCookie[]>;
     addCookies(cookies: WebCookie[]): Promise<void>;
     clearCookies(): Promise<void>;
+    storageState(o: {path: string}): Promise<unknown>;
     setOffline(offline: boolean): Promise<void>;
     grantPermissions(permissions: string[]): Promise<void>;
     clearPermissions(): Promise<void>;
@@ -342,11 +343,17 @@ export function webDriver(options: DriverOptions): Driver {
     await old.screencast?.stop().catch(() => {});
   }
 
-  /** A page in a context of its own, which keeps nothing from before: no cookies, no storage, only the permissions the app is granted. */
-  async function freshPage(launched: Browser): Promise<Page> {
+  /**
+   * A page in a context of its own, which keeps nothing from before but the
+   * permissions the app is granted, and, with `keep`, the cookies and storage
+   * of the file the app's `storageState` names, where it is there.
+   */
+  async function freshPage(launched: Browser, keep: boolean): Promise<Page> {
     // A browser refuses a context whose grants it does not know, so the ones it would refuse are passed over, as the warm-up says.
     const {granted} = grantsIn(mode.browser, webGrants(options.app?.permissions));
-    const context = await launched.newContext({viewport: VIEWPORT, ...(granted.length ? {permissions: granted} : {})});
+    const state = options.app?.storageState;
+    const kept = keep && state && fs.existsSync(state) ? {storageState: state} : {};
+    const context = await launched.newContext({viewport: VIEWPORT, ...(granted.length ? {permissions: granted} : {}), ...kept});
     const fresh = await context.newPage();
     await fresh.addInitScript(INIT);
     fresh.on('console', message => {
@@ -369,22 +376,22 @@ export function webDriver(options: DriverOptions): Driver {
     return fresh;
   }
 
-  async function open(): Promise<Page> {
+  async function open(keep = true): Promise<Page> {
     if (page) return page;
     browser ??= await launch();
-    page = await freshPage(browser);
+    page = await freshPage(browser, keep);
     await record(page);
     return page;
   }
 
   /** The page thrown away with its context, and a fresh one at the app's base. */
-  async function relaunch(): Promise<StepResult> {
+  async function relaunch(keep = true): Promise<StepResult> {
     const old = page;
     page = null;
     lastRead = null;
     await endPart(old);
     await old?.context().close();
-    const current = await open();
+    const current = await open(keep);
     try {
       await current.goto(base, {waitUntil: 'load', timeout: navigation});
     } catch (error) {
@@ -631,7 +638,7 @@ export function webDriver(options: DriverOptions): Driver {
           case 'restart':
             return await relaunch();
           case 'clearState': {
-            const result = await relaunch();
+            const result = await relaunch(false);
             return result.ok ? ok(`cleared: ${result.message}, with no cookies or storage kept`) : result;
           }
           case 'back': {
@@ -879,6 +886,11 @@ export function webDriver(options: DriverOptions): Driver {
 
       async setCookies(cookies: WebCookie[]): Promise<void> {
         await (await open()).context().addCookies(cookies);
+      },
+
+      async storageState(file: string): Promise<string> {
+        await (await open()).context().storageState({path: prepare(file)});
+        return file;
       },
 
       async clearCookies(): Promise<void> {
