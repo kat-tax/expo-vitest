@@ -191,6 +191,26 @@ export class Hands {
     return this.on(ref, 'tap', {});
   }
 
+  /** Two presses in quick succession, as one: a double tap or a double click. */
+  doubleTap(ref: string): Promise<string> {
+    return this.on(ref, 'double_tap', {});
+  }
+
+  /** The pointer over a node, without a press. */
+  hover(ref: string): Promise<string> {
+    return this.on(ref, 'hover', {});
+  }
+
+  /** An option of a select chosen by its label, on web. */
+  select(ref: string, option: string): Promise<string> {
+    return this.on(ref, 'select', {option});
+  }
+
+  /** A press with the secondary button, on web. */
+  rightClick(ref: string): Promise<string> {
+    return this.on(ref, 'right_click', {});
+  }
+
   longPress(ref: string, durationMs?: number | null): Promise<string> {
     return this.on(ref, 'long_press', {durationMs: durationMs ?? 800});
   }
@@ -237,6 +257,15 @@ export class Hands {
 
   dismissKeyboard(): Promise<string> {
     return this.perform('dismiss_keyboard', undefined, {});
+  }
+
+  home(): Promise<string> {
+    return this.perform('home', undefined, {});
+  }
+
+  /** The system dialog up, or the next one, accepted or dismissed. */
+  alert(action: 'accept' | 'dismiss'): Promise<string> {
+    return this.perform('alert', undefined, {action});
   }
 
   /** A press at a point of the last screenshot, in its pixels. */
@@ -349,6 +378,16 @@ export class Hands {
     switch (tool) {
       case 'tap':
         return {event: 'press', what: `tap ${ref}`, call: driver => driver.press(at()), record: {}};
+      case 'double_tap':
+        return {event: 'press', what: `double_tap ${ref}`, call: driver => driver.press(at(), {count: 2}), record: {}};
+      case 'hover':
+        return {event: 'hover', what: `hover ${ref}`, call: driver => driver.hover?.(field()), record: {}};
+      case 'select': {
+        const option = input.option as string;
+        return {event: 'web', what: `select ${JSON.stringify(this.redact(option))} in ${ref}`, call: driver => driver.web?.selectOption(field(), option), record: {option: toSlots(option, uniques)}};
+      }
+      case 'right_click':
+        return {event: 'web', what: `right_click ${ref}`, call: driver => driver.web?.secondaryTap(field()), record: {}};
       case 'long_press': {
         const duration = input.durationMs as number;
         return {event: 'longPress', what: `long_press ${ref}`, call: driver => driver.longPress?.(at(), {duration}), record: {durationMs: duration}};
@@ -425,6 +464,12 @@ export class Hands {
         return {event: 'control', what: 'back', call: driver => driver.control?.({name: 'back'}), record: {}};
       case 'dismiss_keyboard':
         return {event: 'control', what: 'dismiss_keyboard', call: driver => driver.control?.({name: 'dismissKeyboard'}), record: {}};
+      case 'home':
+        return {event: 'control', what: 'home', call: driver => driver.control?.({name: 'home'}), record: {}};
+      case 'alert': {
+        const action = input.action as 'accept' | 'dismiss';
+        return {event: 'control', what: `alert ${action}`, call: driver => driver.control?.({name: 'alert', action}), record: {action}};
+      }
       case 'tap_at': {
         const point = {x: input.x as number, y: input.y as number};
         return {event: 'press', what: `tap_at ${point.x},${point.y}`, call: driver => driver.press(point), record: point};

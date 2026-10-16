@@ -22,10 +22,10 @@ const said = (answer: {content: {type: string; text?: string}[]}) => answer.cont
 
 describe("a session's catalog", () => {
   it("is the agent's tools the platform can do, type_secret where the config has a secret, the project's tools, and locate, by name", () => {
-    expect(catalogOf().catalog.list().map(tool => tool.name)).toEqual(['back', 'check', 'dismiss_keyboard', 'locate', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_secret']);
+    expect(catalogOf().catalog.list().map(tool => tool.name)).toEqual(['back', 'check', 'dismiss_keyboard', 'double_tap', 'locate', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_secret']);
     const seed = defineTool({name: 'seed_cart', description: 'Seed.', schema: none, execute: () => 'seeded'});
     const plain = catalogOf({secrets: new SecretStore({}, env), capabilities: ['press'], tools: [seed]});
-    expect(plain.catalog.list().map(tool => tool.name)).toEqual(['check', 'locate', 'observe', 'seed_cart', 'tap']);
+    expect(plain.catalog.list().map(tool => tool.name)).toEqual(['check', 'double_tap', 'locate', 'observe', 'seed_cart', 'tap']);
     expect(plain.catalog.list().find(tool => tool.name === 'tap')).toEqual({name: 'tap', description: 'Press the node a ref names.', inputSchema: expect.objectContaining({required: ['ref']})});
   });
 

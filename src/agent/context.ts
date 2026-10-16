@@ -38,7 +38,10 @@ export interface Observation {
 }
 
 /** The hands' actions, each answering what changed on the screen. */
-export type AuthorisedActions = Pick<Hands, 'tap' | 'longPress' | 'type' | 'typeSecret' | 'press' | 'check' | 'scroll' | 'scrollTo' | 'navigate' | 'back' | 'dismissKeyboard' | 'tapAt'>;
+export type AuthorisedActions = Pick<
+  Hands,
+  'tap' | 'doubleTap' | 'longPress' | 'hover' | 'select' | 'rightClick' | 'type' | 'typeSecret' | 'press' | 'check' | 'scroll' | 'scrollTo' | 'navigate' | 'back' | 'home' | 'alert' | 'dismissKeyboard' | 'tapAt'
+>;
 
 /** How an executor ends a step. */
 export interface StepOutcome {
@@ -168,7 +171,11 @@ export function createStepContext(options: ContextOptions): {context: StepContex
     },
     actions: {
       tap: ref => hands.tap(ref),
+      doubleTap: ref => hands.doubleTap(ref),
       longPress: (ref, durationMs) => hands.longPress(ref, durationMs),
+      hover: ref => hands.hover(ref),
+      select: (ref, option) => hands.select(ref, option),
+      rightClick: ref => hands.rightClick(ref),
       type: (ref, text, replace) => hands.type(ref, text, replace),
       typeSecret: (ref, name) => hands.typeSecret(ref, name),
       press: key => hands.press(key),
@@ -177,6 +184,8 @@ export function createStepContext(options: ContextOptions): {context: StepContex
       scrollTo: target => hands.scrollTo(target),
       navigate: url => hands.navigate(url),
       back: () => hands.back(),
+      home: () => hands.home(),
+      alert: action => hands.alert(action),
       dismissKeyboard: () => hands.dismissKeyboard(),
       tapAt: (x, y) => hands.tapAt(x, y),
     },

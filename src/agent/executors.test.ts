@@ -50,7 +50,7 @@ describe('the built-in executor', () => {
     expect(await builtin.runStep(made.context)).toEqual({status: 'passed', summary: 'Signed in.'});
     const [first] = made.model.requests;
     expect(first?.system).toEqual([{text: CORE_PROMPT}, {text: 'About the app:\nA sign-in screen.\n\nInstructions for this agent:\nVerify every outcome.', cache: true}]);
-    expect(first?.tools.map(tool => tool.name)).toEqual(['check', 'complete_step', 'observe', 'seed_cart', 'tap', 'type']);
+    expect(first?.tools.map(tool => tool.name)).toEqual(['check', 'complete_step', 'double_tap', 'observe', 'seed_cart', 'tap', 'type']);
     expect([first?.effort, first?.maxTokens]).toEqual(['high', 8000]);
     expect(first?.messages[0]?.content[0]).toEqual({type: 'text', text: 'Instruction: sign in as Ada'});
   });
@@ -58,7 +58,7 @@ describe('the built-in executor', () => {
   it('runs on what the loop takes by default', async () => {
     const made = stepOf([callsTool('complete_step', passed)]);
     await builtinExecutor().runStep(made.context);
-    expect([made.model.requests[0]?.effort, made.model.requests[0]?.tools.length]).toEqual(['medium', 5]);
+    expect([made.model.requests[0]?.effort, made.model.requests[0]?.tools.length]).toEqual(['medium', 6]);
   });
 });
 

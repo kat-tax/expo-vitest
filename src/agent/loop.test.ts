@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {encodePng} from '../harness/lib/png.ts';
+import type {Target} from '../harness/lib/snapshot.ts';
+import type {OptionChoice, WebControls} from '../harness/lib/types.ts';
 import type {ActingHost} from './hands.ts';
 import {done, FakeDevice, hostOf, signIn} from './__fixtures__/device.ts';
 import type {Reply} from './__fixtures__/model.ts';
@@ -146,7 +148,7 @@ describe('a step', () => {
     const made = stepOf([tap, callsTool('complete_step', passed)], {device});
     expect(await run(made)).toEqual({status: 'passed', summary: 'Signed in.'});
     const [first, second] = made.model.requests;
-    expect(first?.tools.map(tool => tool.name)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'long_press', 'navigate', 'observe', 'press', 'scroll', 'scroll_to', 'tap', 'type']);
+    expect(first?.tools.map(tool => tool.name)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'double_tap', 'long_press', 'navigate', 'observe', 'press', 'scroll', 'scroll_to', 'tap', 'type']);
     expect([first?.system, first?.effort, first?.maxTokens]).toEqual([[{text: 'core'}], 'medium', DEFAULT_MAX_TOKENS]);
     expect(second?.messages.slice(0, 1)).toEqual(first?.messages);
     expect(second?.messages[1]).toEqual({role: 'assistant', content: [{type: 'tool_use', id: tap.toolCalls[0]?.id, name: 'tap', input: {ref: '@e5'}}], raw: [{type: 'tool_use', id: 'x'}]});
@@ -314,16 +316,30 @@ describe("the loop's own word", () => {
 describe("the grammar's tools", () => {
   it("are what the platform can do, type_secret where the step has a secret, and the pixel tools where a picture may leave", () => {
     const names = (made: ReturnType<typeof stepOf>) => grammarLoopTools(made.context).map(tool => tool.spec.name);
-    expect(names(stepOf([], {verbs: ['press']}))).toEqual(['check', 'observe', 'tap']);
-    expect(names(stepOf([], {verbs: ['press', 'fill'], pixels: true, params: {password: secret('ADA_PASSWORD')}}))).toEqual(['check', 'observe', 'screenshot', 'tap', 'tap_at', 'type', 'type_secret']);
+    expect(names(stepOf([], {verbs: ['press']}))).toEqual(['check', 'double_tap', 'observe', 'tap']);
+    expect(names(stepOf([], {verbs: ['press', 'fill'], pixels: true, params: {password: secret('ADA_PASSWORD')}}))).toEqual(['check', 'double_tap', 'observe', 'screenshot', 'tap', 'tap_at', 'type', 'type_secret']);
   });
 
   it("each run the step's own action, a look the whole screen and a picture of it", async () => {
-    const device = new FakeDevice({screenshot: writer});
+    const kept = (call: string) => {
+      device.calls.push(call);
+      return Promise.resolve({ok: true, message: 'done'});
+    };
+    const device: FakeDevice = new FakeDevice({
+      screenshot: writer,
+      hover: target => kept(`hover ${JSON.stringify(target)}`),
+      web: {selectOption: (target: Target, option: OptionChoice) => kept(`select ${JSON.stringify(target)} ${JSON.stringify(option)}`), secondaryTap: (target: Target) => kept(`secondaryTap ${JSON.stringify(target)}`)} as unknown as WebControls,
+    });
     const calls = turn(
       ['observe', {}],
       ['screenshot', {}],
       ['tap_at', {x: 10, y: 10}],
+      ['double_tap', {ref: '@e5'}],
+      ['hover', {ref: '@e5'}],
+      ['select', {ref: '@e5', option: 'Blue'}],
+      ['right_click', {ref: '@e5'}],
+      ['home', {}],
+      ['alert', {action: 'accept'}],
       ['check', {ref: '@e4', checked: true}],
       ['long_press', {ref: '@e5', durationMs: null}],
       ['type', {ref: '@e2', text: 'ada@example.com', replace: true}],
@@ -335,7 +351,7 @@ describe("the grammar's tools", () => {
       ['dismiss_keyboard', {}],
       ['type_secret', {ref: '@e3', secret: 'ADA_PASSWORD'}],
     );
-    const made = stepOf([calls, callsTool('complete_step', passed)], {device, pixels: true, params: {password: secret('ADA_PASSWORD')}});
+    const made = stepOf([calls, callsTool('complete_step', passed)], {device, pixels: true, verbs: [...VERBS, 'hover', 'web', 'home', 'alert'], params: {password: secret('ADA_PASSWORD')}});
     await run(made);
     const results = made.model.requests[1]?.messages[2]?.content as unknown as {content: {type: string; text?: string}[]; isError?: boolean}[];
     expect(results.filter(result => result.isError)).toEqual([expect.objectContaining({content: [{type: 'text', text: 'ACTION_FAILED: pressed @e4 to check it, and it is still unchecked'}]})]);
@@ -344,6 +360,12 @@ describe("the grammar's tools", () => {
     expect(results[1]?.content[0]?.text).toBe('The screen, 384 by 768 pixels.');
     expect(device.calls).toEqual([
       'press {"x":10,"y":10}',
+      'press {"ref":"@e14"} count 2',
+      'hover {"ref":"@e14"}',
+      'select {"ref":"@e14"} "Blue"',
+      'secondaryTap {"ref":"@e14"}',
+      'control home',
+      'control alert',
       'press {"ref":"@e13"}',
       'longPress {"ref":"@e14"} 800',
       'fill {"ref":"@e11"} "ada@example.com"',

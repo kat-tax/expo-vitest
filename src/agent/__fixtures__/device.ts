@@ -47,9 +47,9 @@ export class FakeDevice {
       available: () => Promise.resolve({ready: true}),
       open: target => record(`open ${target}`),
       snapshot: () => Promise.resolve(this.screen),
-      press: target => {
+      press: (target, options) => {
         this.screen = this.onPress(target) ?? this.screen;
-        return record(`press ${JSON.stringify(target)}`);
+        return record(`press ${JSON.stringify(target)}${options?.count ? ` count ${options.count}` : ''}`);
       },
       fill: (target, text) => record(`fill ${JSON.stringify(target)} ${JSON.stringify(text)}`),
       type: text => record(`type ${JSON.stringify(text)}`),

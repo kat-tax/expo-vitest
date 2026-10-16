@@ -123,10 +123,11 @@ came, `-` one that went, `~` one whose states or value changed, the whole
 view where most of the screen changed, or `screen: unchanged`. A view over
 262 144 bytes leaves out what cannot be acted on first.
 
-The tools it is offered are those the device can do: `tap`, `check`,
-`long_press`, `type`, `type_secret`, `press`, `scroll`, `scroll_to`,
-`navigate`, `back`, `dismiss_keyboard`, `observe`, and while a picture may
-leave, `screenshot` and `tap_at`, then the agent's own [tools](#project-tools).
+The tools it is offered are those the device can do: `tap`, `double_tap`,
+`check`, `long_press`, `hover`, `type`, `type_secret`, `press`, `scroll`,
+`scroll_to`, `navigate`, `back`, `home`, `alert`, `dismiss_keyboard`,
+`observe`, on web `select` and `right_click`, and while a picture may leave,
+`screenshot` and `tap_at`, then the agent's own [tools](#project-tools).
 A tool the platform has no counterpart for is never offered.
 
 The loop asks the model to change its approach after three failed actions in

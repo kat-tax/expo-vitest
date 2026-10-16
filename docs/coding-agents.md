@@ -75,9 +75,10 @@ The server has four tools:
 | `call` | Runs one of a session's tools with its `args`, and answers what it did and what changed on the screen. |
 | `close_session` | Closes a session and lets go of its driver. |
 
-A session's tools are the agent's: `observe`, `tap`, `check`, `long_press`,
-`type`, `type_secret` where the config has secrets, `press`, `scroll`,
-`scroll_to`, `navigate`, `back`, `dismiss_keyboard`, `screenshot` and
+A session's tools are the agent's: `observe`, `tap`, `double_tap`, `check`,
+`long_press`, `hover`, `type`, `type_secret` where the config has secrets,
+`press`, `scroll`, `scroll_to`, `navigate`, `back`, `home`, `alert`,
+`dismiss_keyboard`, on web `select` and `right_click`, `screenshot` and
 `tap_at` where the platform takes screenshots, the default agent's
 [project tools](agent.md#project-tools), and `locate`. A coding agent
 observes, acts by ref, reads what changed, and when the flow works, asks

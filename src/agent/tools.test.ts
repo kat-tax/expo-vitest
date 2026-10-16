@@ -26,13 +26,19 @@ function strictThroughout(schema: JsonSchema): boolean {
 describe("the grammar's tools", () => {
   it('are each one the device can do, sorted by name, every schema strict', () => {
     const tools = grammarTools({capabilities: every, secrets: ['ADA_PASSWORD'], pixels: true});
-    expect(names(tools)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_secret']);
+    expect(names(tools)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'double_tap', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_secret']);
+    expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
+  });
+
+  it("offer a hover, the home screen, a dialog's answer, and on web a choice in a select and a secondary press, where the device has each", () => {
+    const tools = grammarTools({capabilities: new Set(['press', 'hover', 'home', 'alert', 'web']), secrets: [], pixels: false});
+    expect(names(tools)).toEqual(['alert', 'check', 'complete_step', 'double_tap', 'home', 'hover', 'observe', 'right_click', 'select', 'tap']);
     expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
   });
 
   it('leave out what the device cannot do, and a picture where none may leave', () => {
     const windows = new Set(['open', 'press', 'fill', 'type', 'key']);
-    expect(names(grammarTools({capabilities: windows, secrets: [], pixels: false}))).toEqual(['check', 'complete_step', 'navigate', 'observe', 'press', 'tap', 'type']);
+    expect(names(grammarTools({capabilities: windows, secrets: [], pixels: false}))).toEqual(['check', 'complete_step', 'double_tap', 'navigate', 'observe', 'press', 'tap', 'type']);
     expect(names(grammarTools({capabilities: new Set(), secrets: ['TOKEN'], pixels: true}))).toEqual(['complete_step', 'observe', 'screenshot']);
   });
 

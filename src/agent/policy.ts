@@ -83,6 +83,12 @@ export function secureMasks(nodes: readonly SnapshotNode[]): Bounds[] {
 /** The names a project's tool cannot take: the agent's own tools, and those e2e keeps. */
 export const RESERVED_TOOLS = [
   'tap',
+  'double_tap',
+  'hover',
+  'select',
+  'right_click',
+  'home',
+  'alert',
   'long_press',
   'type',
   'type_secret',

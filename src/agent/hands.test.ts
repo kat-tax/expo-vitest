@@ -114,7 +114,7 @@ describe('an action', () => {
   });
 
   it('is INVALID_ARGUMENT for a tool that is not one of the actions', async () => {
-    expect(await failure(setUp().hands.perform('hover', undefined, {}))).toEqual(['INVALID_ARGUMENT', "hover is not one of the agent's actions"]);
+    expect(await failure(setUp().hands.perform('juggle', undefined, {}))).toEqual(['INVALID_ARGUMENT', "juggle is not one of the agent's actions"]);
   });
 });
 

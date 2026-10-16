@@ -285,6 +285,10 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
   type Input = Record<string, unknown> & {ref: string};
   const runs: Record<string, (input: Input) => Promise<string | readonly (TextPart | ImagePart)[]>> = {
     tap: ({ref}) => actions.tap(ref),
+    double_tap: ({ref}) => actions.doubleTap(ref),
+    hover: ({ref}) => actions.hover(ref),
+    select: ({ref, option}) => actions.select(ref, option as string),
+    right_click: ({ref}) => actions.rightClick(ref),
     check: ({ref, checked}) => actions.check(ref, checked as boolean),
     long_press: ({ref, durationMs}) => actions.longPress(ref, durationMs as number | null),
     type: ({ref, text: typed, replace}) => actions.type(ref, typed as string, replace as boolean),
@@ -295,6 +299,8 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
     navigate: ({url}) => actions.navigate(url as string),
     back: () => actions.back(),
     dismiss_keyboard: () => actions.dismissKeyboard(),
+    home: () => actions.home(),
+    alert: ({action}) => actions.alert(action as 'accept' | 'dismiss'),
     tap_at: ({x, y}) => actions.tapAt(x as number, y as number),
     observe: async () => (await ctx.observe()).text,
     screenshot: async () => {

@@ -32,7 +32,13 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   const add = (name: string, description: string, properties: Record<string, JsonSchema>) => tools.push({name, description, inputSchema: object(properties), strict: true});
   if (can('press')) {
     add('tap', 'Press the node a ref names.', {ref});
+    add('double_tap', 'Press the node a ref names twice in quick succession, as a double tap or a double click.', {ref});
     add('check', 'Set a checkbox, a switch or a radio the ref names to checked or not, pressing it only where it is not so already.', {ref, checked: {type: 'boolean'}});
+  }
+  if (can('hover')) add('hover', 'Move the pointer over the node a ref names without pressing it, as to see what a hover shows.', {ref});
+  if (can('web')) {
+    add('select', 'Choose an option, by its label, of the select a ref names.', {ref, option: string('The label of the option to choose.')});
+    add('right_click', 'Press the node a ref names with the secondary button, as a right click does.', {ref});
   }
   if (can('longPress')) add('long_press', 'Press and hold the node a ref names.', {ref, durationMs: orNull({type: 'integer', description: 'How long to hold, in ms; 800 when null.'})});
   if (can('fill')) add('type', 'Put text into the field a ref names: in place of what it holds where replace is true, after it otherwise.', {ref, text: string('What to type.'), replace: {type: 'boolean'}});
@@ -46,6 +52,8 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   }
   if (can('open')) add('navigate', "Open a URL, or a route of the app's, as /settings.", {url: string('An http or https URL, about:blank, a route, or a link in the app\'s own scheme.')});
   if (can('back')) add('back', 'Go back, as the back button does.', {});
+  if (can('home')) add('home', "Go to the device's home screen, leaving the app running behind it.", {});
+  if (can('alert')) add('alert', 'Answer the system dialog that is up, or the next one to come: accept or dismiss.', {action: {type: 'string', enum: ['accept', 'dismiss']}});
   if (can('dismissKeyboard')) add('dismiss_keyboard', 'Close the on-screen keyboard.', {});
   add('observe', 'Read the whole screen again, when the last view or diff is not enough to go on.', {});
   if (options.pixels) {

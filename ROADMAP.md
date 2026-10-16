@@ -116,10 +116,11 @@ These wait on an API key, and the runs are billed.
 
 - `init --agent`, which would ask for the model provider and write the
   agent's entry in `harness.config.ts`. Today it says it is not there yet.
-- More tools: `hover_at`, `type_at`, `press_at`, `select_at`, `double_tap`,
-  `right_click`, `hover`, `select`, `drag`, `upload`, `home`,
-  `start_recording` and `stop_recording`, and on a device `open_app` and
-  `alert`.
+- More tools: `hover_at`, `type_at`, `press_at` and `select_at` on a
+  screenshot's points, `drag`, whose second node the replay cache would need
+  to record as it records the first, `upload`, which would let a model
+  choose a file of the project to hand a page, `start_recording` and
+  `stop_recording`, and on a device `open_app`.
 - Progress notifications on a long MCP call. A cancellation now drops the
   answer of the call in flight, and the call still finishes.
 - More than one MCP session at a time on Windows, Android and iOS, where a
