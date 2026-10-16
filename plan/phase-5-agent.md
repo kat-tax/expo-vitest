@@ -1,6 +1,6 @@
 # Phase 5. The agent
 
-Status: done, but for what needs a live model, which is billed and runs by hand: the smoke on web, Android and Windows, and the cache share it shows. The agent ran on web in the fixture and on the Android emulator with models of rules, and has not run on Windows or iOS · Size: L · Depends on: Phase 2, Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs a live model, which is billed and runs by hand: the smoke on web, Android and Windows, and the cache share it shows. The agent ran with models of rules on web in the fixture, and in the test app of Phase 7 on web, the Android emulator and Windows; it has not run on iOS · Size: L · Depends on: Phase 2, Phase 3 · Unblocks: Phase 6
 
 `expo-vitest/agent` is a subpath a test imports. A model is required only
 then. The four calls, their options and their budgets match e2e's, so a test

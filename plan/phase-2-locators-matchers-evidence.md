@@ -1,6 +1,6 @@
 # Phase 2. Locators, matchers, evidence
 
-Status: done, but for what needs a device this machine lacks: iOS throughout, and the React tree of a react-native-windows debug build · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
+Status: done, but for what needs a device this machine lacks: iOS throughout. The React tree of a react-native-windows debug build is read; there it joins the native tree by testID alone · Size: M · Depends on: Phase 0, Phase 1 · Unblocks: Phase 3, Phase 5
 
 The developer experience core. After this phase a device test reads like a
 React Native Testing Library test, an assertion waits the way Playwright's
@@ -305,9 +305,17 @@ below, the build is what holds.
     wait on React Native's Promise. The walk read each text twice there,
     now once, and the driver chose a page by a device name no page
     carries, now by the app's id, so another app's page is never read.
-  - **Not seen:** whether a react-native-windows debug build registers
-    with Metro. The only Windows builds here are the owner's app, whose
-    debug build would load from the owner's dev server on 8081.
+  - **Seen later:** a react-native-windows debug build registers with
+    Metro, and its React tree is read. The test app of Phase 7, built for
+    Windows on the 0.84 line, had its generated project pointed at a dev
+    server on 41753 (`SourceBundlePort`), its Debug build made again, and
+    `expo start` serving it there. Its page takes one debugger only, so it
+    is read with `HARNESS_REACT=take`: 19 nodes, with `main(RootComponent)`,
+    `CompatNativeSafeAreaProvider` and Expo Router's `Tutorial` among the
+    components. The walk measures no boxes there, so `withComponents` joins a
+    node by its testID alone on Windows. The router showed its empty screen,
+    since the build asks Metro for its bundle without `transform.routerRoot`
+    and the app's routes are in `src/app`, which is expo-windows' to fix.
   - **Not built:**
     - File and line at a failed press. React 19 drops `_debugSource`,
       and source maps need the debugger domain.

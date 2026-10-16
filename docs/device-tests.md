@@ -362,8 +362,9 @@ const tree = withComponents(await device.fullSnapshot(), await device.react());
 ```
 
 `withComponents` matches each native node to the React node behind it: by
-its ref on web, else by its testID, else by the box they share. The tree
-prints the component beside the name: `@e7 button "Save" <SaveButton>`.
+its ref on web, else by its testID, else by the box they share. On Windows
+the walk finds no boxes, so a node is matched there by its testID alone. The
+tree prints the component beside the name: `@e7 button "Save" <SaveButton>`.
 
 It is read from React's DevTools hook, which only a development build has.
 On web the page is the runtime, and the harness puts the hook in place before
