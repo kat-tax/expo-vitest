@@ -338,6 +338,22 @@ export function settleArgs(wait?: Wait): string[] {
 }
 
 /**
+ * Presses in quick succession as the Node client takes them: two are its
+ * double-tap gesture, the platform's own, and more are its repeated press,
+ * 120 ms apart, which a recogniser of three taps takes as one.
+ */
+export function repeatRequest(count = 1): Record<string, unknown> {
+  if (count === 2) return {doubleTap: true};
+  return count > 2 ? {count} : {};
+}
+
+/** The same, as the command line takes them. */
+export function repeatArgs(count = 1): string[] {
+  if (count === 2) return ['--double-tap'];
+  return count > 2 ? ['--count', String(count)] : [];
+}
+
+/**
  * The gap between typed characters on iOS, in ms. agent-device types as fast
  * as it can, which on a simulator is faster than a React Native field that
  * keeps its text in state takes it in: characters are dropped, as

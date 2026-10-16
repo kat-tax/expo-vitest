@@ -102,6 +102,13 @@ function stateOf(checked: SnapshotNode['checked']): string {
  */
 const HOST = Symbol.for('expo-vitest.locator-host');
 
+/** A press's `count` as given, or `INVALID_ARGUMENT` where it is not a whole number, 1 or more. */
+export function checkCount(options: PressOptions, platform: Platform): PressOptions {
+  const {count} = options;
+  if (count !== undefined && !(Number.isInteger(count) && count >= 1)) throw new HarnessError('INVALID_ARGUMENT', `press takes count as a whole number, 1 or more; it was given ${count}`, {platform});
+  return options;
+}
+
 /** The device a locator was made on, or undefined for anything that is not a locator. */
 export function hostOf(value: unknown): LocatorHost | undefined {
   return typeof value === 'object' && value !== null ? (value as Record<symbol, LocatorHost | undefined>)[HOST] : undefined;
@@ -246,6 +253,7 @@ export class Locator {
 
   async press(options: PressOptions & WaitOptions = {}): Promise<void> {
     const {timeout, ...pressing} = options;
+    checkCount(pressing, this.host.platform);
     const {node, snapshot} = await this.one(timeout);
     await this.record('press', node, () => this.act(driver => driver.press(targetFor(node, snapshot), pressing)));
   }

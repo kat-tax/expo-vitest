@@ -102,12 +102,11 @@ These wait on an API key, and the runs are billed.
 
 ### Steps and controls
 
-- What [Migrating](docs/migrating.md) marks "not yet": a double tap and a
-  multi tap, a double click, a pinch, a drag, a picker column's value, ending
-  the app, a shake, a second app in one test, the system keys (lock, power,
-  volume, a TV remote), clearing the keychain, adding media, a route of
-  locations, `getByAltText` and `getByTitle`, `storageState`, `test.step`,
-  and JUnit `properties`.
+- What [Migrating](docs/migrating.md) marks "not yet": a pinch, a drag, a
+  picker column's value, ending the app, a shake, a second app in one test,
+  the system keys (lock, power, volume, a TV remote), clearing the keychain,
+  adding media, a route of locations, `getByAltText` and `getByTitle`,
+  `storageState`, `test.step`, and JUnit `properties`.
 - Named keys on iOS and Android, which answer `'skipped'`.
 - A swipe and a wheel on Windows. Without them the agent offers no `scroll`
   or `scroll_to` there.

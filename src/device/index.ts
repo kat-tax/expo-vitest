@@ -38,7 +38,7 @@ import {Journal} from './evidence.ts';
 import type {ComponentType, ReactElement, ReactNode as ReactChildren} from 'react';
 import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
 import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
-import {Locator} from './locator.ts';
+import {checkCount, Locator} from './locator.ts';
 import type {LocatorHost, LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
 import {DEFAULT_POLLING, invalidating, snapshotFeed} from './polling.ts';
@@ -768,8 +768,9 @@ export function within(target: Locator | SnapshotNode): Queries {
 export function element(selector: Selector) {
   return {
     selector,
-    /** `{via: 'pointer'}` presses a Windows control with the pointer rather than through its pattern. */
+    /** `{via: 'pointer'}` presses a Windows control with the pointer rather than through its pattern, and `{count: 2}` is a double press. */
     async press(options: PressOptions = {}): Promise<void> {
+      checkCount(options, device.platform);
       await device.journal.run({event: 'press', what: describeTarget(selector)}, async () => {
         const result = await (await device.ready()).press(selector, options);
         if (!result.ok) throw failure(result, device.platform, 'ACTION_FAILED');

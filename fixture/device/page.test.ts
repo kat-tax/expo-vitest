@@ -109,6 +109,16 @@ requires(['clipboard', 'setClipboard'], () => {
   });
 });
 
+it('double clicks, as two clicks the browser counts as one', async () => {
+  await device.open('/press');
+  await screen.getByRole('button', {name: 'Open'}).press();
+  await expect(screen.getByText('Clicks: 1')).toBeVisible();
+  await expect(screen.getByText('Opened by a double click')).toBeHidden();
+  await screen.getByRole('button', {name: 'Open'}).press({count: 2});
+  await expect(screen.getByText('Clicks: 3')).toBeVisible();
+  await expect(screen.getByText('Opened by a double click')).toBeVisible();
+});
+
 it('left a trace for each test before it, with its steps', () => {
   const folder = path.join(process.cwd(), '.harness', 'results', 'web', 'device', 'page');
   const traces = fs.readdirSync(folder).map(test => fs.readFileSync(path.join(folder, test, 'trace.md'), 'utf8'));

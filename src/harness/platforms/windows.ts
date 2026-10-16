@@ -62,8 +62,8 @@ interface Backend {
   hasWindow(): Promise<boolean>;
   snapshot(interactive: boolean): Promise<RawTree>;
   raise(): Promise<string>;
-  /** A press at a point in the window's own pixels. */
-  click(point: Point): Promise<string>;
+  /** A press at a point in the window's own pixels, or `count` in quick succession, as a double click. */
+  click(point: Point, count?: number): Promise<string>;
   /** A press held at a point for `ms`. */
   hold(point: Point, ms: number): Promise<string>;
   /** The pointer moved to a point, without a press. */
@@ -115,7 +115,7 @@ function hostBackend(processName: string): Backend {
     },
     snapshot: interactive => host.request<RawTree>('snapshot', {process: processName, interactive, max: 400}, 30_000),
     raise: () => host.request<string>('raise', {process: processName}),
-    click: point => host.request<string>('click', {...windowed, points: [[point.x, point.y]]}),
+    click: (point, count = 1) => host.request<string>('click', {...windowed, points: [[point.x, point.y]], count}),
     hold: (point, ms) => host.request<string>('hold', {...windowed, x: point.x, y: point.y, ms}, 30_000),
     move: point => host.request<string>('move', {...windowed, x: point.x, y: point.y}),
     keys: keys => host.request<string>('keys', {...windowed, keys}, 30_000),
@@ -231,13 +231,13 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     }
   }
 
-  async function click(point: Point): Promise<StepResult> {
+  async function click(point: Point, count = 1): Promise<StepResult> {
     // Synthetic input goes to the foreground window, so the app has to be it.
     // A test should not have to remember that, and a press into whatever
     // happens to be in front is the failure this whole harness exists to avoid.
     if (processName) await backend.raise().catch(() => {});
     try {
-      return ok(await sending(() => backend.click(point)));
+      return ok(await sending(() => backend.click(point, count)));
     } catch (error) {
       return failed(`press failed: ${(error as Error).message}`);
     }
@@ -395,7 +395,9 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         // window brought to the front, no desk to wait on. It stands only
         // where it shows (`afterPress`), and the pointer presses otherwise.
         let left = '';
-        const way = choosePress(node?.patterns, pressOptions.via);
+        // A pattern presses once; a double click is the pointer's.
+        const count = pressOptions.count ?? 1;
+        const way = choosePress(node?.patterns, count > 1 ? 'pointer' : pressOptions.via);
         if (node && way !== 'pointer') {
           const answer = await backend.act(node.ref, way);
           const next = afterPress(answer);
@@ -405,9 +407,10 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
         }
         const refusing = await refused('a press');
         if (refusing) return left ? failed(`${note}: ${left}; ${refusing.message}`) : refusing;
-        const result = await click(point);
+        const result = await click(point, count);
         if (!result.ok) return result;
-        return ok(left ? `pressed ${note} with the pointer, since ${left}` : `pressed ${note}`);
+        const times = count > 1 ? ` ${count} times` : '';
+        return ok(left ? `pressed ${note}${times} with the pointer, since ${left}` : `pressed ${note}${times}`);
       } catch (error) {
         return failed((error as Error).message, codeOf(error));
       }

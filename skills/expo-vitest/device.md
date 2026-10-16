@@ -47,9 +47,10 @@ a last resort.
 
 ## Acting on it
 
-A locator acts and waits: `.press()`, `.fill(text)`, `.clear()`, `.type(text)`,
-`.check()`, `.uncheck()`, `.longPress()`, `.hover()`, `.focus()`,
-`.key('Enter')`, `.scrollIntoView()`, `.swipe('up')`. It is strict:
+A locator acts and waits: `.press()`, `.press({count: 2})` for a double tap
+or double click, `.fill(text)`, `.clear()`, `.type(text)`, `.check()`,
+`.uncheck()`, `.longPress()`, `.hover()`, `.focus()`, `.key('Enter')`,
+`.scrollIntoView()`, `.swipe('up')`. It is strict:
 `.first()`, `.nth(i)` or `.filter({hasText})` narrows one that matches
 several.
 

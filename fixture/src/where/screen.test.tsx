@@ -53,4 +53,9 @@ describe('a unit test', () => {
     await expect(screen.getByRole('button')).toHaveText('Pressed 1');
   });
 
+  it('presses twice in quick succession, as a double tap', async () => {
+    await render(<Counter/>);
+    await screen.getByRole('button').press({count: 2});
+    await expect(screen.getByRole('button')).toHaveText('Pressed 2');
+  });
 });

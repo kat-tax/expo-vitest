@@ -82,7 +82,8 @@ export function webSurface(): Surface {
     available: async () => ({ready: true, found: 'what the test rendered, as web, through Testing Library in jsdom'}),
     open: route => step(`opened ${route}`, `could not open ${route}`, () => openRoute(route, act)),
     snapshot,
-    press: what => step(`pressed ${describeTarget(what)}`, 'press failed', async () => user.click(await target(what))),
+    // Clicks on one target in a row are counted, as a browser counts them: a `dblclick` comes after the second.
+    press: (what, options = {}) => step(`pressed ${describeTarget(what)}`, 'press failed', async () => user.pointer({keys: '[MouseLeft]'.repeat(options.count ?? 1), target: await target(what)})),
     fill: (what, text) =>
       step(`filled ${describeTarget(what)}`, 'fill failed', async () => {
         const element = await target(what);

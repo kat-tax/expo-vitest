@@ -8,7 +8,7 @@ import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapsho
 import {kindOnWeb} from '../lib/roles.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, DialogAnswer, Driver, DriverOptions, LongPressOptions, OptionChoice, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DialogAnswer, Driver, DriverOptions, LongPressOptions, OptionChoice, PressOptions, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
 import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard} from './web-browsers.ts';
@@ -228,7 +228,7 @@ export function webDriver(options: DriverOptions): Driver {
     addInitScript(script: string): Promise<void>;
     goto(url: string, o?: unknown): Promise<unknown>;
     screenshot(o: {path: string; fullPage?: boolean; animations?: 'disabled'; caret?: 'hide'}): Promise<unknown>;
-    mouse: {click(x: number, y: number, o?: {button?: 'left' | 'right'}): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
+    mouse: {click(x: number, y: number, o?: {button?: 'left' | 'right'; clickCount?: number}): Promise<void>; move(x: number, y: number): Promise<void>; down(): Promise<void>; up(): Promise<void>; wheel(deltaX: number, deltaY: number): Promise<void>};
     $(selector: string): Promise<ElementHandle | null>;
     evaluateHandle(fn: string): Promise<JSHandle>;
     waitForEvent(event: 'download', o?: {timeout?: number}): Promise<Download>;
@@ -728,13 +728,15 @@ export function webDriver(options: DriverOptions): Driver {
       }
     },
 
-    async press(what: Target): Promise<StepResult> {
+    async press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
       try {
         const {point, note} = await pointFor(what);
         const current = await open();
         lastRead = null;
-        await current.mouse.click(point.x, point.y);
-        return ok(`pressed ${note}`);
+        // A click count of 2 is a double click, as the browser counts one: a `dblclick` after the second.
+        const count = pressOptions.count ?? 1;
+        await current.mouse.click(point.x, point.y, {clickCount: count});
+        return ok(`pressed ${note}${count > 1 ? ` ${count} times` : ''}`);
       } catch (error) {
         return failed((error as Error).message.split('\n')[0] ?? 'press failed', codeOf(error));
       }

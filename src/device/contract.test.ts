@@ -573,7 +573,7 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(element).parameters.toEqualTypeOf<[Selector]>();
     const one = element(by.label('Save'));
     expectTypeOf(one.selector).toEqualTypeOf<Selector>();
-    expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
+    expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'; count?: number; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.press).returns.toEqualTypeOf<Promise<void>>();
     expectTypeOf(one.fill).parameters.toEqualTypeOf<[text: string, options?: {via?: 'keys'; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.node).returns.toEqualTypeOf<Promise<SnapshotNode | undefined>>();

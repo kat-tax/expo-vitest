@@ -27,7 +27,7 @@ retries and timeouts are Vitest's own, and so is `expect`.
 | `.atIndex(2)` | `.nth(2)` | renamed |
 | `.tap()` | `.press()` | renamed |
 | `.tap({x, y})` | | by design: a test names what it presses, so it reads the same on every screen size |
-| `.multiTap(2)` | | not yet |
+| `.multiTap(2)` | `.press({count: 2})` | renamed |
 | `.longPress()` | `.longPress()` | same |
 | `.typeText('Ada')` | `.type('Ada')` | same |
 | `.replaceText('Ada')` | `.fill('Ada')` | renamed |
@@ -100,7 +100,7 @@ A flow is a test file, and each command a line of it.
 | `retryTapIfNoChange` | | by design: a press waits for its node, and the next step for the screen to hold still |
 | `waitToSettleTimeoutMs` | `settle` in the harness config | renamed |
 | `longPressOn` | `.longPress()` | renamed |
-| `doubleTapOn` | | not yet |
+| `doubleTapOn` | `.press({count: 2})` | renamed |
 | `inputText: Ada` | `.fill('Ada')` on the field, or `device.type('Ada')` where the focus is | renamed |
 | `inputRandomEmail`, `inputRandomText`, `faker` | a value the test makes | by design |
 | `eraseText` | `.clear()` | renamed |
@@ -159,7 +159,8 @@ since a test here runs on a phone as well as a page.
 | `.scrollIntoViewIfNeeded()` | `.scrollIntoView()` | renamed |
 | `.click({button: 'right'})` | `device.web.secondaryTap(locator)` | renamed |
 | `.selectOption`, `.setInputFiles` | `device.web.selectOption(locator, …)`, `device.web.setInputFiles(locator, …)` | renamed |
-| `.dblclick()`, `.dragTo()` | | not yet |
+| `.dblclick()` | `.press({count: 2})` | renamed |
+| `.dragTo()` | | not yet |
 | `.first()`, `.last()`, `.nth()`, `.filter()` | the same | same |
 | `toBeVisible`, `toBeHidden`, `toHaveText`, `toContainText`, `toHaveValue`, `toBeChecked`, `toBeEnabled`, `toBeDisabled`, `toHaveCount`, `toHaveAttribute`, `toHaveAccessibleName`, `toHaveRole`, `toBeAttached` | the same | same |
 | `toHaveScreenshot` | `toMatchScreenshot` | renamed |

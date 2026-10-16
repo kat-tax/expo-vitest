@@ -34,6 +34,8 @@ import {
   launchArgs,
   packageFolders,
   recordArgs,
+  repeatArgs,
+  repeatRequest,
   parseFailure,
   parsePayload,
   selectionById,
@@ -69,7 +71,8 @@ export interface AgentDeviceTransport {
   /** The answer as agent-device gave it; `nodesFrom` reads the nodes out of it. */
   snapshot(interactive: boolean): Promise<unknown>;
   /** With a wait, agent-device's own: after the press, until the screen has been quiet a while. */
-  press(target: Target, wait?: Wait): Promise<void>;
+  /** A press, or `count` of them in quick succession. */
+  press(target: Target, wait?: Wait, count?: number): Promise<void>;
   fill(target: Target, text: string, wait?: Wait): Promise<void>;
   /** A press held for `duration` ms, or for agent-device's own length when none is given. */
   longPress(target: Target, duration?: number, wait?: Wait): Promise<void>;
@@ -253,8 +256,8 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     snapshot(interactive) {
       return call(signal => client.capture.snapshot({...select, interactiveOnly: interactive, signal}), 'ACTION_FAILED');
     },
-    async press(target, wait) {
-      await call(signal => client.interactions.press({...select, ...clientTarget(target), ...settleRequest(wait), signal}), 'ACTION_FAILED');
+    async press(target, wait, count) {
+      await call(signal => client.interactions.press({...select, ...clientTarget(target), ...repeatRequest(count), ...settleRequest(wait), signal}), 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
       await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...typingRequest(options.platform), ...settleRequest(wait), signal}), 'ACTION_FAILED');
@@ -354,8 +357,8 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     async snapshot(interactive) {
       return parsePayload(await agent(['snapshot', ...(interactive ? ['-i'] : []), '--json'], 'ACTION_FAILED'));
     },
-    async press(target, wait) {
-      await agent(['press', ...targetArgs(target), ...settleArgs(wait)], 'ACTION_FAILED');
+    async press(target, wait, count) {
+      await agent(['press', ...targetArgs(target), ...repeatArgs(count), ...settleArgs(wait)], 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
       await agent(['fill', ...targetArgs(target), text, ...typingArgs(options.platform), ...settleArgs(wait)], 'ACTION_FAILED');

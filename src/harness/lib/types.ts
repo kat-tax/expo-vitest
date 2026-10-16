@@ -200,6 +200,11 @@ export interface PressOptions extends StepTiming {
    * does. Windows only; the other platforms always press as a person would.
    */
   via?: 'pointer';
+  /**
+   * Presses in quick succession, taken as one: 2 is a double tap on a device
+   * and a double click on web and Windows, and 3 a triple. 1 by default.
+   */
+  count?: number;
 }
 
 export interface FillOptions extends StepTiming {

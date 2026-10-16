@@ -125,7 +125,7 @@ public static class HarnessHost {
       case "hello": return Hello(host);
       case "rect": return Rect(Text(request, "process"));
       case "snapshot": return Snapshot(Text(request, "process"), Flag(request, "interactive"), Number(request, "max", 400));
-      case "click": return Click(Text(request, "process"), request.ContainsKey("points") ? request["points"] as IEnumerable : null);
+      case "click": return Click(Text(request, "process"), request.ContainsKey("points") ? request["points"] as IEnumerable : null, Number(request, "count", 1));
       case "hold": return Hold(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0), Number(request, "ms", 800));
       case "move": return Move(Text(request, "process"), Number(request, "x", 0), Number(request, "y", 0));
       case "focus": return Focus(Text(request, "ref"));
@@ -538,7 +538,7 @@ public static class HarnessHost {
 
   // Synthetic mouse input. SetCursorPos alone raises no pointer move, so the
   // click moves and then presses, which the renderer sees as a real pointer.
-  static string Click(string name, IEnumerable points) {
+  static string Click(string name, IEnumerable points, int count) {
     int originX = 0;
     int originY = 0;
     uint pid = 0;
@@ -558,10 +558,15 @@ public static class HarnessHost {
         Owns(pid, name, x, y, "press");
         SetCursorPos(x, y);
         Thread.Sleep(80);
-        mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
-        Thread.Sleep(60);
-        mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
-        clicked.Add(x + "," + y);
+        // The clicks of one press on the one point, well inside the system's
+        // double-click time, so that two are a double click.
+        for (int each = 0; each < Math.Max(count, 1); each++) {
+          if (each > 0) Thread.Sleep(50);
+          mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
+          Thread.Sleep(60);
+          mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
+        }
+        clicked.Add(x + "," + y + (count > 1 ? " " + count + " times" : ""));
         Thread.Sleep(400);
       }
     }

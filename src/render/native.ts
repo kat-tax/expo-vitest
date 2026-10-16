@@ -87,17 +87,17 @@ export function nativeSurface(platform: Platform): Surface {
     available: async () => ({ready: true, found: `what the test rendered, as ${platform}, through React Native Testing Library`}),
     open: route => step(`opened ${route}`, `could not open ${route}`, () => openRoute(route, act)),
     snapshot,
-    press: what =>
+    press: (what, options = {}) =>
       step(`pressed ${describeTarget(what)}`, 'press failed', async () => {
         const {element, node} = await target(what);
         if (isField(node)) return focus(element);
-        // A switch takes no press: it is told the value it changes to, as the native side tells it.
-        const on = node.kind === 'switch' ? switchedOn(element.props) : undefined;
-        if (on !== undefined) {
-          await fireEvent(element as unknown as Instance, 'valueChange', !on);
-          return;
+        // React Native has no double press: a double tap is two presses, as a component that times them sees it.
+        for (let each = 0; each < (options.count ?? 1); each++) {
+          // A switch takes no press: it is told the value it changes to, as the native side tells it.
+          const on = node.kind === 'switch' ? switchedOn(element.props) : undefined;
+          if (on !== undefined) await fireEvent(element as unknown as Instance, 'valueChange', !on);
+          else await fireEvent.press(element as unknown as Instance);
         }
-        await fireEvent.press(element as unknown as Instance);
       }),
     fill: (what, text) =>
       step(`filled ${describeTarget(what)}`, 'fill failed', async () => {

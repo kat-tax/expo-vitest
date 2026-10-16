@@ -220,7 +220,8 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     snapshot,
 
     press(what: Target, pressOptions: PressOptions = {}): Promise<StepResult> {
-      return resolving(what, 'press failed', at => pressing(at, `pressed ${describeTarget(what)}`, 'press failed', (current, target) => current.press(target, waitFrom(pressOptions))));
+      const times = (pressOptions.count ?? 1) > 1 ? ` ${pressOptions.count} times` : '';
+      return resolving(what, 'press failed', at => pressing(at, `pressed ${describeTarget(what)}${times}`, 'press failed', (current, target) => current.press(target, waitFrom(pressOptions), pressOptions.count)));
     },
 
     fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {

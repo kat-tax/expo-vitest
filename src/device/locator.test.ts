@@ -5,7 +5,7 @@ import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {LocatorHost} from './locator.ts';
 import {Journal} from './evidence.ts';
-import {Locator, selectorOf, swipePath, targetFor} from './locator.ts';
+import {checkCount, Locator, selectorOf, swipePath, targetFor} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch} from './queries.ts';
 
@@ -99,6 +99,22 @@ describe('an action', () => {
     await locate(query('role', 'button', {name: 'Save'})).press({timeout: 1000, via: 'pointer'});
     expect(clock.at).toBe(475);
     expect(driver.press).toHaveBeenCalledWith({ref: '@e2'}, {via: 'pointer'});
+  });
+
+  it('presses twice in quick succession as one press, a double press, where it is asked to', async () => {
+    const {driver, locate} = rig(() => [save]);
+    await locate(query('testId', 'save')).press({count: 2});
+    expect(driver.press).toHaveBeenCalledWith({ref: '@e2'}, {count: 2});
+  });
+
+  it('refuses a count that is not a whole number, 1 or more, before it looks', async () => {
+    const {driver, locate} = rig(() => [save]);
+    for (const count of [0, 1.5, -1, Number.NaN]) {
+      await expect(locate(query('testId', 'save')).press({count})).rejects.toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: `press takes count as a whole number, 1 or more; it was given ${count}`}));
+    }
+    expect(driver.press).not.toHaveBeenCalled();
+    expect(checkCount({count: 3}, 'ios')).toEqual({count: 3});
+    expect(() => checkCount({count: 0}, 'ios')).toThrow(expect.objectContaining({platform: 'ios'}));
   });
 
   it('keeps the real time on a device that names no clock of its own', async () => {

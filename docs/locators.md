@@ -106,7 +106,7 @@ that names no node, or several, has nothing inside it.
 | --- | --- |
 | `.first()`, `.last()`, `.nth(index)` | One of the nodes the locator names, as a new locator. |
 | `.filter({hasText, has})` | Only the nodes with the text somewhere in them, in any case, or with a node inside that another locator names. |
-| `.press({via, settle, transition, timeout})` | Presses the node. |
+| `.press({count, via, settle, transition, timeout})` | Presses the node. `{count: 2}` presses twice in quick succession, as one press: a double tap on iOS and Android, a double click on web and Windows. On Windows a press of more than one goes by the pointer, which needs a quiet desk. |
 | `.fill(text, {via, settle, transition, timeout})` | Puts text in the field, in place of what it held. |
 | `.clear({timeout})` | Empties the field. |
 | `.type(text, {timeout})` | Presses the field to focus it, and types where the press put the caret. To replace what a field holds, `fill` it. |
@@ -255,7 +255,7 @@ await element(by.testID('save')).press();
 
 | Call | What it does |
 | --- | --- |
-| `.press({via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](device-tests.md#waiting-for-the-screen) for this step. On web, a node below the fold is scrolled to first. |
+| `.press({count, via, settle, transition})` | Presses it. On Windows, through the control's UI Automation pattern where it has one and the press shows, which needs no quiet desk; `{via: 'pointer'}` presses with the pointer, and `settle` and `transition` change [the waits](device-tests.md#waiting-for-the-screen) for this step. `{count: 2}` is a double press, as on a locator. On web, a node below the fold is scrolled to first. |
 | `.fill(text, {via, settle, transition})` | Puts text in a field, in place of what it held. On Windows, a field with a Value pattern gets the text set and read back; `{via: 'keys'}` clicks the field, selects what it holds and types over it. `settle` and `transition` as for a press. |
 | `.node()` | The node now, or `undefined`. |
 | `.waitFor({timeout})` | Waits until it is in the tree, ten seconds by default. |

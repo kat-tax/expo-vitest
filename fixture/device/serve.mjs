@@ -2,7 +2,8 @@
 // on the port given. harness.config.ts starts this for the run, on the port
 // of its url, and the run stops it after. /web is the page device.web's tests
 // drive, with a frame, a download and an API for a route to answer; /sign-in
-// is the page the agent signs in on; every other path is the profile page.
+// is the page the agent signs in on; /press counts clicks and double clicks;
+// every other path is the profile page.
 import fs from 'node:fs';
 import http from 'node:http';
 
@@ -15,6 +16,7 @@ http
     const {pathname} = new URL(request.url ?? '/', 'http://localhost');
     if (pathname === '/web') return response.writeHead(200, html).end(file('web.html'));
     if (pathname === '/sign-in') return response.writeHead(200, html).end(file('sign-in.html'));
+    if (pathname === '/press') return response.writeHead(200, html).end(file('press.html'));
     if (pathname === '/web/frame') return response.writeHead(200, html).end(file('frame.html'));
     if (pathname === '/web/report.csv') {
       return response.writeHead(200, {'content-type': 'text/csv', 'content-disposition': 'attachment; filename="report.csv"'}).end('name,drafts\nAda,3\n');

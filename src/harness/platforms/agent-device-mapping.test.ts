@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -414,6 +414,16 @@ describe('the wait after an action', () => {
     expect(settleRequest()).toEqual({});
     expect(settleArgs({quietMs: 150, timeoutMs: 2000})).toEqual(['--settle', '--settle-quiet', '150', '--timeout', '2000']);
     expect(settleArgs()).toEqual([]);
+  });
+
+  it('asks for a double press as the double-tap gesture, and for more as presses repeated', () => {
+    expect(repeatRequest()).toEqual({});
+    expect(repeatRequest(1)).toEqual({});
+    expect(repeatRequest(2)).toEqual({doubleTap: true});
+    expect(repeatRequest(3)).toEqual({count: 3});
+    expect(repeatArgs()).toEqual([]);
+    expect(repeatArgs(2)).toEqual(['--double-tap']);
+    expect(repeatArgs(3)).toEqual(['--count', '3']);
   });
 });
 
