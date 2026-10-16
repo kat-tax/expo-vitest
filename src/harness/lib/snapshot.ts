@@ -230,6 +230,20 @@ export function findNode(snapshot: Snapshot, selector: Selector): SnapshotNode |
 }
 
 /**
+ * The node in a later snapshot that `node` was in an earlier one: the one
+ * with its ref, where that is still the same control, else the one in the
+ * same place among the nodes alike, since on iOS and Android every snapshot
+ * numbers its refs afresh.
+ */
+export function follow(node: SnapshotNode, before: Snapshot, after: Snapshot): SnapshotNode | undefined {
+  const same = (each: SnapshotNode) => each.role === node.role && each.name === node.name && each.testId === node.testId;
+  const byRef = after.nodes.find(each => each.ref === node.ref);
+  if (byRef && same(byRef)) return byRef;
+  const place = before.nodes.filter(same).indexOf(node);
+  return place < 0 ? undefined : after.nodes.filter(same)[place];
+}
+
+/**
  * The nodes a narrower snapshot keeps, each with `parent` naming its nearest
  * ancestor among them, so a parent left out of the narrower tree hands the
  * part on to its own.

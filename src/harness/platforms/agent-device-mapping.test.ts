@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, packageFolders, parseFailure, parsePayload, recordArgs, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -289,6 +289,14 @@ describe('middleToPress', () => {
   it('is null where something inside can be pressed, however deep, or the node has no bounds', () => {
     expect(middleToPress(tree, tree.nodes[3]!)).toBeNull();
     expect(middleToPress(tree, {...tree.nodes[0]!, bounds: null})).toBeNull();
+  });
+});
+
+describe('STILL_MOVING', () => {
+  it("names agent-device's refusal of a target that had not come to rest, by ref or by selector, and no other", () => {
+    expect(STILL_MOVING.test('Error (COMMAND_FAILED): Ref @e53 had no confirmed resting position when the transition window ran out')).toBe(true);
+    expect(STILL_MOVING.test('Error (COMMAND_FAILED): Selector id="save" had no confirmed resting position when the transition window ran out')).toBe(true);
+    expect(STILL_MOVING.test('Error (COMMAND_FAILED): Ref @e34 has no parent-owned touch point outside its interactive descendants')).toBe(false);
   });
 });
 

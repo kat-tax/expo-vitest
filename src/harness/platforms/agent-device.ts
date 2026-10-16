@@ -3,18 +3,21 @@ import path from 'node:path';
 import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
-import {asSelector, centreOf, describeTarget, findNode, isPoint} from '../lib/snapshot.ts';
+import {asSelector, centreOf, describeTarget, findNode, follow, isPoint} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
-import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openTarget, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
 /** What `agent-device` calls the platforms we care about. */
 const PLATFORM_NAMES: Partial<Record<Platform, string>> = {ios: 'ios', android: 'android', web: 'web'};
+
+/** How many times a step is tried on a target agent-device refuses as still moving. */
+const RESTING_TRIES = 3;
 
 /**
  * `agent-device` (callstack) driving iOS, Android and its own web backend. It
@@ -77,15 +80,46 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
   }
 
   /**
+   * A step on a target, done again where agent-device refuses the target as
+   * still moving (`STILL_MOVING`). A ref it refused names a node of a tree it
+   * has read past, so the tree is read again, which also gives the motion
+   * time to end, and the step is done on the node where that tree has it.
+   * Answers the step's result and the target it was last done on.
+   */
+  async function atRest(what: Target, work: (at: Target) => Promise<StepResult>): Promise<{result: StepResult; at: Target}> {
+    let at = what;
+    let result = await work(at);
+    for (let tries = 1; tries < RESTING_TRIES && !result.ok && STILL_MOVING.test(result.message); tries++) {
+      const before = lastTree;
+      const selector = asSelector(at);
+      const node = before && !isPoint(selector) && selector.ref ? findNode(before, selector) : undefined;
+      let tree: Snapshot;
+      try {
+        tree = await snapshot({interactive: false});
+      } catch {
+        break;
+      }
+      if (before && node) {
+        const now = follow(node, before, tree);
+        if (!now) break;
+        at = {ref: now.ref};
+      }
+      result = await work(at);
+      if (result.ok) result = {...result, message: `${result.message}, once it had come to rest`};
+    }
+    return {result, at};
+  }
+
+  /**
    * A press or a hold, given at the node's middle where agent-device finds no
    * point of the node's own to press its ref at (`middleToPress`). The node
    * is found in the tree read last, where its ref came from: a tree read
    * afresh numbers its nodes anew, and the same ref could be another node.
    */
   async function pressing(what: Target, done: string, failing: string, work: (current: AgentDeviceTransport, at: Target) => Promise<void>): Promise<StepResult> {
-    const first = await step(done, failing, current => work(current, what));
+    const {result: first, at} = await atRest(what, target => step(done, failing, current => work(current, target)));
     if (first.ok || !NO_TOUCH_POINT.test(first.message) || !lastTree) return first;
-    const selector = asSelector(what);
+    const selector = asSelector(at);
     const node = isPoint(selector) ? undefined : findNode(lastTree, selector);
     const middle = node ? middleToPress(lastTree, node) : null;
     return middle ? step(`${done} at its middle`, failing, current => work(current, middle)) : first;
@@ -131,8 +165,9 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return pressing(what, `pressed ${describeTarget(what)}`, 'press failed', (current, at) => current.press(at, waitFrom(pressOptions)));
     },
 
-    fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
-      return step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(what, text, waitFrom(fillOptions)));
+    async fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
+      const filling = (at: Target) => step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(at, text, waitFrom(fillOptions)));
+      return (await atRest(what, filling)).result;
     },
 
     longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {

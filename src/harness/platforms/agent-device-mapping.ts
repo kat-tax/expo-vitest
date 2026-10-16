@@ -155,6 +155,14 @@ function readAsTalkBack(mapped: SnapshotNode[], nodes: AgentNode[]): SnapshotNod
 export const NO_TOUCH_POINT = /no parent-owned touch point/;
 
 /**
+ * agent-device's refusal of a target that moved after a step that animated
+ * the screen, and had not come to rest when its window ran out. It sends
+ * nothing then, and a ref it refused names a node of a tree it has since
+ * read past.
+ */
+export const STILL_MOVING = /had no confirmed resting position/;
+
+/**
  * Where a press goes when agent-device refuses a node's ref because every
  * point of the node lies in a descendant it counts as one to press, as a
  * button Compose draws does, its role on a node that fills its touch target:

@@ -9,6 +9,7 @@ import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from '../harness/lib/snapshot.ts';
+import {follow} from '../harness/lib/snapshot.ts';
 import type {Direction, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult, WebControls} from '../harness/lib/types.ts';
 import type {Journal, StepEvent} from './evidence.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
@@ -56,20 +57,6 @@ export function targetFor(node: SnapshotNode, snapshot: Snapshot): Selector {
   let up = node.parent === undefined ? undefined : byRef.get(node.parent);
   for (let hops = 0; up && !up.interactive && hops < snapshot.nodes.length; hops++) up = up.parent === undefined ? undefined : byRef.get(up.parent);
   return up?.interactive && up.patterns?.includes('Invoke') ? {ref: up.ref} : {ref: node.ref};
-}
-
-/**
- * The node in a later snapshot that `node` was in an earlier one: the one
- * with its ref, where that is still the same control, else the one in the
- * same place among the nodes alike, since on iOS and Android every snapshot
- * numbers its refs afresh.
- */
-export function follow(node: SnapshotNode, before: Snapshot, after: Snapshot): SnapshotNode | undefined {
-  const same = (each: SnapshotNode) => each.role === node.role && each.name === node.name && each.testId === node.testId;
-  const byRef = after.nodes.find(each => each.ref === node.ref);
-  if (byRef && same(byRef)) return byRef;
-  const place = before.nodes.filter(same).indexOf(node);
-  return place < 0 ? undefined : after.nodes.filter(same)[place];
 }
 
 /**

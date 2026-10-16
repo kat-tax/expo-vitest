@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Snapshot, SnapshotNode} from './snapshot.ts';
-import {asSelector, by, centreOf, describeTarget, findNode, isPoint, narrow, parseTarget, renderSnapshot, seenInstead} from './snapshot.ts';
+import {asSelector, by, centreOf, describeTarget, findNode, follow, isPoint, narrow, parseTarget, renderSnapshot, seenInstead} from './snapshot.ts';
 
 const tree: Snapshot = {
   platform: 'windows',
@@ -151,6 +151,23 @@ describe('renderSnapshot', () => {
       '@e7 textbox "Password" (secure)',
       '@e8 tab "Sent" [checked,unselected,expanded,unpressed]',
     ]);
+  });
+});
+
+describe('follow', () => {
+  const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: true, ...extra});
+  const before: Snapshot = {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: false})]};
+
+  it('finds a node again by its ref where the ref still names it, else in the same place among those alike', () => {
+    const kept = {platform: 'web', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: true})]};
+    expect(follow(before.nodes[1] as SnapshotNode, before, kept)?.checked).toBe(true);
+    const renumbered = {platform: 'android', nodes: [node('@e5', 'text', 'Network'), node('@e6', 'switch', 'Wi-Fi'), node('@e2', 'text', 'Wi-Fi'), node('@e7', 'switch', 'Wi-Fi', {checked: true})]};
+    expect(follow(before.nodes[1] as SnapshotNode, before, renumbered)?.ref).toBe('@e7');
+  });
+
+  it('finds nothing for a node that was not in the first snapshot, or is not in the second', () => {
+    expect(follow(node('@e9', 'switch', 'Bluetooth'), before, before)).toBeUndefined();
+    expect(follow(before.nodes[1] as SnapshotNode, before, {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi')]})).toBeUndefined();
   });
 });
 

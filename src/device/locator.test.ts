@@ -5,7 +5,7 @@ import type {Driver, Platform, StepResult} from '../harness/lib/types.ts';
 import {failed, ok} from '../harness/lib/types.ts';
 import type {LocatorHost} from './locator.ts';
 import {Journal} from './evidence.ts';
-import {Locator, follow, selectorOf, swipePath, targetFor} from './locator.ts';
+import {Locator, selectorOf, swipePath, targetFor} from './locator.ts';
 import {DEFAULT_POLLING} from './polling.ts';
 import type {LocatorQuery, Predicate, QueryOptions, TextMatch} from './queries.ts';
 
@@ -74,22 +74,6 @@ describe('targetFor', () => {
     const b = node('@e2', 'Group', '', {parent: '@e1', interactive: false});
     const text = node('@e3', 'Text', 'Save', {parent: '@e1', interactive: false});
     expect(targetFor(text, {platform: 'windows', nodes: [a, b, text]})).toEqual({ref: '@e3'});
-  });
-});
-
-describe('follow', () => {
-  const before: Snapshot = {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: false})]};
-
-  it('finds a node again by its ref where the ref still names it, else in the same place among those alike', () => {
-    const kept = {platform: 'web', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: true})]};
-    expect(follow(before.nodes[1] as SnapshotNode, before, kept)?.checked).toBe(true);
-    const renumbered = {platform: 'android', nodes: [node('@e5', 'text', 'Network'), node('@e6', 'switch', 'Wi-Fi'), node('@e2', 'text', 'Wi-Fi'), node('@e7', 'switch', 'Wi-Fi', {checked: true})]};
-    expect(follow(before.nodes[1] as SnapshotNode, before, renumbered)?.ref).toBe('@e7');
-  });
-
-  it('finds nothing for a node that was not in the first snapshot, or is not in the second', () => {
-    expect(follow(node('@e9', 'switch', 'Bluetooth'), before, before)).toBeUndefined();
-    expect(follow(before.nodes[1] as SnapshotNode, before, {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi')]})).toBeUndefined();
   });
 });
 

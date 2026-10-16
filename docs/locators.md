@@ -160,7 +160,10 @@ On Android and iOS, agent-device presses a ref only at a point of the node
 that none of the node's controls covers. Where there is none, as on a
 Compose button, whose role fills its touch target, a press or a long press
 goes to the node's middle, so long as nothing inside the node can be
-pressed in the tree.
+pressed in the tree. agent-device also refuses a node still moving after a
+step that moved the screen, as a field does when it brings up the keyboard.
+A press, a long press or a fill then reads the screen again and acts on the
+node where it came to rest, up to twice more.
 
 A press on a Windows text goes to the control it sits in when that control
 has the Invoke pattern, so it needs no quiet desk. A press on a text
