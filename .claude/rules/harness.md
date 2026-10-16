@@ -7,11 +7,11 @@ paths:
 # The harness and the device layer
 
 One set of drivers, two faces: `expo-harness` for looking at a screen by hand,
-and `expo-vitest/device` for asserting on it from Vitest. Web is a headless
-Chromium through `playwright-core`, or its Firefox or WebKit, or a Chromium
-already running, over CDP. Windows is UI Automation and synthetic input
-through PowerShell, iOS and Android are `agent-device`. Nothing is installed in
-the app under test.
+and `expo-vitest`'s `device` and `screen` for asserting on it from Vitest.
+Web is a headless Chromium through `playwright-core`, or its Firefox or
+WebKit, or a Chromium already running, over CDP. Windows is UI Automation
+and synthetic input through PowerShell, iOS and Android are `agent-device`.
+Nothing is installed in the app under test.
 
 ## Rules
 
