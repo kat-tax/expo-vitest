@@ -7,6 +7,9 @@
 //   node scripts/testapp.js
 //   node scripts/testapp.js --update-lockfile
 //
+// `TESTAPP_RESULTS` names a folder the copy's `.harness/` is kept in, as CI
+// uploads it; it goes with the copy otherwise.
+//
 // The app is copied to a folder outside this one and installed there from its
 // own lockfile, and the tarball `npm pack` makes is unpacked into the copy's
 // `node_modules` and named in its manifest, for the reasons
@@ -65,6 +68,8 @@ try {
   console.log(`==== The device tests, on ${process.env.TESTAPP_PLATFORMS ?? 'web'}`);
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts']);
 } finally {
+  const kept = path.join(scratch, '.harness');
+  if (process.env.TESTAPP_RESULTS && fs.existsSync(kept)) fs.cpSync(kept, process.env.TESTAPP_RESULTS, {recursive: true, force: true});
   try {
     fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});
   } catch (error) {

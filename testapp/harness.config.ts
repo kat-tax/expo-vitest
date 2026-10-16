@@ -18,7 +18,12 @@ export default defineHarness({
       url: 'http://localhost:41752',
       command: {executable: 'npx', args: ['expo', 'start', '--dev-client', '--port', '{port}'], env: {EXPO_NO_DEV_MENU: '1'}},
     },
-    ios: {bundleId: 'com.expovitest.testapp', scheme: 'testapp'},
+    ios: {
+      bundleId: 'com.expovitest.testapp',
+      scheme: 'testapp',
+      url: 'http://localhost:41754',
+      command: {executable: 'npx', args: ['expo', 'start', '--dev-client', '--port', '{port}'], env: {EXPO_NO_DEV_MENU: '1'}},
+    },
     windows: {scheme: 'testapp', ...(process.env.LOCALAPPDATA ? {stateDir: `${process.env.LOCALAPPDATA}/TestApp`} : {})},
   },
   assertionTimeout: 6000,

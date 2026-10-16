@@ -178,6 +178,7 @@ node scripts/testapp.js --update-lockfile
 | Workflow | When | What |
 | --- | --- | --- |
 | `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture with its device tests on web. |
+| `testapp.yml` | Pull requests | The test app's suite from the packed package: on web, on an Android emulator and an iOS simulator from its development build, and on Windows from the Release build expo-windows makes. Each job uploads what its run saw. |
 | `release.yml` | A `v*` tag matching `package.json` | Re-runs the checks, publishes to npm with provenance, creates a GitHub release. |
 
 ## Commits and writing

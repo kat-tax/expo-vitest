@@ -1,0 +1,160 @@
+name: Test app
+
+# The test app's device suite on each platform, from the packed package
+# (scripts/testapp.js): web in Chromium; Android on an emulator and iOS on a
+# simulator, each from the app's development build, loading its JavaScript
+# from the dev server the run starts; Windows from the Release build
+# expo-windows makes. A platform's job keeps what the run saw as an artifact.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: testapp-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Test app on web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - run: bun install --frozen-lockfile
+      - name: Chromium, at the app's own playwright-core
+        working-directory: testapp
+        run: bun install --frozen-lockfile && npx playwright-core install --with-deps --only-shell chromium
+      - run: bun run test:testapp
+        env: {TESTAPP_RESULTS: '${{ runner.temp }}/harness'}
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-web, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  android:
+    name: Test app on Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - uses: actions/setup-java@v6
+        with: {distribution: temurin, java-version: 17}
+      - run: bun install --frozen-lockfile
+      - run: npm install --global agent-device
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build the development build
+        working-directory: testapp
+        run: |
+          bun install --frozen-lockfile
+          npx expo prebuild --platform android --no-install
+          cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Run on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          ram-size: 4096M
+          avd-name: ci
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: adb install -r testapp/android/app/build/outputs/apk/debug/app-debug.apk && adb reverse tcp:41752 tcp:41752 && bun run test:testapp
+        env:
+          TESTAPP_PLATFORMS: android
+          HARNESS_TARGET: emulator-5554
+          HARNESS_METRO: http://localhost:41752
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-android, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  ios:
+    name: Test app on iOS
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - run: bun install --frozen-lockfile
+      - run: npm install --global agent-device
+      - name: Build the development build for the simulator
+        working-directory: testapp
+        run: |
+          bun install --frozen-lockfile
+          npx expo prebuild --platform ios
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -quiet -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build
+          ls -d build/Build/Products/Debug-iphonesimulator/*.app
+      - name: Boot a simulator on the newest runtime, and install the app
+        id: simulator
+        run: |
+          RUNTIMES=$(xcrun simctl list runtimes -j)
+          RUNTIME=$(echo "$RUNTIMES" | node -e 'const all = JSON.parse(require("fs").readFileSync(0, "utf8")).runtimes.filter(each => each.platform === "iOS" && each.isAvailable); all.sort((a, b) => a.version.localeCompare(b.version, undefined, {numeric: true})); console.log(all.at(-1).identifier)')
+          TYPE=$(echo "$RUNTIMES" | node -e 'const runtime = JSON.parse(require("fs").readFileSync(0, "utf8")).runtimes.find(each => each.identifier === process.argv[1]); console.log(runtime.supportedDeviceTypes.filter(each => /^iPhone \d+$/.test(each.name)).at(-1).identifier)' "$RUNTIME")
+          echo "runtime $RUNTIME, device type $TYPE"
+          UDID=$(xcrun simctl create ci "$TYPE" "$RUNTIME")
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$(ls -d testapp/build/Build/Products/Debug-iphonesimulator/*.app | head -1)"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - run: bun run test:testapp
+        env:
+          TESTAPP_PLATFORMS: ios
+          HARNESS_TARGET: ${{ steps.simulator.outputs.udid }}
+          HARNESS_METRO: http://localhost:41754
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-ios, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  windows:
+    name: Test app on Windows
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with: {repository: kat-tax/expo-windows, ref: 093dba6af54c023ba16fef11d1c858d658c8d6fa, path: expo-windows}
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - uses: microsoft/setup-msbuild@v2
+      - run: bun install --frozen-lockfile
+      - name: Build the app through expo-windows
+        shell: bash
+        run: |
+          APP_SOURCE="$PWD/testapp" \
+          EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.32.0" \
+          EXPECT_LINKED=ExpoInterface \
+            bash expo-windows/ci/build.sh "$RUNNER_TEMP/win"
+      - run: bun run test:testapp
+        shell: bash
+        env:
+          TESTAPP_PLATFORMS: windows
+          HARNESS_TARGET: ${{ runner.temp }}\win\WinCi\windows\x64\Release\TestApp.exe
+          HARNESS_FORCE: '1'
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-windows, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
