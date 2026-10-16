@@ -1,6 +1,6 @@
 # Phase 4. Developer experience
 
-Status: done, but for what needs an account or a fix in expo-interface: a provider's hosted device, and an iOS job that runs but cannot sign in until the kit's iOS form buttons take a tap at their middle · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
+Status: done, but for what needs an account or a fix in expo-interface: a provider's hosted device, and the iOS job, off until the kit's iOS form buttons take a tap at their middle · Size: M · Depends on: Phase 3 · Unblocks: Phase 6
 
 The shared goal, the bar, the compatibility contract and the dependency policy
 are in [README.md](README.md). The shared facts this phase builds on, the
@@ -105,13 +105,14 @@ Against the exit criteria:
   suite, and `HARNESS_CDP` runs it on a Chromium the run did not start.
 - Two emulators in `devices` ran two files at the same time, each device
   held by one file at a time, and agent-device showed no claim left after.
-- The CI jobs: `.github/workflows/testapp.yml` runs the four of them on
-  this repository's pull requests, against the test app from the packed
+- The CI jobs: `.github/workflows/testapp.yml` has the four of them, run
+  on this repository's pull requests against the test app from the packed
   package, as Phase 7's notes say. Web passed on `ubuntu-latest`, Android
   on an API 35 emulator there, and Windows on `windows-latest`, once what
-  their first runs showed was fixed. The iOS job runs on a simulator on
-  `macos-26`: the app launches and the onboarding passes, and the rest fails
-  for the reasons Phase 7's notes give. `docs/ci.md` names the
+  their first runs showed was fixed. The iOS job ran on a simulator on
+  `macos-26`, where the app launched and the onboarding passed, and could
+  not sign in, for the reason Phase 7's notes give; it is off, by the
+  owner's choice, until the kit is fixed. `docs/ci.md` names the
   images, and its Windows job sets a larger screen, as a runner's 1024x768
   is smaller than most app windows.
 - `docs/migrating.md` has every row of e2e's Detox and Maestro guides, read
