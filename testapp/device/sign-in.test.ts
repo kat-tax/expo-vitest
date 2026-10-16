@@ -2,7 +2,7 @@
 // at once, a wrong password after the server answers, the demo account goes
 // to the notes, and an account not remembered is gone after a restart.
 import {device, screen} from 'expo-vitest/device';
-import {DEMO, field, firstLaunch, relaunch, searchField} from './helpers';
+import {DEMO, field, firstLaunch, relaunch, searchField, setCheckbox} from './helpers';
 
 const email = () => field('Email', 'sign-in-email');
 const password = () => field('Password', 'sign-in-password');
@@ -45,7 +45,7 @@ it('says the password is wrong once the server answers', async () => {
 // Marked failing there until the kit puts the label on the control.
 (device.platform === 'android' ? it.fails : it)('shows the password when asked', async () => {
   await password().fill('hunter22');
-  await screen.getByRole('checkbox', {name: 'Show password'}).check();
+  await setCheckbox('Show password', true);
   await expect(password()).toHaveValue('hunter22');
 });
 
@@ -60,7 +60,7 @@ it('signs in with the demo account, and keeps it across a restart while remember
 it('forgets an account it was not to remember, on the next launch', async () => {
   await email().fill(DEMO.email);
   await password().fill(DEMO.password);
-  await screen.getByRole('checkbox', {name: 'Remember me'}).uncheck();
+  await setCheckbox('Remember me', false);
   await submit().press();
   await expect(searchField()).toBeVisible();
   await relaunch(email());

@@ -1,7 +1,7 @@
 // Sign-up: the form says what it lacks when sent, section by section, rates
 // the password as it is typed, and creates the account once all is there.
 import {device, screen} from 'expo-vitest/device';
-import {field, firstLaunch, searchField} from './helpers';
+import {field, firstLaunch, searchField, setCheckbox} from './helpers';
 
 beforeEach(async () => {
   await firstLaunch();
@@ -24,7 +24,7 @@ it('rates the password, finds the two that differ, and creates the account once 
   await field('Password', 'sign-up-password').fill('Compilers-1952!');
   await expect(screen.getByText('Strength: Strong')).toBeVisible();
   await field('Password again', 'sign-up-again').fill('Compilers-1953!');
-  await screen.getByRole('checkbox', {name: 'I agree to the terms'}).check();
+  await setCheckbox('I agree to the terms', true);
   await screen.getByRole('button', {name: 'Create account'}).press();
   await expect(screen.getByText('The two passwords differ.')).toBeVisible();
   await field('Password again', 'sign-up-again').fill('Compilers-1952!');

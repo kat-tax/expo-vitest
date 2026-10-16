@@ -118,6 +118,34 @@ export function field(name: string, testId: string): Locator {
   return device.platform === 'android' || device.platform === 'ios' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
 }
 
+/**
+ * A checkbox by its name. expo-interface draws one on iOS as a button that
+ * reads as selected while it is on, where the other platforms have a
+ * checkbox that reads as checked, so the two helpers after this set and read
+ * it either way.
+ */
+export function checkbox(name: string): Locator {
+  return screen.getByRole(device.platform === 'ios' ? 'button' : 'checkbox', {name});
+}
+
+/** Turns a checkbox on or off, pressing it only where it is not so already. */
+export async function setCheckbox(name: string, on: boolean): Promise<void> {
+  if (device.platform !== 'ios') {
+    await (on ? checkbox(name).check() : checkbox(name).uncheck());
+    return;
+  }
+  const node = await checkbox(name).waitFor();
+  if (Boolean(node?.selected) !== on) await checkbox(name).press();
+  await expectCheckbox(name, on);
+}
+
+/** That a checkbox is on, or off. */
+export async function expectCheckbox(name: string, on: boolean): Promise<void> {
+  const box = checkbox(name);
+  if (device.platform === 'ios') await (on ? expect(box).toBeSelected() : expect(box).not.toBeSelected());
+  else await (on ? expect(box).toBeChecked() : expect(box).not.toBeChecked());
+}
+
 /** The notes' search field. */
 export const searchField = () => screen.getByRole('searchbox', {name: 'Search notes'});
 

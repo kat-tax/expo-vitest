@@ -3,7 +3,7 @@
 // a confirmation asks for one: signing out, resetting the app, and deleting
 // the account, which waits for a word typed first.
 import {device, screen} from 'expo-vitest/device';
-import {alert, alertTitle, field, openTab, relaunch, searchField, signedIn} from './helpers';
+import {alert, alertTitle, expectCheckbox, field, openTab, relaunch, searchField, setCheckbox, signedIn} from './helpers';
 
 const name = () => field('Display name', 'settings-name');
 
@@ -38,7 +38,7 @@ async function press(label: string): Promise<void> {
   await device.web.selectOption(screen.getByRole('combobox', {name: 'Digest frequency'}), 'Monthly');
   await screen.getByRole('radio', {name: 'Dark'}).press();
   await screen.getByRole('button', {name: 'Increment'}).press();
-  await screen.getByRole('checkbox', {name: 'Share usage data'}).check();
+  await setCheckbox('Share usage data', true);
 
   await relaunch(searchField());
   await openTab('Settings');
@@ -48,7 +48,7 @@ async function press(label: string): Promise<void> {
   if (device.platform === 'web') await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toHaveValue('monthly');
   await expect(screen.getByRole('radio', {name: 'Dark'})).toBeChecked();
   await expect(screen.getByText('30')).toBeVisible();
-  await expect(screen.getByRole('checkbox', {name: 'Share usage data'})).toBeChecked();
+  await expectCheckbox('Share usage data', true);
 });
 
 it('says under its section what is wrong with a display name', async () => {
