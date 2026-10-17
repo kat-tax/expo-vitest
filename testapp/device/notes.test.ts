@@ -16,13 +16,12 @@ const search = searchField;
 // fixed, when the mark fails the run and comes off.
 // On Windows the row's menu is a WinUI flyout, in a window of its own, which
 // the tree reads after the app's main window.
-const rowMenu = device.platform === 'web' || device.platform === 'android' ? it.fails : it;
+const rowMenu = device.platform === 'web' ? it.fails : it;
 
-// On Android a List of expo-interface 0.32 throws as its rows change, as a
-// search or a filter narrows them: "The specified child already has a
-// parent", from Compose's AndroidViewHolder. Marked failing there until that
-// is fixed; the row's own menu above changes its rows too.
-const listChanges = device.platform === 'android' ? it.fails : it;
+// On Android the search, once it holds text, is named by that text rather
+// than "Search notes": expo-interface names a field by its placeholder alone.
+// Marked failing there until the kit names its fields.
+const searchName = device.platform === 'android' ? it.fails : it;
 
 // A filter by its name, which every platform draws as a control that can be
 // on: a pressed button on web, a checkbox on Android, and on Windows a toggle
@@ -32,7 +31,7 @@ const expectOn = (name: string) => (device.platform === 'web' ? expect(filter(na
 
 beforeEach(signedIn);
 
-listChanges('narrows the list as the search is typed, and clears an empty search from its empty state', async () => {
+searchName('narrows the list as the search is typed, and clears an empty search from its empty state', async () => {
   await search().fill('lisbon');
   await expect(row('Trip to Lisbon')).toBeVisible();
   await expect(row('Groceries')).toBeHidden();
@@ -43,7 +42,7 @@ listChanges('narrows the list as the search is typed, and clears an empty search
   await expect(row('Groceries')).toBeVisible();
 });
 
-listChanges('filters the favourites and the archive', async () => {
+it('filters the favourites and the archive', async () => {
   await filter('Favourites').press();
   await expectOn('Favourites');
   await expect(row('Trip to Lisbon')).toBeVisible();
@@ -66,7 +65,7 @@ rowMenu('archives a note from its row, which leaves the list for the archive', a
   await expect(row('Groceries')).toBeVisible();
 });
 
-listChanges('throws away a new note left without a word', async () => {
+it('throws away a new note left without a word', async () => {
   await screen.getByRole('button', {name: 'New note'}).press();
   await screen.getByRole('button', {name: 'Cancel'}).press();
   await expect(search()).toBeVisible();

@@ -1,6 +1,6 @@
 // A note: an edit saved with a toast, an edit left only after saying so,
 // and a delete from the menu, undone from the toast.
-import {device, screen} from 'expo-vitest';
+import {screen} from 'expo-vitest';
 import {alert, alertTitle, field, menuItem, signedIn} from './helpers';
 
 beforeEach(async () => {
@@ -30,10 +30,8 @@ it('asks before it throws an edit away, and keeps it where asked to', async () =
   await expect(screen.getByRole('button', {name: 'Edit'})).toBeVisible();
 });
 
-// The note leaves the list it goes back to, and on Android a List of
-// expo-interface 0.32 throws as its rows change. Marked failing there until
-// that is fixed.
-(device.platform === 'android' ? it.fails : it)('deletes the note from its menu, and brings it back from the toast', async () => {
+// The note leaves the list it goes back to.
+it('deletes the note from its menu, and brings it back from the toast', async () => {
   await screen.getByRole('button', {name: 'More actions'}).press();
   await menuItem('Delete').press();
   await alert('Delete this note?').getByRole('button', {name: 'Delete'}).press();
