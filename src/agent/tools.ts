@@ -23,6 +23,8 @@ export interface GrammarOptions {
   /** The names of the secrets in the step's params, which type_secret may fill. */
   secrets: readonly string[];
   pixels: boolean;
+  /** The files the agent may hand a page, by their paths from the project root, which upload offers. */
+  uploads?: readonly string[];
 }
 
 /** The grammar's tools this step may use, sorted by name, as a request wants them for its cached prefix. */
@@ -39,6 +41,7 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   if (can('web')) {
     add('select', 'Choose an option, by its label, of the select a ref names.', {ref, option: string('The label of the option to choose.')});
     add('right_click', 'Press the node a ref names with the secondary button, as a right click does.', {ref});
+    if (options.uploads && options.uploads.length > 0) add('upload', 'Give the file input a ref names one of the files the test may hand a page, by its path.', {ref, file: {type: 'string', enum: [...options.uploads]}});
   }
   if (can('longPress')) add('long_press', 'Press and hold the node a ref names.', {ref, durationMs: orNull({type: 'integer', description: 'How long to hold, in ms; 800 when null.'})});
   if (can('drag')) add('drag', 'Press the node a ref names, draw the press to the node another ref names, and let go there, as for a slider, a card dropped on a list or a row moved.', {ref, to: string('The ref of the node to let go on, in the same view.')});

@@ -38,6 +38,7 @@ describe("the agent's keys of a harness config", () => {
         screenshotMaxSide: 1024,
         maxInputTokens: 200_000,
         providerOptions: {anthropic: {metadata: {user_id: 'ci'}}},
+        uploads: ['fixtures/avatar.png'],
       },
       'admin-2': {executor, model: undefined},
     };
@@ -52,7 +53,7 @@ describe("the agent's keys of a harness config", () => {
     expect(failure({agents: {default: 'opus'}})).toBe('harness.config.ts: agents.default is "opus"; it takes an object');
     expect(failure({agents: {'2nd': {}}})).toBe('harness.config.ts: agents.2nd is not a name an agent can have: a letter, then letters, digits, _ and -');
     expect(failure({agents: {default: {prompt: 'x'}}})).toBe(
-      'harness.config.ts: agents.default.prompt is not something an agent takes; it takes model, judge, system, context, tools, executor, maxSteps, maxModelCalls, timeout, judgmentTimeout, maxObservationBytes, screenshotMaxSide, maxInputTokens, providerOptions',
+      'harness.config.ts: agents.default.prompt is not something an agent takes; it takes model, judge, system, context, tools, executor, maxSteps, maxModelCalls, timeout, judgmentTimeout, maxObservationBytes, screenshotMaxSide, maxInputTokens, providerOptions, uploads',
     );
   });
 
@@ -75,6 +76,8 @@ describe("the agent's keys of a harness config", () => {
     const byProvider = "it takes an object of each provider's options by its name, such as {anthropic: {metadata: {user_id: 'ci'}}}";
     expect(field('providerOptions', {anthropic: 'fast'})).toBe(`harness.config.ts: agents.default.providerOptions is an object; ${byProvider}`);
     expect(field('providerOptions', [])).toBe(`harness.config.ts: agents.default.providerOptions is a list; ${byProvider}`);
+    expect(field('uploads', 'fixtures/avatar.png')).toBe("harness.config.ts: agents.default.uploads is \"fixtures/avatar.png\"; it takes a list of files' paths from the project root");
+    expect(field('uploads', [''])).toMatch(/agents\.default\.uploads is a list; it takes a list of files' paths/);
   });
 
   it('refuse an executor beside a prompt or tools, which it brings itself', () => {

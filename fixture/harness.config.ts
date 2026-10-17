@@ -14,7 +14,7 @@ export default defineHarness({
   },
   assertionTimeout: 4000,
   agents: {
-    default: {model: rules, context: 'A sign-in page: an email, a recovery code and a password, then a welcome.', providerOptions: {rules: {app: 'sign-in'}}},
+    default: {model: rules, context: 'A sign-in page: an email, a recovery code and a password, then a welcome.', providerOptions: {rules: {app: 'sign-in'}}, uploads: ['device/features.json']},
     claude: {model: anthropic(), context: 'A sign-in page: an email, a recovery code and a password, then a welcome.'},
   },
   secrets: {FIXTURE_PASSWORD: 'fixture-horse-battery', FIXTURE_RECOVERY: 'rc-4417-fixture-code'},

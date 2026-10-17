@@ -47,6 +47,7 @@ export type AuthorisedActions = Pick<
   | 'hover'
   | 'select'
   | 'rightClick'
+  | 'upload'
   | 'type'
   | 'typeSecret'
   | 'press'
@@ -80,6 +81,8 @@ export interface StepContext {
   readonly model?: Model;
   /** The agent's context, which every call reads. */
   readonly agentContext: string;
+  /** The files the agent may hand a page with `upload`, by their paths from the project root. */
+  readonly uploads?: readonly string[];
   /** The steps of this test so far. */
   readonly ledger: readonly CompletedStep[];
   readonly budgets: {
@@ -124,6 +127,8 @@ export interface ContextOptions {
   ledger?: readonly CompletedStep[];
   limits: {modelCalls: number; actions: number};
   deadline: number;
+  /** The files the agent may hand a page, by their paths from the project root, and where each is. */
+  uploads?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -138,7 +143,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
     if (actions.used >= actions.limit) throw new AgentError('STEP_BUDGET_EXHAUSTED', `it took ${actions.limit} actions, its budget`, at);
     actions.used += 1;
   };
-  const hands = new Hands({...options.hands, spend});
+  const hands = new Hands({...options.hands, spend, ...(options.uploads ? {uploads: options.uploads} : {})});
   let usage: Usage = NO_USAGE;
   let costUsd: number | undefined = 0;
   const models: string[] = [];
@@ -197,6 +202,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
       hover: ref => hands.hover(ref),
       select: (ref, option) => hands.select(ref, option),
       rightClick: ref => hands.rightClick(ref),
+      upload: (ref, file) => hands.upload(ref, file),
       type: (ref, text, replace) => hands.type(ref, text, replace),
       typeSecret: (ref, name) => hands.typeSecret(ref, name),
       press: key => hands.press(key),
@@ -214,6 +220,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
     },
     ...(model ? {model} : {}),
     agentContext: options.agentContext ?? '',
+    ...(options.uploads && options.uploads.size > 0 ? {uploads: [...options.uploads.keys()]} : {}),
     ledger: options.ledger ?? [],
     budgets: {
       modelCalls,

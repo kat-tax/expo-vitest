@@ -21,7 +21,7 @@ import {createStepContext} from './context.ts';
 import {addUsage, cacheShare, costOf, NO_USAGE} from './cost.ts';
 import {builtinExecutor, outcomeError} from './executors.ts';
 import type {ActingHost, Aimed, HandsOptions} from './hands.ts';
-import {Hands} from './hands.ts';
+import {Hands, uploadsFrom} from './hands.ts';
 import type {Judged, Look, Verdict} from './judge.ts';
 import {extract as extractValue, judge, verdictError, waitFor as waitUntil} from './judge.ts';
 import {endsTheStep} from './loop.ts';
@@ -383,6 +383,7 @@ export class AgentRuntime {
       hands: this.handsOptions(at, step.signal, agent, params),
       ...(agent.model ? {model: this.metered(agent.model, meter, {kind: 'act', index}, test, {at, agent})} : {}),
       agentContext: agent.context,
+      uploads: uploadsFrom(agent.uploads, this.host.root),
       ledger: [...this.ledger],
       limits,
       deadline: started + timeout,

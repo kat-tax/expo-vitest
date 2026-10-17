@@ -51,6 +51,8 @@ export interface CatalogOptions {
   signal: AbortSignal;
   /** Where the session's taint is kept: its own. */
   taintStore?: object;
+  /** The files the default agent may hand a page, by their paths from the project root, and where each is. */
+  uploads?: ReadonlyMap<string, string>;
 }
 
 const text = (value: string): ToolAnswer => ({content: [{type: 'text', text: value}]});
@@ -126,6 +128,7 @@ export function createCatalog(options: CatalogOptions): Catalog {
     hands: {host, at, signal, secrets, stepSecrets: Object.values(params), taintStore},
     limits: {modelCalls: 0, actions: Number.MAX_SAFE_INTEGER},
     deadline: Number.POSITIVE_INFINITY,
+    ...(options.uploads ? {uploads: options.uploads} : {}),
   });
   const loopTools: LoopTool[] = [...grammarLoopTools(context), ...(options.tools ?? []).map(tool => projectTool(context, tool))];
   const byName = new Map(loopTools.map(tool => [tool.spec.name, tool]));

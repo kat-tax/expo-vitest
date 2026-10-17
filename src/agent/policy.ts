@@ -87,6 +87,7 @@ export const RESERVED_TOOLS = [
   'hover',
   'select',
   'right_click',
+  'upload',
   'home',
   'alert',
   'long_press',

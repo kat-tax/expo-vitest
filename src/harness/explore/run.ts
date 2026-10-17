@@ -83,6 +83,8 @@ export interface ExploreOptions {
   signal?: AbortSignal;
   /** The long side of a picture the report keeps, in pixels: 1280. */
   pictureMaxSide?: number;
+  /** The files the agent may hand a page, by their paths from the project root, and where each is. */
+  uploads?: ReadonlyMap<string, string>;
   onFinding?(finding: Finding): void;
   onStep?(step: ExploreStep): void;
 }
@@ -116,6 +118,7 @@ export async function runExplore(options: ExploreOptions): Promise<ExploreReport
     hands: {host, at, signal: signal.signal, secrets, stepSecrets: Object.values(params), taintStore: options.taintStore ?? {}, maxObservationBytes: agent.maxObservationBytes, screenshotMaxSide: agent.screenshotMaxSide},
     model: withAgentOptions(agent.model, agent, at),
     agentContext: agent.context,
+    ...(options.uploads ? {uploads: options.uploads} : {}),
     limits: {modelCalls: agent.maxModelCalls, actions: options.maxSteps},
     deadline: started + options.timeout,
   });

@@ -47,6 +47,12 @@ export interface AgentConfig {
   maxInputTokens?: number;
   /** Options for the model's provider, by the provider's name, sent with every call it makes: `{anthropic: {metadata: {user_id: 'ci'}}}`. */
   providerOptions?: ProviderOptions;
+  /**
+   * Files of the project the model may hand a page's file input, with
+   * `upload`, by their paths from the project root. None unless given,
+   * so a model never chooses a file of its own.
+   */
+  uploads?: readonly string[];
 }
 
 /** Options for a model's provider, by the provider's name, which its adapter reads its own key of. */
@@ -66,7 +72,7 @@ export const AGENT_DEFAULTS = {maxSteps: 25, maxModelCalls: 25, timeout: 120_000
 /** The most an agent's context may take, in bytes, since every call reads it. */
 export const MAX_CONTEXT_BYTES = 16_384;
 
-const AGENT_KEYS = ['model', 'judge', 'system', 'context', 'tools', 'executor', 'maxSteps', 'maxModelCalls', 'timeout', 'judgmentTimeout', 'maxObservationBytes', 'screenshotMaxSide', 'maxInputTokens', 'providerOptions'];
+const AGENT_KEYS = ['model', 'judge', 'system', 'context', 'tools', 'executor', 'maxSteps', 'maxModelCalls', 'timeout', 'judgmentTimeout', 'maxObservationBytes', 'screenshotMaxSide', 'maxInputTokens', 'providerOptions', 'uploads'];
 const AGENT_NAME = /^[A-Za-z][\w-]*$/;
 const SECRET_NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
 const MODES = ['off', 'read-only', 'read-write'];
@@ -106,6 +112,7 @@ const CHECKS: Record<string, (value: unknown) => string | null> = {
   screenshotMaxSide: value => (whole(value, 64, 4096) ? null : 'a whole number of pixels from 64 to 4096'),
   maxInputTokens: value => (whole(value, 1) ? null : 'a whole number of tokens, 1 or more'),
   providerOptions: value => (isObject(value) && Object.values(value).every(isObject) ? null : "an object of each provider's options by its name, such as {anthropic: {metadata: {user_id: 'ci'}}}"),
+  uploads: value => (Array.isArray(value) && value.every(each => typeof each === 'string' && each !== '') ? null : "a list of files' paths from the project root"),
 };
 
 /**
@@ -166,6 +173,7 @@ export interface ResolvedAgent {
   screenshotMaxSide: number;
   maxInputTokens?: number;
   providerOptions?: ProviderOptions;
+  uploads?: readonly string[];
 }
 
 /**

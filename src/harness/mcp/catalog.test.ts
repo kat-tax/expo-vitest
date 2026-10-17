@@ -10,10 +10,16 @@ import {createCatalog, filled, locate, narrowings} from './catalog.ts';
 const env = {} as NodeJS.ProcessEnv;
 const none = {type: 'object', properties: {}, required: [], additionalProperties: false};
 
-function catalogOf(options: {device?: FakeDevice; secrets?: SecretStore; capabilities?: string[]; tools?: Parameters<typeof createCatalog>[0]['tools']} = {}) {
+function catalogOf(options: {device?: FakeDevice; secrets?: SecretStore; capabilities?: string[]; tools?: Parameters<typeof createCatalog>[0]['tools']; uploads?: ReadonlyMap<string, string>} = {}) {
   const device = options.device ?? new FakeDevice();
   const host = hostOf(device, options.capabilities ? {capabilities: new Set(options.capabilities)} : {});
-  const catalog = createCatalog({host, secrets: options.secrets ?? new SecretStore({ADA_PASSWORD: 'correct horse battery'}, env), signal: new AbortController().signal, ...(options.tools ? {tools: options.tools} : {})});
+  const catalog = createCatalog({
+    host,
+    secrets: options.secrets ?? new SecretStore({ADA_PASSWORD: 'correct horse battery'}, env),
+    signal: new AbortController().signal,
+    ...(options.tools ? {tools: options.tools} : {}),
+    ...(options.uploads ? {uploads: options.uploads} : {}),
+  });
   return {catalog, device};
 }
 
@@ -27,6 +33,8 @@ describe("a session's catalog", () => {
     const plain = catalogOf({secrets: new SecretStore({}, env), capabilities: ['press'], tools: [seed]});
     expect(plain.catalog.list().map(tool => tool.name)).toEqual(['check', 'double_tap', 'locate', 'observe', 'seed_cart', 'tap']);
     expect(plain.catalog.list().find(tool => tool.name === 'tap')).toEqual({name: 'tap', description: 'Press the node a ref names.', inputSchema: expect.objectContaining({required: ['ref']})});
+    const handing = catalogOf({capabilities: ['press', 'web'], uploads: new Map([['fixtures/avatar.png', '/app/fixtures/avatar.png']])});
+    expect(handing.catalog.list().find(tool => tool.name === 'upload')?.inputSchema).toMatchObject({properties: {file: {enum: ['fixtures/avatar.png']}}});
   });
 
   it('reads the screen, and acts on a ref, answering what changed', async () => {

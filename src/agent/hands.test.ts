@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
 import {MASK} from '../harness/lib/image.ts';
 import {decodePng, encodePng} from '../harness/lib/png.ts';
 import {done, FakeDevice, hostOf, node, scratch, signIn} from './__fixtures__/device.ts';
-import {ACTION_TIMEOUT, Hands} from './hands.ts';
+import {ACTION_TIMEOUT, Hands, uploadsFrom} from './hands.ts';
 import type {ActingHost, HandsOptions} from './hands.ts';
 import {clearTaint, taint, tainted} from './policy.ts';
 import {SecretStore, secret} from './secrets.ts';
@@ -79,6 +80,25 @@ describe('an action', () => {
     expect(device.calls).toEqual(['drag {"ref":"@e14"} {"ref":"@e11"}']);
     expect(await failure(hands.drag('@e5', '@e99'))).toEqual(['LOCATOR_NOT_FOUND', '@e99 is not on the screen now; observe to see what is']);
     expect(spent).toHaveLength(1);
+  });
+
+  it("gives a file input one of the agent's files, where it is, and refuses any other, keeping the file's path for a replay", async () => {
+    const device: FakeDevice = new FakeDevice({web: {setInputFiles: (target: unknown, files: unknown) => Promise.resolve((device.calls.push(`setInputFiles ${JSON.stringify(target)} ${JSON.stringify(files)}`), done()))} as never});
+    const {hands, spent} = setUp({device, uploads: new Map([['fixtures/avatar.png', '/app/fixtures/avatar.png']])});
+    await hands.upload('@e5', 'fixtures/avatar.png');
+    expect(device.calls).toEqual(['setInputFiles {"ref":"@e14"} ["/app/fixtures/avatar.png"]']);
+    expect(hands.recorded.at(-1)).toMatchObject({tool: 'upload', input: {file: 'fixtures/avatar.png'}});
+    expect(await failure(hands.upload('@e5', '.env'))).toEqual(['POLICY_DENIED', '.env is not one of the files this agent may hand a page, which are the uploads in its harness config']);
+    expect(await failure(setUp().hands.upload('@e5', 'fixtures/avatar.png'))).toEqual(['POLICY_DENIED', 'fixtures/avatar.png is not one of the files this agent may hand a page, which are the uploads in its harness config']);
+    expect(spent).toHaveLength(1);
+  });
+
+  it("are the agent's files from the project root, none outside it or hidden", () => {
+    const root = scratch;
+    expect([...uploadsFrom(['fixtures/avatar.png'], root)]).toEqual([['fixtures/avatar.png', path.join(root, 'fixtures', 'avatar.png')]]);
+    expect(uploadsFrom(undefined, root).size).toBe(0);
+    expect(() => uploadsFrom(['../secrets.txt'], root)).toThrow('../secrets.txt is outside the project, and a file input is given files from inside it');
+    expect(() => uploadsFrom(['.env'], root)).toThrow('.env is hidden, or in a hidden folder, and a file input is given neither');
   });
 
   it('is LOCATOR_NOT_FOUND for a ref not on the screen now, and spends nothing', async () => {

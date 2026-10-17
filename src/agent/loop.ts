@@ -289,6 +289,7 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
     hover: ({ref}) => actions.hover(ref),
     select: ({ref, option}) => actions.select(ref, option as string),
     right_click: ({ref}) => actions.rightClick(ref),
+    upload: ({ref, file}) => actions.upload(ref, file as string),
     check: ({ref, checked}) => actions.check(ref, checked as boolean),
     long_press: ({ref, durationMs}) => actions.longPress(ref, durationMs as number | null),
     drag: ({ref, to}) => actions.drag(ref, to as string),
@@ -313,7 +314,7 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
       return [text(`The screen, ${pixels.width} by ${pixels.height} pixels.`), pixels];
     },
   };
-  return grammarTools({capabilities: new Set(ctx.target.verbs), secrets, pixels: ctx.target.pixels})
+  return grammarTools({capabilities: new Set(ctx.target.verbs), secrets, pixels: ctx.target.pixels, ...(ctx.uploads ? {uploads: ctx.uploads} : {})})
     .filter(spec => spec.name !== COMPLETE_STEP.name)
     .map(spec => ({spec, run: input => (runs[spec.name] as (input: Input) => ReturnType<LoopTool['run']>)(input as Input), acts: spec.name !== 'observe' && spec.name !== 'screenshot'}));
 }

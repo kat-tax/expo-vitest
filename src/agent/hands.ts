@@ -11,6 +11,7 @@ import type {Journal, StepEvent} from '../device/evidence.ts';
 import {swipePath, targetFor} from '../device/locator.ts';
 import {describeCandidate} from '../device/queries.ts';
 import {scaleFactor} from '../device/screenshots.ts';
+import {inputFiles} from '../device/web.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {HarnessCode} from '../harness/lib/errors.ts';
 import {maskImage, resizeImage, scaleRect} from '../harness/lib/image.ts';
@@ -63,6 +64,17 @@ export interface HandsOptions {
   screenshotMaxSide?: number;
   /** How long one action may take, in ms. */
   actionTimeout?: number;
+  /** The files the agent may hand a page, by their paths from the project root, and where each is. */
+  uploads?: ReadonlyMap<string, string>;
+}
+
+/**
+ * The files an agent may hand a page, by their paths from the project
+ * root, and where each is: inside the project, and neither hidden nor in a
+ * hidden folder, as a file input is given from a test.
+ */
+export function uploadsFrom(files: readonly string[] | undefined, root: string): ReadonlyMap<string, string> {
+  return new Map((files ?? []).map(file => [file, inputFiles(root, [file])[0] as string]));
 }
 
 /** How long one action may take before the model is told it did not finish, in ms. */
@@ -199,6 +211,11 @@ export class Hands {
   /** The pointer over a node, without a press. */
   hover(ref: string): Promise<string> {
     return this.on(ref, 'hover', {});
+  }
+
+  /** One of the files the agent may hand a page, given to the file input a ref names, on web. */
+  upload(ref: string, file: string): Promise<string> {
+    return this.on(ref, 'upload', {file});
   }
 
   /** An option of a select chosen by its label, on web. */
@@ -408,6 +425,12 @@ export class Hands {
       }
       case 'right_click':
         return {event: 'web', what: `right_click ${ref}`, call: driver => driver.web?.secondaryTap(field()), record: {}};
+      case 'upload': {
+        const file = input.file as string;
+        const full = this.options.uploads?.get(file);
+        if (!full) throw this.error('POLICY_DENIED', `${file} is not one of the files this agent may hand a page, which are the uploads in its harness config`);
+        return {event: 'web', what: `upload ${file} to ${ref}`, call: driver => driver.web?.setInputFiles(field(), [full]), record: {file}};
+      }
       case 'long_press': {
         const duration = input.durationMs as number;
         return {event: 'longPress', what: `long_press ${ref}`, call: driver => driver.longPress?.(at(), {duration}), record: {durationMs: duration}};

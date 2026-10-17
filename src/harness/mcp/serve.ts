@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {SecretStore} from '../../agent/secrets.ts';
+import {uploadsFrom} from '../../agent/hands.ts';
 import {toolsOn} from '../../agent/tools.ts';
 import {findHarnessFile} from '../../device/config.ts';
 import {openApp, projectAt} from '../lib/app.ts';
@@ -23,7 +24,8 @@ async function openSession(args: OpenArgs, defaults: McpOptions, root: string, k
   const app = await openApp(project, {platform: args.target ?? defaults.platform, headed: args.headed ?? defaults.headed, force: args.force ?? defaults.force, scratch: path.join(root, '.harness', 'mcp')}, root);
   keep(app.secrets);
   const controller = new AbortController();
-  const catalog = createCatalog({host: app.host, secrets: app.secrets, tools: toolsOn(project.config?.agents?.default?.tools ?? [], app.platform), signal: controller.signal});
+  const named = project.config?.agents?.default;
+  const catalog = createCatalog({host: app.host, secrets: app.secrets, tools: toolsOn(named?.tools ?? [], app.platform), uploads: uploadsFrom(named?.uploads, root), signal: controller.signal});
   return {
     platform: app.platform,
     ...(app.state.found ? {source: app.state.found} : {}),

@@ -44,7 +44,7 @@ function connect() {
 }
 
 onlyOn(['web'], () => {
-  it('opens a session on the page, observes, locates, taps and closes, every line it writes JSON', async () => {
+  it('opens a session on the page, observes, locates, taps, hands a page a file it may, and closes, every line it writes JSON', async () => {
     const server = connect();
     const hello = await server.request('initialize', {protocolVersion: '2025-06-18', capabilities: {}, clientInfo: {name: 'fixture', version: '1'}});
     expect(hello.result).toMatchObject({protocolVersion: '2025-06-18', serverInfo: {name: 'expo-harness'}});
@@ -69,6 +69,15 @@ onlyOn(['web'], () => {
 
     const closed = await server.request('tools/call', {name: 'call', arguments: {tool: 'observe'}});
     expect(closed.result?.content?.[0]?.text).toContain('button  "Save"');
+
+    // A file the harness config lets the agent hand a page, given to the page's file input.
+    await server.request('tools/call', {name: 'call', arguments: {tool: 'navigate', args: {url: '/web'}}});
+    const attachment = await server.request('tools/call', {name: 'call', arguments: {tool: 'locate', args: {testId: 'attachment'}}});
+    const input = (attachment.result?.structuredContent as {matches: {ref: string}[]} | undefined)?.matches[0]?.ref;
+    const handed = await server.request('tools/call', {name: 'call', arguments: {tool: 'upload', args: {ref: input, file: 'device/features.json'}}});
+    expect(handed.result?.content?.[0]?.text).toContain('"Attached features.json"');
+    const refused = await server.request('tools/call', {name: 'call', arguments: {tool: 'upload', args: {ref: input, file: 'harness.config.ts'}}});
+    expect(refused.result).toMatchObject({isError: true});
     expect((await server.request('tools/call', {name: 'close_session', arguments: {}})).result?.content?.[0]?.text).toBe('closed s1');
     server.end();
     expect(await server.exited).toBe(0);

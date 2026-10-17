@@ -78,10 +78,10 @@ The server has four tools:
 A session's tools are the agent's: `observe`, `tap`, `double_tap`, `check`,
 `long_press`, `drag`, `hover`, `type`, `type_secret` where the config has
 secrets, `press`, `scroll`, `scroll_to`, `navigate`, `back`, `home`,
-`alert`, `dismiss_keyboard`, on web `select` and `right_click`,
-`screenshot`, `tap_at`, `hover_at` and `type_at` where the platform takes
-screenshots, the default agent's [project tools](agent.md#project-tools),
-and `locate`. A coding agent
+`alert`, `dismiss_keyboard`, on web `select`, `right_click`, and `upload`
+where the default agent has `uploads`, `screenshot`, `tap_at`, `hover_at`
+and `type_at` where the platform takes screenshots, the default agent's
+[project tools](agent.md#project-tools), and `locate`. A coding agent
 observes, acts by ref, reads what changed, and when the flow works, asks
 `locate` how a test finds each node it used:
 

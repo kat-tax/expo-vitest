@@ -190,6 +190,17 @@ describe('an act', () => {
   });
 });
 
+describe("an agent's files", () => {
+  it('are offered to the model on web as upload, by their paths, and a path outside the project fails the act', async () => {
+    const model = scriptedModel([complete()]);
+    const {runtime} = runtimeOf({capabilities: ['press', 'web'], harness: {agents: {default: {model, uploads: ['fixtures/avatar.png']}}}});
+    await runtime.act('sign in');
+    expect(model.requests[0]?.tools.find(tool => tool.name === 'upload')?.inputSchema.properties).toMatchObject({file: {enum: ['fixtures/avatar.png']}});
+    const outside = runtimeOf({capabilities: ['press', 'web'], harness: {agents: {default: {model: scriptedModel([]), uploads: ['../elsewhere.png']}}}});
+    expect((await rejection(outside.runtime.act('sign in')))?.message).toContain('../elsewhere.png is outside the project, and a file input is given files from inside it');
+  });
+});
+
 describe("an agent's model options", () => {
   it("send the agent's provider options with every call, its judge's too", async () => {
     const model = scriptedModel([callsTool('tap', {ref: '@e5'}), complete()]);

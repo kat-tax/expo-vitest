@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {resolveAgent} from '../../agent/config.ts';
+import {uploadsFrom} from '../../agent/hands.ts';
 import {openApp, projectAt} from '../lib/app.ts';
 import type {OpenedApp} from '../lib/app.ts';
 import {costLine, exitCodeOf, findingLine, outcomeLine, renderReport, reportFolder, stepLine} from '../lib/report.ts';
@@ -56,6 +57,7 @@ export async function explore(args: readonly string[], root: string): Promise<nu
       timeout: options.timeout,
       secrets: app.secrets,
       out,
+      uploads: uploadsFrom(agent.uploads, root),
       signal: controller.signal,
       onFinding: finding => console.log(`  ${findingLine(finding)}`),
       ...(debug ? {onStep: step => console.log(`  ${stepLine(step)}`)} : {}),

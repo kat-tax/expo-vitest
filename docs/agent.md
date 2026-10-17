@@ -129,10 +129,10 @@ view where most of the screen changed, or `screen: unchanged`. A view over
 The tools it is offered are those the device can do: `tap`, `double_tap`,
 `check`, `long_press`, `drag`, `hover`, `type`, `type_secret`, `press`,
 `scroll`, `scroll_to`, `navigate`, `back`, `home`, `alert`,
-`dismiss_keyboard`, `observe`, on web `select` and `right_click`, and while
-a picture may leave, `screenshot`, `tap_at`, `hover_at` and `type_at`, the
-last three at a point of the last screenshot, then the agent's own
-[tools](#project-tools).
+`dismiss_keyboard`, `observe`, on web `select`, `right_click`, and `upload`
+where the agent has `uploads`, and while a picture may leave, `screenshot`,
+`tap_at`, `hover_at` and `type_at`, the last three at a point of the last
+screenshot, then the agent's own [tools](#project-tools).
 A tool the platform has no counterpart for is never offered.
 
 The loop asks the model to change its approach after three failed actions in
@@ -276,6 +276,7 @@ cache keys on the agent, so one never replays another's steps.
 | `screenshotMaxSide` | The long side of a picture the model sees, in pixels. | 768 |
 | `maxInputTokens` | The most a model call may read, in tokens, what the provider cached included. Once one call of a step, or of an `explore` run, has read that many, it makes no other, since an act's conversation only grows, and ends `STEP_BUDGET_EXHAUSTED`. | the model's own limit |
 | `providerOptions` | Options for the model's provider, by its name, sent with every call the agent makes: its acts, its judgments, `explore` and `bug-bash`. The Claude adapter puts those under `anthropic` in its request, beneath its own fields, and their `betas` beside its own: `{anthropic: {metadata: {user_id: 'ci'}}}`. A [model of your own](#models) reads them from the request. | none |
+| `uploads` | Files of the project the model may hand a page's file input with `upload`, on web, by their paths from the project root: `['fixtures/avatar.png']`. The tool offers these alone, by name, and a file outside the project, or hidden, fails the step. An MCP session takes the default agent's. | none, and no `upload` |
 
 ## Project tools
 

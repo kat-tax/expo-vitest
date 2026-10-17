@@ -30,6 +30,13 @@ describe("the grammar's tools", () => {
     expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
   });
 
+  it("offer upload on web where the agent has files to hand a page, and those files alone", () => {
+    const tools = grammarTools({capabilities: new Set(['web']), secrets: [], pixels: false, uploads: ['fixtures/avatar.png', 'fixtures/report.pdf']});
+    expect(tools.find(tool => tool.name === 'upload')?.inputSchema.properties).toMatchObject({file: {type: 'string', enum: ['fixtures/avatar.png', 'fixtures/report.pdf']}});
+    expect(names(grammarTools({capabilities: new Set(['web']), secrets: [], pixels: false, uploads: []}))).not.toContain('upload');
+    expect(names(grammarTools({capabilities: new Set(['press']), secrets: [], pixels: false, uploads: ['fixtures/avatar.png']}))).not.toContain('upload');
+  });
+
   it('offer a drag, and a hover and typing at a point of a screenshot, where the device has each', () => {
     const tools = grammarTools({capabilities: new Set(['press', 'type', 'hover', 'drag']), secrets: [], pixels: true});
     expect(names(tools)).toEqual(['check', 'complete_step', 'double_tap', 'drag', 'hover', 'hover_at', 'observe', 'screenshot', 'tap', 'tap_at', 'type_at']);

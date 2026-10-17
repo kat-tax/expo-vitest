@@ -13,6 +13,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type {ResolvedAgent} from '../../agent/config.ts';
 import {resolveAgent} from '../../agent/config.ts';
+import {uploadsFrom} from '../../agent/hands.ts';
 import {runExplore} from '../explore/run.ts';
 import type {OpenedApp} from '../lib/app.ts';
 import {firstReady, openApp, projectAt, startConfigured} from '../lib/app.ts';
@@ -99,14 +100,16 @@ export async function bugBash(args: readonly string[], root: string): Promise<nu
       try {
         // The command is the bug bash's, started once for every charter.
         app = await openApp(project, {platform, headed: options.headed, force: options.force, scratch, command: false}, root);
+        const agent = agents.get(charter.agent ?? options.agent) as ResolvedAgent;
         const report = await runExplore({
           host: app.host,
-          agent: agents.get(charter.agent ?? options.agent) as ResolvedAgent,
+          agent,
           goal: charter.goal,
           maxSteps: options.maxSteps,
           timeout: options.timeout,
           secrets: app.secrets,
           out: folder,
+          uploads: uploadsFrom(agent.uploads, root),
           signal: controller.signal,
           onFinding: finding => console.log(`  [${charter.folder}] ${findingLine(finding)}`),
         });

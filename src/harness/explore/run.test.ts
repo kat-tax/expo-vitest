@@ -25,7 +25,10 @@ const read = (out: string, file: string) => fs.readFileSync(path.join(out, file)
 const finish = (summary = 'Explored the form.') => callsTool('complete_step', {status: 'passed', summary, errorCode: null});
 
 /** A device whose fill puts what it was given in the email field, and a run over it. */
-function setUp(model: Model, options: {secrets?: Record<string, string>; maxSteps?: number; timeout?: number; tools?: ReturnType<typeof defineTool>[]; host?: Partial<ActingHost>; agent?: Partial<AgentConfig>} = {}) {
+function setUp(
+  model: Model,
+  options: {secrets?: Record<string, string>; maxSteps?: number; timeout?: number; tools?: ReturnType<typeof defineTool>[]; host?: Partial<ActingHost>; agent?: Partial<AgentConfig>; uploads?: ReadonlyMap<string, string>} = {},
+) {
   const device: FakeDevice = new FakeDevice({
     screenshot: writer,
     fill: (target, text) => {
@@ -46,6 +49,7 @@ function setUp(model: Model, options: {secrets?: Record<string, string>; maxStep
       timeout: options.timeout ?? 60_000,
       secrets: new SecretStore(options.secrets ?? {}, {} as NodeJS.ProcessEnv),
       out,
+      ...(options.uploads ? {uploads: options.uploads} : {}),
       onFinding: finding => void findings.push(finding),
       onStep: step => void steps.push(step),
     });
@@ -53,6 +57,12 @@ function setUp(model: Model, options: {secrets?: Record<string, string>; maxStep
 }
 
 describe("an explore's model", () => {
+  it("is offered the agent's files on web, as a test's agent is", async () => {
+    const model = scriptedModel([finish()]);
+    await setUp(model, {host: {capabilities: new Set(['press', 'web'])}, uploads: new Map([['fixtures/avatar.png', '/app/fixtures/avatar.png']])}).run();
+    expect(model.requests[0]?.tools.map(tool => tool.name)).toContain('upload');
+  });
+
   it("carries the agent's provider options on every call, as a test's agent does", async () => {
     const model = scriptedModel([callsTool('tap', {ref: '@e5'}), finish()]);
     await setUp(model, {agent: {providerOptions: {anthropic: {metadata: {user_id: 'explore'}}}}}).run();
