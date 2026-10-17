@@ -34,16 +34,16 @@ compared beyond what the table shows.
 
 An Expo Router app on Expo SDK 56 (the example in
 [expo-interface](https://github.com/kat-tax/expo-interface)), served by
-`expo start` in development, at its home screen of 22 nodes. Chromium's
-headless shell 1243, through `playwright-core` 1.63.0. `--press` named the
-tab already selected.
+`expo start` in development, at its home screen of 17 nodes. Chromium's
+headless shell 1248, through `playwright-core` 1.63.0. `--press` named an
+image in the header, which a press does nothing to.
 
 ```
   operation         cold      p50      p95      min      max
-  snapshot           6.6      2.1      5.3      1.6      7.0
-  snapshot -i        1.9      1.8      2.2      1.6      2.2
-  press              7.0      3.0      3.4      2.6      3.4
-  screenshot        19.0     16.8     17.5     15.6     33.3
+  snapshot           2.2      0.6      1.0      0.6      2.0
+  snapshot -i        0.9      0.7      0.8      0.6      0.8
+  press              4.6      3.5      4.2      2.9      4.4
+  screenshot        33.4     32.9     35.2     30.4     36.0
 ```
 
 One browser stays open for the run, and a snapshot is one evaluation in the
@@ -54,8 +54,10 @@ static page of 17 nodes a snapshot then takes 0.5 ms at p50. On a page of
 3,012 nodes it takes 2 ms, against about 200 ms for a read after a change. The
 fixture's device suite holds the driver to that in Chromium, Firefox and
 WebKit and over CDP: a wait that asks an unchanged page for its tree every
-100 ms for a second and a half reads it whole once. A press asks the page
-once more, where it would land, which costs about half a millisecond.
+100 ms for a second and a half reads it whole once. A press scrolls its node
+into view where it is below the fold and asks the page what the press would
+land on in the one evaluation that finds the node's middle, which saves a
+round trip to the page of about half a millisecond.
 
 ## Windows
 

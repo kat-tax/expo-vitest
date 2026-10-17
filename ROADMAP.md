@@ -91,8 +91,6 @@ These wait on an API key, and the runs are billed.
 - **Windows presses.** Time a press through a pattern, with no `raise`, on
   an idle desk or with `--force`, and put the numbers on
   [Performance](docs/performance.md).
-- **Web presses.** The check of where a press lands adds about half a
-  millisecond to a press of about two. Make it cheaper.
 - **The bench.** Add a `settle` operation, time `fill` on every platform,
   and run the bench again on every platform after a change to a driver.
 

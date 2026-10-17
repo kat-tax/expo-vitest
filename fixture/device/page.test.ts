@@ -121,6 +121,17 @@ it('double clicks, as two clicks the browser counts as one', async () => {
   await expect(screen.getByText('Opened by a double click')).toBeVisible();
 });
 
+it('scrolls to a node below the fold to press it, and refuses one a notice is over, naming the notice', async () => {
+  await device.open('/press');
+  await screen.getByRole('button', {name: 'Far down'}).press();
+  await expect(screen.getByText('Pressed far down')).toBeVisible();
+  // Scrolled down, the covered button is above the screen, so it is scrolled back to before the page is asked what is over it.
+  await expect(screen.getByRole('button', {name: 'Behind'}).press()).rejects.toThrow(
+    expect.objectContaining({code: 'NOT_ACTIONABLE', message: expect.stringMatching(/"Behind" is covered: a press at \d+,\d+ would land on @e\d+ note "Notice over it"/)}),
+  );
+  await expect(screen.getByText('Pressed behind')).toBeHidden();
+});
+
 it("drags a card onto a list, by the browser's own drag and drop, and a held pointer across", async () => {
   await device.open('/drag');
   await screen.getByText('Card').dragTo(screen.getByRole('region', {name: 'Done'}));

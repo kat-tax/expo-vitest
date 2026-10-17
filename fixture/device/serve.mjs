@@ -2,11 +2,11 @@
 // on the port given. harness.config.ts starts this for the run, on the port
 // of its url, and the run stops it after. /web is the page device.web's tests
 // drive, with a frame, a download and an API for a route to answer; /sign-in
-// is the page the agent signs in on; /press counts clicks and double clicks;
-// /drag takes a drop and follows a held pointer; /session keeps who signed
-// in; /place follows where the page is; /names names things as a screen
-// reader does; /pinch follows two fingers; every other path is the profile
-// page.
+// is the page the agent signs in on; /press counts clicks and double clicks,
+// beside a button under a notice and one below the fold; /drag takes a drop
+// and follows a held pointer; /session keeps who signed in; /place follows
+// where the page is; /names names things as a screen reader does; /pinch
+// follows two fingers; every other path is the profile page.
 import fs from 'node:fs';
 import http from 'node:http';
 

@@ -76,20 +76,36 @@ const INIT = `(() => {
 })();`;
 
 /**
- * Runs in the page: where a press at a point of a node would land, when that
- * is not the node or something inside it, as when an overlay is over it.
- * Answers the ref of the nearest node the last read named there, or the tag.
+ * Runs in the page, or a frame: aims a press at the middle of the element a
+ * ref names, in one evaluation. Where that middle is outside the viewport,
+ * the element is scrolled to the middle of the screen first, as Playwright
+ * scrolls one before it clicks. Answers whether the element is still there,
+ * the point on the page, rounded as the press is sent, given where the
+ * frame starts on the page, and what a press there would land on where that
+ * is not the element or something inside it, as when an overlay is over it:
+ * the ref of the nearest node the last read named there, or the tag.
  */
-const LANDS = `(([id, x, y]) => {
+const AIM = `(([id, offset]) => {
   const refs = window.__harnessRefs;
-  const target = refs && refs.elements.get(id) && refs.elements.get(id).deref();
-  const top = document.elementFromPoint(x, y);
-  if (!target || !top || target === top || target.contains(top)) return null;
-  for (let element = top; element; element = element.parentElement) {
-    const found = refs.ids.get(element);
-    if (found !== undefined && refs.elements.has(found)) return {ref: '@e' + found};
+  const element = refs && refs.elements.get(id) && refs.elements.get(id).deref();
+  if (!element) return {there: false};
+  const middle = () => {
+    const box = element.getBoundingClientRect();
+    return {x: box.x + box.width / 2, y: box.y + box.height / 2};
+  };
+  let at = middle();
+  if (at.x < 0 || at.y < 0 || at.x >= innerWidth || at.y >= innerHeight) {
+    element.scrollIntoView({block: 'center', inline: 'center'});
+    at = middle();
   }
-  return {tag: top.tagName.toLowerCase()};
+  const point = {x: Math.round(at.x + offset.x), y: Math.round(at.y + offset.y)};
+  const top = document.elementFromPoint(point.x - offset.x, point.y - offset.y);
+  if (!top || top === element || element.contains(top)) return {there: true, point};
+  for (let over = top; over; over = over.parentElement) {
+    const found = refs.ids.get(over);
+    if (found !== undefined && refs.elements.has(found)) return {there: true, point, over: {ref: '@e' + found}};
+  }
+  return {there: true, point, over: {tag: top.tagName.toLowerCase()}};
 })`;
 
 /**
@@ -543,19 +559,19 @@ export function webDriver(options: DriverOptions): Driver {
     const note = `${node.ref} ${node.role} ${JSON.stringify(node.name)}`;
     if (!node.bounds || node.bounds.width === 0) throw new HarnessError('NOT_ACTIONABLE', `${note} is not on screen to press`, {platform: 'web'});
     // A press outside the viewport lands on nothing, so a node below the fold
-    // is scrolled to first, as Playwright scrolls one before it clicks.
-    const shown = await onElement(node, 'scroll');
-    if (!shown.there) throw new HarnessError('LOCATOR_NOT_FOUND', `${note} has gone from the page`, {platform: 'web'});
-    const box = shown.box ?? node.bounds;
-    const point = {x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2)};
-    // Where the press lands is asked of the frame the node is in, at the frame's own coordinates.
+    // is scrolled to first, and where the press lands is asked in the same
+    // evaluation, of the frame the node is in.
     const {frame, id} = refOf(node.ref);
     const {evaluate, offset} = await realm(frame);
-    const lands = await evaluate<{ref?: string; tag?: string} | null>(`(${LANDS})(${JSON.stringify([id, point.x - offset.x, point.y - offset.y])})`);
-    if (lands) {
-      const landed = lands.ref && frame ? lands.ref.replace(/^@e/, `@f${frame}e`) : lands.ref;
+    // A scroll moves boxes without a mutation, so the next read starts again.
+    lastRead = null;
+    const aimed = await evaluate<{there: false} | {there: true; point: Point; over?: {ref?: string; tag?: string}}>(`(${AIM})(${JSON.stringify([id, offset])})`);
+    if (!aimed.there) throw new HarnessError('LOCATOR_NOT_FOUND', `${note} has gone from the page`, {platform: 'web'});
+    const {point, over} = aimed;
+    if (over) {
+      const landed = over.ref && frame ? over.ref.replace(/^@e/, `@f${frame}e`) : over.ref;
       const other = tree.nodes.find(each => each.ref === landed);
-      const what = other ? `${other.ref} ${other.role} ${JSON.stringify(other.name)}` : `a <${lands.tag}>`;
+      const what = other ? `${other.ref} ${other.role} ${JSON.stringify(other.name)}` : `a <${over.tag}>`;
       throw new HarnessError('NOT_ACTIONABLE', `${note} is covered: a press at ${point.x},${point.y} would land on ${what}`, {platform: 'web'});
     }
     return {point, note};
