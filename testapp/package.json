@@ -19,7 +19,7 @@
     "expo-dev-client": "~57.0.20",
     "expo-font": "~57.0.2",
     "expo-image": "~57.0.3",
-    "expo-interface": "^0.32.0",
+    "expo-interface": "^0.33.0",
     "expo-linking": "~57.0.8",
     "expo-network": "~57.0.2",
     "expo-router": "~57.0.28",

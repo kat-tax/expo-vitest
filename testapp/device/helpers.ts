@@ -108,24 +108,24 @@ export async function relaunch(first: Locator): Promise<void> {
 }
 
 /**
- * A text field by the name a person hears for it. expo-interface names a
- * field by its placeholder alone, which goes once the field holds text on
- * Android and iOS (kat-tax/expo-interface#22, item 3), so on both the field
- * is found by its testID. sign-in.test.ts shows the gap, marked failing on
- * both until the kit names its fields.
+ * A text field by the name a person hears for it, or by its testID where the
+ * tree cannot find it by that name. On Android a field that holds text is
+ * named by that text, which sign-in.test.ts shows, marked failing there. On
+ * iOS a secure field has no role in the tree: agent-device reports its
+ * class, UITextField, and a word for its type the role table does not map.
  */
 export function field(name: string, testId: string): Locator {
   return device.platform === 'android' || device.platform === 'ios' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
 }
 
 /**
- * A checkbox by its name. expo-interface draws one on iOS as a button that
- * reads as selected while it is on (kat-tax/expo-interface#22, item 10),
- * where the other platforms have a checkbox that reads as checked, so the
- * two helpers after this set and read it either way.
+ * A checkbox by its name. iOS has no checkbox: expo-interface draws one as a
+ * button that VoiceOver reads as a toggle, selected while it is on. There it
+ * is found by its label, whichever of the two XCUITest reports it as, and
+ * the two helpers after this read it as selected rather than checked.
  */
 export function checkbox(name: string): Locator {
-  return screen.getByRole(device.platform === 'ios' ? 'button' : 'checkbox', {name});
+  return device.platform === 'ios' ? screen.getByLabelText(name) : screen.getByRole('checkbox', {name});
 }
 
 /** Turns a checkbox on or off, pressing it only where it is not so already. */
@@ -146,8 +146,11 @@ export async function expectCheckbox(name: string, on: boolean): Promise<void> {
   else await (on ? expect(box).toBeChecked() : expect(box).not.toBeChecked());
 }
 
-/** The notes' search field. */
-export const searchField = () => screen.getByRole('searchbox', {name: 'Search notes'});
+/**
+ * The notes' search field, by its testID on Android, where a field that
+ * holds text is named by that text, as field() says.
+ */
+export const searchField = () => (device.platform === 'android' ? screen.getByTestId('notes-search') : screen.getByRole('searchbox', {name: 'Search notes'}));
 
 /** A first launch, past onboarding, signed in with the demo account, on the notes. */
 export async function signedIn(): Promise<void> {
@@ -171,8 +174,10 @@ export function menuItem(name: string): Locator {
 
 /**
  * Runs one of a row's own actions where a person finds it: in the row's
- * menu, opened with a right click on web and a long press on Android, or
- * among the buttons a swipe shows on iOS.
+ * menu, opened with a right click on web and a long press on Android and
+ * Windows, or among the buttons a swipe shows on iOS. On Windows the menu is
+ * a WinUI flyout, in a window of its own, which the tree reads after the
+ * app's main window.
  */
 export async function rowAction(row: Locator, action: string): Promise<void> {
   if (device.platform === 'ios') await row.swipe('left');

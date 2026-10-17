@@ -140,6 +140,11 @@ These wait on an API key, and the runs are billed.
 - On Android, `scrollIntoView` looks for a row by agent-device's own labels,
   so a button the tree names from the text inside it is looked for by that
   text.
+- On Android a field that holds text is named by that text, as agent-device
+  labels a node, where web, iOS and Windows keep a field's name apart from
+  what it holds. agent-device also reports a field's content description and
+  its hint. Which of the two, if either, TalkBack reads as the name of a
+  field that holds text decides whether the tree should name it by one.
 
 ## Drivers to try again
 

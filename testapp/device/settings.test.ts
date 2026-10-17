@@ -24,12 +24,10 @@ async function press(label: string): Promise<void> {
   await screen.getByRole('button', {name: label}).press();
 }
 
-// expo-interface on Android draws a switch's and a slider's label beside the
-// control rather than on it, so nothing names them there, and its picker has
-// no role and is named by its value (kat-tax/expo-interface#22, items 4 and
-// 5). On Windows its switch has no name either, its label a text beside it
-// (item 7). Marked failing on both until the kit names them.
-(device.platform === 'android' || device.platform === 'windows' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
+// On Android expo-interface's named switch has no role, and its picker's
+// drop-down role is on a node of its own with no name
+// (kat-tax/expo-interface#24). Marked failing there until that is fixed.
+(device.platform === 'android' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
   await name().fill('Ada L.');
   await screen.getByRole('switch', {name: 'Push notifications'}).uncheck();
   await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toBeDisabled();
