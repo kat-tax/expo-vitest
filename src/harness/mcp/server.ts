@@ -43,8 +43,8 @@ export interface ServerOptions {
   /** The package's version, as serverInfo says it. */
   version: string;
   maxSessions: number;
-  /** Makes a session: its driver, on the app, and its catalog. */
-  open(args: OpenArgs): Promise<McpSession>;
+  /** Makes a session: its driver, on the app, and its catalog; `signal` says the client cancelled the open, which stops it where it has got to. */
+  open(args: OpenArgs, signal: AbortSignal): Promise<McpSession>;
   /** The harness config a session of these args would load, so two that differ never meet in one process. */
   configOf(args: OpenArgs): string | null;
   /** Every secret value the config knows, which no answer may carry. */
@@ -118,6 +118,8 @@ export class McpServer {
   private initialized = false;
   /** Requests the client cancelled, whose answers are dropped when they come. */
   private readonly cancelled = new Set<Id>();
+  /** The calls under way, each with what stops it where the client cancels it. */
+  private readonly running = new Map<Id, AbortController>();
 
   constructor(options: ServerOptions) {
     this.options = options;
@@ -157,10 +159,13 @@ export class McpServer {
     if ('failure' in checked) return fail(id, checked.failure);
     const token = progressTokenOf(params);
     const going = token === undefined ? null : this.progress(token, describeCall(name, checked.args), id);
-    const result = await this.call(name, checked.args).catch((error: unknown) => {
+    const controller = new AbortController();
+    this.running.set(id, controller);
+    const result = await this.call(name, checked.args, controller.signal).catch((error: unknown) => {
       const code = (error as {code?: unknown} | null)?.code;
       return refused(typeof code === 'string' ? code : 'INTERNAL', this.hide(error instanceof Error ? error.message : String(error)));
     });
+    this.running.delete(id);
     going?.stop();
     // A request the client cancelled while it ran gets no answer. A session
     // it opened is closed: the client never hears its id, and it would hold
@@ -195,16 +200,19 @@ export class McpServer {
     return {stop: () => clearInterval(timer)};
   }
 
-  /** A notification: a cancel marks its request, and the rest need nothing. */
+  /** A notification: a cancel marks its request, and stops it where it can be; the rest need nothing. */
   private notified(request: Request): void {
     if (request.method !== 'notifications/cancelled' || !isObject(request.params)) return;
     const target = request.params.requestId;
-    if (typeof target === 'string' || typeof target === 'number') this.cancelled.add(target);
+    if (typeof target !== 'string' && typeof target !== 'number') return;
+    this.cancelled.add(target);
+    // An open stops where it has got to, rather than going on to its end and holding its place meanwhile.
+    this.running.get(target)?.abort();
   }
 
-  private async call(name: string, args: Record<string, unknown>): Promise<ToolAnswer> {
+  private async call(name: string, args: Record<string, unknown>, signal: AbortSignal): Promise<ToolAnswer> {
     const session = args.session as string | undefined;
-    if (name === 'open_session') return this.open(args as OpenArgs);
+    if (name === 'open_session') return this.open(args as OpenArgs, signal);
     if (name === 'close_session') {
       const closed = await this.sessions.close(session);
       return answer(`closed ${closed.id}`);
@@ -222,11 +230,11 @@ export class McpServer {
     return this.sessions.run(session, open => open.value.catalog.call(args.tool as string, args.args ?? {}));
   }
 
-  private async open(args: OpenArgs): Promise<ToolAnswer> {
+  private async open(args: OpenArgs, signal: AbortSignal): Promise<ToolAnswer> {
     const config = this.options.configOf(args);
     const sharing = this.sessions.ids.map(id => this.sessions.get(id).value).find(each => each.config !== config);
     if (sharing) return refused('CONFIG_IN_USE', `the open sessions use ${sharing.config ?? 'no harness config'}; close them to open one on ${config ?? 'no harness config'}`);
-    const opened = await this.sessions.open(() => this.options.open(args));
+    const opened = await this.sessions.open(() => this.options.open(args, signal));
     const {catalog, platform, source} = opened.value;
     // A browser is a session's own, but Windows is one desktop and a device is one device: two sessions there would act on each other's app.
     const busy = platform === 'web' ? undefined : this.sessions.ids.find(id => id !== opened.id && this.sessions.get(id).value.platform === platform);

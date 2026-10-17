@@ -19,9 +19,9 @@ import type {McpSession, OpenArgs} from './server.ts';
 import {McpServer} from './server.ts';
 
 /** A session: the app the harness config names, open, and the catalog over its driver. */
-async function openSession(args: OpenArgs, defaults: McpOptions, root: string, keep: (store: SecretStore) => void): Promise<McpSession> {
+async function openSession(args: OpenArgs, defaults: McpOptions, root: string, keep: (store: SecretStore) => void, signal: AbortSignal): Promise<McpSession> {
   const project = await projectAt(root, args.config ?? defaults.config);
-  const app = await openApp(project, {platform: args.target ?? defaults.platform, headed: args.headed ?? defaults.headed, force: args.force ?? defaults.force, scratch: path.join(root, '.harness', 'mcp')}, root);
+  const app = await openApp(project, {platform: args.target ?? defaults.platform, headed: args.headed ?? defaults.headed, force: args.force ?? defaults.force, scratch: path.join(root, '.harness', 'mcp'), signal}, root);
   keep(app.secrets);
   const controller = new AbortController();
   const named = project.config?.agents?.default;
@@ -67,7 +67,7 @@ export async function serve(args: readonly string[], root: string): Promise<numb
   const server = new McpServer({
     version,
     maxSessions: options.maxSessions,
-    open: openArgs => openSession(openArgs, options, root, kept => void (store = kept)),
+    open: (openArgs, signal) => openSession(openArgs, options, root, kept => void (store = kept), signal),
     configOf: openArgs => findHarnessFile(root, openArgs.config ?? options.config),
     secrets: () => store?.known() ?? [],
     send: line => void transport.send(line),

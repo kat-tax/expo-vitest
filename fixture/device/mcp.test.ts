@@ -13,10 +13,10 @@ interface Message {
   error?: {code: number; message: string};
 }
 
-/** A client over a server it starts: each request answered by its id, every line it read kept. */
-function connect() {
+/** A client over a server it starts, with `flags` beside the platform: each request answered by its id, every line it read kept. */
+function connect(flags: string[] = []) {
   const bin = path.join(process.cwd(), 'node_modules', 'expo-vitest', 'dist', 'harness', 'index.js');
-  const child = spawn(process.execPath, [bin, 'mcp', '--platform', 'web'], {cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe']});
+  const child = spawn(process.execPath, [bin, 'mcp', '--platform', 'web', ...flags], {cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe']});
   const lines: string[] = [];
   const waiting = new Map<number, (message: Message) => void>();
   let buffer = '';
@@ -33,15 +33,18 @@ function connect() {
     }
   });
   let id = 0;
-  const request = (method: string, params?: unknown) =>
-    new Promise<Message>(resolve => {
-      id += 1;
-      waiting.set(id, resolve);
-      child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', id, method, ...(params === undefined ? {} : {params})})}\n`);
-    });
-  const notify = (method: string) => void child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', method})}\n`);
+  /** A request sent, by its id, and its answer when it comes. */
+  const send = (method: string, params?: unknown) => {
+    id += 1;
+    const sent = id;
+    const answer = new Promise<Message>(resolve => waiting.set(sent, resolve));
+    child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', id: sent, method, ...(params === undefined ? {} : {params})})}\n`);
+    return {id: sent, answer};
+  };
+  const request = (method: string, params?: unknown) => send(method, params).answer;
+  const notify = (method: string, params?: unknown) => void child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', method, ...(params === undefined ? {} : {params})})}\n`);
   const exited = new Promise<number | null>(resolve => child.once('exit', resolve));
-  return {request, notify, lines, exited, end: () => child.stdin.end(), stderr: () => stderr};
+  return {send, request, notify, lines, exited, end: () => child.stdin.end(), stderr: () => stderr};
 }
 
 onlyOn(['web'], () => {
@@ -91,5 +94,22 @@ onlyOn(['web'], () => {
     server.end();
     expect(await server.exited).toBe(0);
     expect(server.lines.every(line => line.startsWith('{"jsonrpc":"2.0"'))).toBe(true);
+  });
+
+  it('stops an open the client cancels where it has got to, which frees its place for the next', async () => {
+    // One session at a time, so an open that went on would refuse the next with SESSION_OPEN until it ended.
+    const server = connect(['--max-sessions', '1']);
+    await server.request('initialize', {protocolVersion: '2025-06-18', capabilities: {}, clientInfo: {name: 'fixture', version: '1'}});
+    server.notify('notifications/initialized');
+    const cancelled = server.send('tools/call', {name: 'open_session', arguments: {}});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    server.notify('notifications/cancelled', {requestId: cancelled.id, reason: 'the fixture stopped it'});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const opened = await server.request('tools/call', {name: 'open_session', arguments: {}});
+    expect(opened.result?.content?.[0]?.text, server.stderr()).toMatch(/^session s1 on web /);
+    expect((await server.request('tools/call', {name: 'close_session', arguments: {}})).result?.content?.[0]?.text).toBe('closed s1');
+    server.end();
+    expect(await server.exited).toBe(0);
+    expect(server.lines.map(line => (JSON.parse(line) as Message).id)).not.toContain(cancelled.id);
   });
 });

@@ -125,9 +125,12 @@ finds each one alone; where none does, the names near the one asked for.
   two seconds that it is still going, as `notifications/progress` with how
   long so far, so a client that waits on progress does not time out an open
   that boots a device. None comes after the call ends or is cancelled.
-- A cancelled call gets no answer. What it started still finishes, and a
-  session a cancelled `open_session` opened is closed as soon as it is open,
-  since the client never hears its id.
+- A cancelled call gets no answer. A cancelled `open_session` stops where
+  it has got to and gives up its place at once, so an open after it is not
+  refused, and what it started is closed behind it: the driver, a browser
+  on its way up once it is up, and the config's command. One cancelled once
+  its session was open has the session closed, since the client never hears
+  its id. Any other call finishes what it started.
 - A session closes at `close_session`, after 30 idle minutes, after 4 hours,
   and when the client goes. SIGINT and SIGTERM close them all.
 - stdout is the protocol's alone. Everything the server would print goes to

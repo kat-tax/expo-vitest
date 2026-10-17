@@ -23,7 +23,7 @@ function stubCatalog(answer: (name: string, args: unknown) => Promise<ToolAnswer
   };
 }
 
-function serverOf(options: {open?: (args: OpenArgs) => Promise<McpSession>; configOf?: (args: OpenArgs) => string | null; maxSessions?: number; catalog?: Catalog; send?: (line: string) => void; progressEvery?: number} = {}) {
+function serverOf(options: {open?: (args: OpenArgs, signal: AbortSignal) => Promise<McpSession>; configOf?: (args: OpenArgs) => string | null; maxSessions?: number; catalog?: Catalog; send?: (line: string) => void; progressEvery?: number} = {}) {
   const closed: string[] = [];
   let opened = 0;
   const open =
@@ -256,6 +256,27 @@ describe('a session', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('stops an open the client cancelled where it has got to, which frees its place at once', async () => {
+    const signals: AbortSignal[] = [];
+    const {server} = await started({
+      maxSessions: 1,
+      open: (_args, signal) => {
+        signals.push(signal);
+        // The first goes on until it is stopped; the next opens.
+        if (signals.length > 1) return Promise.resolve({platform: 'web', config: null, catalog: stubCatalog(), close: async () => undefined});
+        return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new HarnessError('CANCELLED', 'the open was cancelled before the app was ready'))));
+      },
+    });
+    const opening = server.handle(call(1, 'open_session', {}));
+    await new Promise(resolve => setImmediate(resolve));
+    expect(signals[0]?.aborted).toBe(false);
+    await server.handle(line(undefined, 'notifications/cancelled', {requestId: 1}));
+    expect(signals[0]?.aborted).toBe(true);
+    expect(await opening).toBeNull();
+    expect(parsed(await server.handle(call(2, 'open_session', {}))).result?.structuredContent?.session).toBe('s1');
+    expect(signals[1]?.aborted).toBe(false);
   });
 
   it('closes a session whose open the client cancelled, which it never hears the id of, and frees its platform', async () => {
