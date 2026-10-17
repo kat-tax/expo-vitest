@@ -56,6 +56,8 @@ export interface AgentNode {
   /** The hint an empty field shows, and whether it is showing in place of the text. */
   placeholder?: string;
   hintShowing?: boolean;
+  /** The role an Android view names beside its class, as Material's tabs do, in the device's language. */
+  roleDescription?: string;
 }
 
 /** Their node in our shape, so a test reads the same whichever backend answered. */
@@ -113,7 +115,7 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
     const kind =
       platform === 'ios'
         ? kindOnIos(raw.role ?? raw.type ?? '', above ? (above.node.role ?? above.node.type) : undefined, raw.kind)
-        : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type, node.testId);
+        : kindOnAndroid(raw.type ?? '', raw.kind, node.name, above?.node.type, node.testId, raw.roleDescription);
     return {...node, ...(above ? {parent: above.ref} : null), ...(kind ? {kind} : null)};
   });
   return platform === 'android' ? readAsTalkBack(kinded, nodes) : kinded;

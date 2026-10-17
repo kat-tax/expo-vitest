@@ -64,6 +64,14 @@ describe('kindOnAndroid', () => {
     expect(kindOnAndroid('android.widget.EditText', 'text-field', 'Email', undefined, 'sign-in-email')).toBe('textbox');
   });
 
+  it('takes a role description it knows over the class, in either case, and the class over one it does not', () => {
+    expect(kindOnAndroid('android.widget.FrameLayout', 'group', 'Notes', 'android.view.ViewGroup', undefined, 'Tab')).toBe('tab');
+    expect(kindOnAndroid('android.view.View', 'group', 'Dark theme', undefined, undefined, 'Switch')).toBe('switch');
+    expect(kindOnAndroid('android.view.View', 'group', '', undefined, undefined, 'tab list')).toBe('tablist');
+    expect(kindOnAndroid('android.widget.TextView', 'text', 'Docs', undefined, undefined, 'Link')).toBe('link');
+    expect(kindOnAndroid('android.view.View', 'group', 'Notes', undefined, undefined, 'Onglet')).toBe('group');
+  });
+
   it('makes a named child of a tab bar a tab', () => {
     expect(kindOnAndroid('android.widget.FrameLayout', 'group', 'Home', 'com.google.android.material.bottomnavigation.BottomNavigationView')).toBe('tab');
     expect(kindOnAndroid('android.widget.FrameLayout', 'group', '', 'com.google.android.material.tabs.TabLayout')).toBe('group');

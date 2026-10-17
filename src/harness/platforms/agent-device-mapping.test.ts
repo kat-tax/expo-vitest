@@ -485,6 +485,14 @@ describe('real snapshots', () => {
     expect(field).toMatchObject({placeholder: 'Search settings', value: '', focused: true});
   });
 
+  it("reads the test app's bottom bar as tabs, by the role description each carries, the one shown selected", () => {
+    const tabs = fixture('android-testapp-settings.json').filter(node => node.kind === 'tab');
+    expect(tabs.map(tab => [tab.role, tab.name, tab.selected ?? false])).toEqual([
+      ['android.widget.FrameLayout', 'Notes', false],
+      ['android.widget.FrameLayout', 'Settings', true],
+    ]);
+  });
+
   it('reads the emulator\'s switch as off, and no node as selected', () => {
     const nodes = fixture('android-display.json');
     expect(nodes.find(node => node.role === 'android.widget.Switch')).toMatchObject({name: 'Dark theme', checked: false});

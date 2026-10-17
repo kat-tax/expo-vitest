@@ -204,12 +204,7 @@ export function alertTitle(title: string): Locator {
   return device.platform === 'android' || device.platform === 'windows' ? screen.getByText(title) : screen.getByRole('dialog', {name: title});
 }
 
-/**
- * Goes to a tab as a person would: a link in the bar on web, a tab on iOS,
- * and on Android the bar's item by its name, which Material marks a tab by a
- * role description agent-device does not report.
- */
+/** Goes to a tab as a person would: a link in the bar on web, and a tab elsewhere. */
 export async function openTab(name: 'Notes' | 'Settings'): Promise<void> {
-  const tab = device.platform === 'android' ? screen.getByLabelText(name) : screen.getByRole(device.platform === 'web' ? 'link' : 'tab', {name});
-  await tab.press();
+  await screen.getByRole(device.platform === 'web' ? 'link' : 'tab', {name}).press();
 }

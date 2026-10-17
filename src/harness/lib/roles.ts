@@ -140,19 +140,37 @@ const AGENT_DEVICE: Record<string, Kind> = {
   cardview: 'group',
 };
 
+/**
+ * The role descriptions a view gives beside a class that says less than the
+ * role. Material's navigation bar marks a tab "Tab" on a `FrameLayout`, as
+ * read off the test app on an emulator; Compose gives "Tab" and "Switch" for
+ * roles with no class of their own; "Tab List" and "Link" are agent-device's
+ * own examples. agent-device reports them verbatim, in the device's
+ * language, so these are English's.
+ */
+const ANDROID_ROLES: Record<string, Kind> = {
+  tab: 'tab',
+  'tab list': 'tablist',
+  switch: 'switch',
+  link: 'link',
+};
+
 /** The simple name of a class: `android.widget.Switch` is `Switch`. */
 function simpleName(type: string): string {
   return type.slice(type.lastIndexOf('.') + 1);
 }
 
 /**
- * An Android node's kind, from its class, or from agent-device's own word
- * for a class not in the table. A named child of a tab bar is a tab, as
- * agent-device reports a tab of `TabLayout` or `BottomNavigationView`. A
- * field whose testID or name says search is a search box, as on Windows,
- * since Android has no class for one.
+ * An Android node's kind, from its role description where the table above
+ * knows it, then its class, or agent-device's own word for a class not in
+ * the table. A named child of a tab bar is a tab, as agent-device reports a
+ * tab of `TabLayout` or `BottomNavigationView`. A field whose testID or name
+ * says search is a search box, as on Windows, since Android has no class for
+ * one.
  */
-export function kindOnAndroid(type: string, agentKind: string | undefined, name: string, parentType?: string, testId?: string): Kind | undefined {
+export function kindOnAndroid(type: string, agentKind: string | undefined, name: string, parentType?: string, testId?: string, roleDescription?: string): Kind | undefined {
+  const described = roleDescription ? ANDROID_ROLES[roleDescription.toLowerCase()] : undefined;
+  if (described) return described;
   const parent = parentType ? ANDROID[simpleName(parentType)] : undefined;
   if (parent === 'tablist' && name) return 'tab';
   const kind = ANDROID[simpleName(type)] ?? (agentKind ? AGENT_DEVICE[agentKind] : undefined);
