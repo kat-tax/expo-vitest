@@ -215,6 +215,20 @@ it('pinches two fingers apart on a node, and together, where the browser takes t
   await expect(screen.getByTestId('scale')).toHaveText('Scale 0.5');
 });
 
+it('reads an unchanged screen whole once across a wait of ten polls', async () => {
+  await device.open('/');
+  await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+  const counts = () => device.web.evaluate('({asked: window.__harnessRefs.asked, read: window.__harnessRefs.read})') as Promise<{asked: number; read: number}>;
+  const before = await counts();
+  // A reading every 100 ms for a second and a half, of a page that does not
+  // change. The evaluate above may have changed it, so the first reading is
+  // whole, and each after it is the page saying nothing has changed since.
+  await expect(screen.findByText('Never shown', {}, {timeout: 1500, interval: 100})).rejects.toThrow(expect.objectContaining({code: 'LOCATOR_NOT_FOUND'}));
+  const after = await counts();
+  expect(after.asked - before.asked).toBeGreaterThanOrEqual(10);
+  expect(after.read - before.read).toBe(1);
+});
+
 it('names its own steps', async () => {
   await step('Open the profile', async () => {
     await device.open('/');

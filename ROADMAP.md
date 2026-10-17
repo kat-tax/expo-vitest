@@ -72,8 +72,6 @@ These wait on an API key, and the runs are billed.
   switches and list items, with no `raise` while the keyboard is in use
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
   whether a combo box opened through its pattern shows on the screen.
-- **Web:** a fixture test that an unchanged screen is read once across a
-  wait of ten polls.
 - **Every platform:** that a backend that hangs fails a test with a 1 second
   timeout in under 2 seconds, which has been shown for agent-device only;
   three platforms in one run behind one Metro, which needs a Windows

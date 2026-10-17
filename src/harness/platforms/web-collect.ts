@@ -19,12 +19,16 @@ export const COLLECT = `((last, options) => {
   // A CSS transition or animation moves boxes without a mutation, so while
   // one runs, as when a sheet slides in, the page is read afresh every time.
   const moving = () => document.getAnimations().some((animation) => animation.playState === 'running');
-  if (last && state && last.origin === origin && last.generation === state.generation && !moving()) return {same: true};
   // A ref lasts as long as its element does in this document, so a node keeps
   // its ref while the page changes around it, and a ref from an earlier
   // snapshot still names its element if that is still there. Nothing is
-  // written to the page: the app may be watching it.
-  const refs = window.__harnessRefs || (window.__harnessRefs = {ids: new WeakMap(), next: 0, elements: new Map()});
+  // written to the page: the app may be watching it. Beside the refs, how
+  // often the page was asked for its tree and how often it was read whole,
+  // which a test of the reading counts.
+  const refs = window.__harnessRefs || (window.__harnessRefs = {ids: new WeakMap(), next: 0, elements: new Map(), asked: 0, read: 0});
+  refs.asked++;
+  if (last && state && last.origin === origin && last.generation === state.generation && !moving()) return {same: true};
+  refs.read++;
   const idOf = (element) => {
     let id = refs.ids.get(element);
     if (id === undefined) { id = ++refs.next; refs.ids.set(element, id); }

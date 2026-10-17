@@ -49,9 +49,12 @@ tab already selected.
 One browser stays open for the run, and a snapshot is one evaluation in the
 page, so web is cheap. Between changes it is cheaper still: a script in the
 page counts every change a snapshot could show, and while the count stands and
-nothing animates, a snapshot is the last one read, for up to two seconds. On a static page of 17
-nodes a snapshot then takes 0.5 ms at p50. On a page of 3,012 nodes it takes
-2 ms, against about 200 ms for a read after a change. A press asks the page
+nothing animates, a snapshot is the last one read, for up to two seconds. On a
+static page of 17 nodes a snapshot then takes 0.5 ms at p50. On a page of
+3,012 nodes it takes 2 ms, against about 200 ms for a read after a change. The
+fixture's device suite holds the driver to that in Chromium, Firefox and
+WebKit and over CDP: a wait that asks an unchanged page for its tree every
+100 ms for a second and a half reads it whole once. A press asks the page
 once more, where it would land, which costs about half a millisecond.
 
 ## Windows
