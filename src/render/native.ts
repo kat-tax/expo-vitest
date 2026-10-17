@@ -2,8 +2,9 @@
  * A unit test's surface on iOS, Android and Windows: the tree React Native
  * Testing Library rendered, read as a device's (`readHostTree`), and acted
  * on through its events, in the test's own process. A press fires the
- * element's press, a switch is given the value it changes to, and a fill
- * focuses a field and changes its text, as typing would leave it.
+ * element's press, a switch is given the value it changes to, a fill
+ * focuses a field and changes its text, as typing would leave it, and a
+ * hover fires the element's hover in, and hover out on the one it left.
  */
 import {act, fireEvent, render, screen} from '@testing-library/react-native';
 import type {Surface} from '../device/surface.ts';
@@ -24,6 +25,8 @@ export function nativeSurface(platform: Platform): Surface {
   let elements = new Map<string, HostElement>();
   /** The field a fill or a focus left the focus in, which typing and a key go to. */
   let focused: HostElement | null = null;
+  /** The element a hover left the pointer over, which the next hover elsewhere leaves. */
+  let hovered: HostElement | null = null;
 
   /** What the test rendered, or null before it rendered anything. */
   function container(): HostElement | null {
@@ -125,6 +128,15 @@ export function nativeSurface(platform: Platform): Surface {
       step(`focused ${describeTarget(what)}`, 'focus failed', async () => {
         await focus((await target(what)).element);
       }),
+    // React Native's pointer: a component hears it come in, and go out as it moves to another.
+    hover: what =>
+      step(`moved over ${describeTarget(what)}`, 'hover failed', async () => {
+        const {element} = await target(what);
+        if (hovered === element) return;
+        if (hovered) await fireEvent(hovered as unknown as Instance, 'hoverOut');
+        hovered = element;
+        await fireEvent(element as unknown as Instance, 'hoverIn');
+      }),
     // Nothing is laid out, so everything rendered is on the screen already.
     scrollIntoView: async what => ok(`${describeTarget(what)} is on the screen already, in a unit test`),
     screenshot: async () => elsewhere('a screenshot', platform, 'a unit test draws nothing; a device test takes one'),
@@ -133,6 +145,7 @@ export function nativeSurface(platform: Platform): Surface {
       last = null;
       elements = new Map();
       focused = null;
+      hovered = null;
     },
   };
 
@@ -141,6 +154,7 @@ export function nativeSurface(platform: Platform): Surface {
     driver: () => driver,
     async render(ui, options = {}) {
       focused = null;
+      hovered = null;
       const rendered = await render(ui as Parameters<typeof render>[0], options as Parameters<typeof render>[1]);
       return {
         rerender: next => rendered.rerender(next as Parameters<typeof render>[0]),

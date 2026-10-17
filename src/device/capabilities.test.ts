@@ -121,11 +121,11 @@ describe("what the warm-up found of the device", () => {
 });
 
 describe('a unit test', () => {
-  it('has the steps a render takes, a pointer on web alone, and none of the controls a device has', () => {
-    expect([...capabilitiesOf('ios', {unit: true})]).toEqual(['open', 'press', 'fill', 'type', 'key', 'longPress', 'focus', 'scrollIntoView']);
+  it('has the steps a render takes, a hover on every platform, and none of the controls a device has', () => {
+    expect([...capabilitiesOf('ios', {unit: true})]).toEqual(['open', 'press', 'fill', 'type', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView']);
     expect(capabilitiesOf('web', {unit: true}).has('hover')).toBe(true);
     expect(absentBecause('screenshot', 'web', {unit: true})).toBe('a unit test has no screenshot, which a device test has on the running app');
     expect(absentBecause('restart', 'windows', {unit: true})).toBe('a unit test has no restart, which a device test has on the running app');
-    expect(absentBecause('hover', 'android', {unit: true})).toBe('a unit test on android has no pointer to move');
+    expect(absentBecause('hover', 'android', {unit: true})).toBeNull();
   });
 });

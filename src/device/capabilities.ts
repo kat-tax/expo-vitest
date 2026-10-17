@@ -46,10 +46,7 @@ const major = (version?: string): number => Number.parseInt(version ?? '', 10);
 
 /** Why a capability is not there for this platform and device, or null where it is. */
 export function absentBecause(capability: Capability, platform: Platform, circumstances: Circumstances = {}): string | null {
-  if (circumstances.unit) {
-    if (!UNIT_ACTIONS.includes(capability)) return `a unit test has no ${capability}, which a device test has on the running app`;
-    return capability === 'hover' && platform !== 'web' ? `a unit test on ${platform} has no pointer to move` : null;
-  }
+  if (circumstances.unit) return UNIT_ACTIONS.includes(capability) ? null : `a unit test has no ${capability}, which a device test has on the running app`;
   const control = (CONTROLS as Capability[]).includes(capability);
   if (!control && !ACTIONS[platform].includes(capability)) return `the ${platform} harness has no ${capability}`;
   const lacks = control ? LACKS[platform][capability as ControlName] : undefined;

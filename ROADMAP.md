@@ -105,9 +105,8 @@ These wait on an API key, and the runs are billed.
 - Named keys on iOS and Android other than Enter, which answer `'skipped'`:
   agent-device sends Enter alone on a phone.
 
-- A swipe and a drag in a unit test, and a hover on iOS, Android and Windows
-  there. Nothing is laid out in a unit test, so neither has a distance to
-  draw.
+- A swipe and a drag in a unit test. Nothing is laid out in a unit test, so
+  neither has a distance to draw.
 
 ### The agent and the MCP server
 

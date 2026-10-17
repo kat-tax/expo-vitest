@@ -64,7 +64,7 @@ a device.
 
 | Platform | The tree is read from | An action goes through |
 | --- | --- | --- |
-| iOS, Android, Windows | the host views React Native Testing Library rendered: each one's role, label, state and value, as a screen reader reads them | React Native Testing Library's events: a press, a long press, focus and blur, a change of text, a submit for Enter. A switch is told the value it changes to. |
+| iOS, Android, Windows | the host views React Native Testing Library rendered: each one's role, label, state and value, as a screen reader reads them | React Native Testing Library's events: a press, a long press, focus and blur, a change of text, a submit for Enter. A switch is told the value it changes to. A hover is the hover in of what it moves over, and the hover out of what it was over before. |
 | web | the DOM react-native-web rendered into jsdom, by the script the web driver reads a browser's page with | user-event: a click, typing, a key, a hover and a held pointer, as a person's pointer and keyboard act |
 
 The tree of a component reads the same on every platform: a field is a

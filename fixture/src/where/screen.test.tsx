@@ -18,6 +18,26 @@ function Settings() {
   );
 }
 
+/** Two buttons that say when the pointer comes over one, and count each time it leaves. */
+function Hovered() {
+  const [over, setOver] = useState('nothing');
+  const [left, setLeft] = useState(0);
+  const item = (name: string) => (
+    <Pressable accessibilityRole="button" onHoverIn={() => setOver(name)} onHoverOut={() => setLeft(count => count + 1)}>
+      <Text>{name}</Text>
+    </Pressable>
+  );
+  return (
+    <View>
+      {item('Share')}
+      {item('Delete')}
+      <Text testID="over">
+        Over {over}, left {left}
+      </Text>
+    </View>
+  );
+}
+
 function Counter() {
   const [presses, setPresses] = useState(0);
   return (
@@ -51,6 +71,16 @@ describe('a unit test', () => {
     await render(<Image accessibilityLabel="Logo" source={{uri: 'https://example.com/logo.png'}} style={{width: 32, height: 32}}/>);
     await expect(screen.getByAltText('Logo')).toBeVisible();
     expect(await screen.queryByTitle('Logo')).toBeNull();
+  });
+
+  it('hovers on every platform, the pointer leaving what it was over for the next', async () => {
+    await render(<Hovered/>);
+    expect(await screen.getByRole('button', {name: 'Share'}).hover()).toBe('done');
+    await expect(screen.getByTestId('over')).toHaveText('Over Share, left 0');
+    await screen.getByRole('button', {name: 'Delete'}).hover();
+    await expect(screen.getByTestId('over')).toHaveText('Over Delete, left 1');
+    await screen.getByRole('button', {name: 'Delete'}).hover();
+    await expect(screen.getByTestId('over')).toHaveText('Over Delete, left 1');
   });
 
   it('presses as the first thing a test does, with nothing focused', async () => {
