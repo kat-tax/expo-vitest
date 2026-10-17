@@ -1,11 +1,10 @@
 // The notes: a search, filters for favourites and the archive, each row's
 // own menu to favourite, archive or delete it (a right click on web, a long
 // press on Android and Windows, a swipe on iOS), an empty state for a search
-// that finds nothing, and a new note from the floating button. A favourite
-// shows in its filter, with no mark at its row's end: the kit's Icon is a
-// React Native view, which a List row on Android cannot hold.
+// that finds nothing, a star at a favourite's row's end, and a new note from
+// the floating button.
 import {router} from 'expo-router';
-import {Chip, EmptyState, Fab, List, ListItem, NativeHost, Screen, SearchField, useToast} from 'expo-interface';
+import {Chip, EmptyState, Fab, Icon, List, ListItem, NativeHost, Screen, SearchField, useToast} from 'expo-interface';
 import {useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 import {OfflineBanner} from '../../../components/offline';
@@ -54,6 +53,7 @@ export default function Notes() {
           <ListItem
             supporting={note.body}
             value={note.edited}
+            trailing={note.favourite ? <Icon icon={starIcon} size={18} tone="accent" testID={`notes-starred-${note.id}`} /> : undefined}
             swipeActions={[
               {label: note.favourite ? 'Remove from favourites' : 'Add to favourites', icon: starIcon, onPress: () => updateNote(note.id, {favourite: !note.favourite})},
               {label: note.archived ? 'Unarchive' : 'Archive', icon: archiveIcon, onPress: () => updateNote(note.id, {archived: !note.archived})},
