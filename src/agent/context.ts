@@ -40,7 +40,27 @@ export interface Observation {
 /** The hands' actions, each answering what changed on the screen. */
 export type AuthorisedActions = Pick<
   Hands,
-  'tap' | 'doubleTap' | 'longPress' | 'hover' | 'select' | 'rightClick' | 'type' | 'typeSecret' | 'press' | 'check' | 'scroll' | 'scrollTo' | 'navigate' | 'back' | 'home' | 'alert' | 'dismissKeyboard' | 'tapAt'
+  | 'tap'
+  | 'doubleTap'
+  | 'longPress'
+  | 'drag'
+  | 'hover'
+  | 'select'
+  | 'rightClick'
+  | 'type'
+  | 'typeSecret'
+  | 'press'
+  | 'check'
+  | 'scroll'
+  | 'scrollTo'
+  | 'navigate'
+  | 'back'
+  | 'home'
+  | 'alert'
+  | 'dismissKeyboard'
+  | 'tapAt'
+  | 'hoverAt'
+  | 'typeAt'
 >;
 
 /** How an executor ends a step. */
@@ -173,6 +193,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
       tap: ref => hands.tap(ref),
       doubleTap: ref => hands.doubleTap(ref),
       longPress: (ref, durationMs) => hands.longPress(ref, durationMs),
+      drag: (ref, to) => hands.drag(ref, to),
       hover: ref => hands.hover(ref),
       select: (ref, option) => hands.select(ref, option),
       rightClick: ref => hands.rightClick(ref),
@@ -188,6 +209,8 @@ export function createStepContext(options: ContextOptions): {context: StepContex
       alert: action => hands.alert(action),
       dismissKeyboard: () => hands.dismissKeyboard(),
       tapAt: (x, y) => hands.tapAt(x, y),
+      hoverAt: (x, y) => hands.hoverAt(x, y),
+      typeAt: (x, y, text) => hands.typeAt(x, y, text),
     },
     ...(model ? {model} : {}),
     agentContext: options.agentContext ?? '',

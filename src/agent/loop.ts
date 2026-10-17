@@ -291,6 +291,7 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
     right_click: ({ref}) => actions.rightClick(ref),
     check: ({ref, checked}) => actions.check(ref, checked as boolean),
     long_press: ({ref, durationMs}) => actions.longPress(ref, durationMs as number | null),
+    drag: ({ref, to}) => actions.drag(ref, to as string),
     type: ({ref, text: typed, replace}) => actions.type(ref, typed as string, replace as boolean),
     type_secret: ({ref, secret}) => actions.typeSecret(ref, secret as string),
     press: ({key}) => actions.press(key as string),
@@ -302,6 +303,8 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
     home: () => actions.home(),
     alert: ({action}) => actions.alert(action as 'accept' | 'dismiss'),
     tap_at: ({x, y}) => actions.tapAt(x as number, y as number),
+    hover_at: ({x, y}) => actions.hoverAt(x as number, y as number),
+    type_at: ({x, y, text: typed}) => actions.typeAt(x as number, y as number, typed as string),
     observe: async () => (await ctx.observe()).text,
     screenshot: async () => {
       const pixels = (await ctx.observe({pixels: true})).pixels as ImagePart | {withheld: string};

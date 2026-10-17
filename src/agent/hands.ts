@@ -215,6 +215,11 @@ export class Hands {
     return this.on(ref, 'long_press', {durationMs: durationMs ?? 800});
   }
 
+  /** A press on one node drawn to another of the same view and let go there. */
+  drag(ref: string, to: string): Promise<string> {
+    return this.on(ref, 'drag', {to});
+  }
+
   /** Text into a field: in place of what it holds, or after it. */
   type(ref: string, text: string, replace: boolean): Promise<string> {
     return this.on(ref, 'type', {text, replace});
@@ -270,11 +275,26 @@ export class Hands {
 
   /** A press at a point of the last screenshot, in its pixels. */
   tapAt(x: number, y: number): Promise<string> {
+    return this.atPoint('tap_at', 'presses', x, y, {});
+  }
+
+  /** The pointer moved to a point of the last screenshot, in its pixels. */
+  hoverAt(x: number, y: number): Promise<string> {
+    return this.atPoint('hover_at', 'moves the pointer to', x, y, {});
+  }
+
+  /** A press at a point of the last screenshot, then text typed where the caret went. */
+  typeAt(x: number, y: number, text: string): Promise<string> {
+    return this.atPoint('type_at', 'types at', x, y, {text});
+  }
+
+  /** A pixel tool's point, from the last screenshot's pixels to the tree's, where a picture may be used and one was taken. */
+  private atPoint(tool: string, does: string, x: number, y: number, input: Record<string, unknown>): Promise<string> {
     if (tainted(this.options.taintStore)) return Promise.reject(this.error('POLICY_DENIED', 'a secret was filled in this test, so the pixel tools are off'));
-    if (!this.shot) return Promise.reject(this.error('INVALID_ARGUMENT', 'tap_at presses a point of the last screenshot, and none has been taken'));
+    if (!this.shot) return Promise.reject(this.error('INVALID_ARGUMENT', `${tool} ${does} a point of the last screenshot, and none has been taken`));
     const {width, height, toTree} = this.shot;
     if (x < 0 || y < 0 || x > width || y > height) return Promise.reject(this.error('INVALID_ARGUMENT', `${x},${y} is outside the last screenshot, which is ${width} by ${height}`));
-    return this.perform('tap_at', undefined, {x: Math.round(x * toTree), y: Math.round(y * toTree)});
+    return this.perform(tool, undefined, {x: Math.round(x * toTree), y: Math.round(y * toTree), ...input});
   }
 
   /** The node a ref names on the screen now. */
@@ -392,6 +412,14 @@ export class Hands {
         const duration = input.durationMs as number;
         return {event: 'longPress', what: `long_press ${ref}`, call: driver => driver.longPress?.(at(), {duration}), record: {durationMs: duration}};
       }
+      case 'drag': {
+        // The second node from the same read as the first, and recorded as the first is, so a replay finds both again.
+        const to = input.to as string;
+        const end = on.seen.snapshot.nodes.find(each => each.ref === to);
+        if (!end) throw this.error('LOCATOR_NOT_FOUND', `${to} is not on the screen now; observe to see what is`);
+        const endRef = on.seen.platformRef.get(to) as string;
+        return {event: 'drag', what: `drag ${ref} to ${to}`, call: driver => driver.drag?.(field(), {ref: endRef}), record: {to: targetOf(end, on.seen.snapshot)}};
+      }
       case 'type': {
         const {text, replace} = input as {text: string; replace: boolean};
         const record = {text: toSlots(text, uniques), replace};
@@ -473,6 +501,16 @@ export class Hands {
       case 'tap_at': {
         const point = {x: input.x as number, y: input.y as number};
         return {event: 'press', what: `tap_at ${point.x},${point.y}`, call: driver => driver.press(point), record: point};
+      }
+      case 'hover_at': {
+        const point = {x: input.x as number, y: input.y as number};
+        return {event: 'hover', what: `hover_at ${point.x},${point.y}`, call: driver => driver.hover?.(point), record: point};
+      }
+      case 'type_at': {
+        const point = {x: input.x as number, y: input.y as number};
+        const text = input.text as string;
+        const typing = (driver: Driver) => driver.press(point).then(pressed => (pressed.ok ? driver.type(text) : pressed));
+        return {event: 'type', what: `type_at ${point.x},${point.y} ${JSON.stringify(this.redact(text))}`, call: typing, record: {...point, text: toSlots(text, uniques)}};
       }
       default:
         throw this.error('INVALID_ARGUMENT', `${tool} is not one of the agent's actions`);

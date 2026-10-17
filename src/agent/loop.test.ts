@@ -328,12 +328,16 @@ describe("the grammar's tools", () => {
     const device: FakeDevice = new FakeDevice({
       screenshot: writer,
       hover: target => kept(`hover ${JSON.stringify(target)}`),
+      drag: (from, to) => kept(`drag ${JSON.stringify(from)} ${JSON.stringify(to)}`),
       web: {selectOption: (target: Target, option: OptionChoice) => kept(`select ${JSON.stringify(target)} ${JSON.stringify(option)}`), secondaryTap: (target: Target) => kept(`secondaryTap ${JSON.stringify(target)}`)} as unknown as WebControls,
     });
     const calls = turn(
       ['observe', {}],
       ['screenshot', {}],
       ['tap_at', {x: 10, y: 10}],
+      ['hover_at', {x: 20, y: 20}],
+      ['type_at', {x: 30, y: 30, text: 'ada'}],
+      ['drag', {ref: '@e5', to: '@e2'}],
       ['double_tap', {ref: '@e5'}],
       ['hover', {ref: '@e5'}],
       ['select', {ref: '@e5', option: 'Blue'}],
@@ -351,7 +355,7 @@ describe("the grammar's tools", () => {
       ['dismiss_keyboard', {}],
       ['type_secret', {ref: '@e3', secret: 'ADA_PASSWORD'}],
     );
-    const made = stepOf([calls, callsTool('complete_step', passed)], {device, pixels: true, verbs: [...VERBS, 'hover', 'web', 'home', 'alert'], params: {password: secret('ADA_PASSWORD')}});
+    const made = stepOf([calls, callsTool('complete_step', passed)], {device, pixels: true, verbs: [...VERBS, 'type', 'hover', 'web', 'home', 'alert', 'drag'], params: {password: secret('ADA_PASSWORD')}});
     await run(made);
     const results = made.model.requests[1]?.messages[2]?.content as unknown as {content: {type: string; text?: string}[]; isError?: boolean}[];
     expect(results.filter(result => result.isError)).toEqual([expect.objectContaining({content: [{type: 'text', text: 'ACTION_FAILED: pressed @e4 to check it, and it is still unchecked'}]})]);
@@ -360,6 +364,10 @@ describe("the grammar's tools", () => {
     expect(results[1]?.content[0]?.text).toBe('The screen, 384 by 768 pixels.');
     expect(device.calls).toEqual([
       'press {"x":10,"y":10}',
+      'hover {"x":21,"y":21}',
+      'press {"x":31,"y":31}',
+      'type "ada"',
+      'drag {"ref":"@e14"} {"ref":"@e11"}',
       'press {"ref":"@e14"} count 2',
       'hover {"ref":"@e14"}',
       'select {"ref":"@e14"} "Blue"',

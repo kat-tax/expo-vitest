@@ -242,6 +242,27 @@ describe('the cache', () => {
     expect(entries(first.root)).toHaveLength(1);
   });
 
+  it("records a drag's second node as it records the first, and replays the drag between both, found again", async () => {
+    const dragging = () => {
+      const device: FakeDevice = signingIn({drag: (from, to) => (device.calls.push(`drag ${JSON.stringify(from)} ${JSON.stringify(to)}`), Promise.resolve(done()))});
+      return device;
+    };
+    const capabilities = ['press', 'fill', 'drag', 'screenshot'];
+    const first = runtimeOf({device: dragging(), capabilities, replies: [callsTool('drag', {ref: '@e5', to: '@e2'}), complete('Moved it.')]});
+    await first.runtime.act('drag the button onto the email field');
+    first.journal.verified('it moved');
+    const entry = JSON.parse(fs.readFileSync(path.join(cacheDir(first.root), entries(first.root)[0] as string), 'utf8')) as {actions: unknown};
+    expect(entry.actions).toEqual([{tool: 'drag', target: {kind: 'button', name: 'Sign in', testId: null, parent: ['form', 'Sign in']}, input: {to: {kind: 'textbox', name: 'Email', testId: null, parent: ['form', 'Sign in']}}}]);
+    const second = runtimeOf({root: first.root, device: dragging(), capabilities});
+    expect((await second.runtime.act('drag the button onto the email field')).cache?.mode).toBe('self-finalized');
+    expect(second.device.calls).toEqual(['drag {"ref":"@e14"} {"ref":"@e11"}']);
+    const gone = dragging();
+    gone.screen = {...gone.screen, nodes: gone.screen.nodes.filter(node => node.name !== 'Email')};
+    const third = runtimeOf({root: first.root, device: gone, capabilities, replies: [complete('There is no email field.')]});
+    expect((await third.runtime.act('drag the button onto the email field')).cache).toMatchObject({mode: 'agent-concluded', reason: 'target-not-found', replayedActions: 0});
+    expect(gone.calls).toEqual([]);
+  });
+
   it('leaves an act no check vouched for unrecorded, and says so in its result', async () => {
     const {runtime, root} = runtimeOf({replies: [complete()]});
     const result = await runtime.act('sign in');

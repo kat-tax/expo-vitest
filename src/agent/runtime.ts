@@ -12,7 +12,7 @@ import {format} from 'node:util';
 import type {AgentNote, Journal, StepEvent} from '../device/evidence.ts';
 import {resultsFolder} from '../device/evidence.ts';
 import {isHarnessError} from '../harness/lib/errors.ts';
-import type {CacheEntry, CacheSettings, RecordedAction} from './cache.ts';
+import type {CacheEntry, CacheSettings, RecordedAction, RecordedTarget} from './cache.ts';
 import {CACHE_VERSION, cacheKey, cacheSettings, canonical, contextHash, endMatches, endOf, findTarget, fromSlots, keyParams, lookUp, paramsCollide, sameRoute, uniquesOf, writeEntry} from './cache.ts';
 import type {HarnessAgents, ResolvedAgent} from './config.ts';
 import {resolveAgent} from './config.ts';
@@ -91,6 +91,8 @@ interface Meter {
   costUsd: number | undefined;
 }
 
+/** The tools that act at a point of the screen, which a replay takes only on a screen of the size it was recorded on. */
+const POINT_TOOLS = new Set(['tap_at', 'hover_at', 'type_at']);
 const ms = (value: number) => `${(value / 1000).toFixed(1)} s`;
 const spaced = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -478,15 +480,23 @@ export class AgentRuntime {
     const done: RecordedAction[] = [];
     if (!sameRoute(entry.start.route, route)) return {done, reason: 'end-mismatch'};
     for (const action of entry.actions) {
-      if (action.tool === 'tap_at' && canonical((await this.host.snapshot()).viewport ?? null) !== canonical(entry.viewport)) return {done, reason: 'viewport-changed'};
+      // A point is the screen's, so it means the same only on a screen of the same size.
+      if (POINT_TOOLS.has(action.tool) && canonical((await this.host.snapshot()).viewport ?? null) !== canonical(entry.viewport)) return {done, reason: 'viewport-changed'};
       let aimed: Aimed | undefined;
       if (action.target) {
         const found = findTarget((await hands.observe()).snapshot, action.target);
         if ('miss' in found) return {done, reason: found.miss};
         aimed = await hands.aim(found.node.ref);
       }
+      let input = slotted(action.input, uniques);
+      // A drag's second node is found again as its first is, on the same screen.
+      if (aimed && action.tool === 'drag') {
+        const end = findTarget(aimed.seen.snapshot, action.input.to as RecordedTarget);
+        if ('miss' in end) return {done, reason: end.miss};
+        input = {...input, to: end.node.ref};
+      }
       try {
-        await hands.perform(action.tool, aimed, slotted(action.input, uniques));
+        await hands.perform(action.tool, aimed, input);
       } catch (error) {
         if (endsTheStep(error)) throw error;
         return {done, reason: 'action-failed'};

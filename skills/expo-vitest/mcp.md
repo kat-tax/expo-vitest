@@ -33,8 +33,8 @@ tools, `tools` lists a session's own.
 - A ref names the same node for the whole session. A node that has gone is
   `NODE_STALE`: observe again.
 - A secret from the harness config is filled with `type_secret` by its name.
-  Its value never comes back, and after one is filled, `screenshot` and
-  `tap_at` answer `PIXEL_TAINTED` for the rest of the session.
+  Its value never comes back, and after one is filled, `screenshot` and the
+  tools at a point of it answer `PIXEL_TAINTED` for the rest of the session.
 - Open one session for each subagent. With several open, each call names its
   `session`; without one it is `SESSION_REQUIRED`.
 - All open sessions share one harness config: another is `CONFIG_IN_USE`.

@@ -127,10 +127,12 @@ view where most of the screen changed, or `screen: unchanged`. A view over
 262 144 bytes leaves out what cannot be acted on first.
 
 The tools it is offered are those the device can do: `tap`, `double_tap`,
-`check`, `long_press`, `hover`, `type`, `type_secret`, `press`, `scroll`,
-`scroll_to`, `navigate`, `back`, `home`, `alert`, `dismiss_keyboard`,
-`observe`, on web `select` and `right_click`, and while a picture may leave,
-`screenshot` and `tap_at`, then the agent's own [tools](#project-tools).
+`check`, `long_press`, `drag`, `hover`, `type`, `type_secret`, `press`,
+`scroll`, `scroll_to`, `navigate`, `back`, `home`, `alert`,
+`dismiss_keyboard`, `observe`, on web `select` and `right_click`, and while
+a picture may leave, `screenshot`, `tap_at`, `hover_at` and `type_at`, the
+last three at a point of the last screenshot, then the agent's own
+[tools](#project-tools).
 A tool the platform has no counterpart for is never offered.
 
 The loop asks the model to change its approach after three failed actions in
@@ -187,7 +189,9 @@ no model call:
 - the route it started on must be the route now, where a path or query
   segment that is a number, a UUID or a hash is a wildcard;
 - each action's control is found again by its test id, else by its kind and
-  name, told apart by its parent's;
+  name, told apart by its parent's, and a drag's second control the same way;
+- an action at a point of a screenshot needs a screen of the size it was
+  recorded on;
 - the screen must end as it did: the route, and up to eight controls that
   came and eight that went.
 

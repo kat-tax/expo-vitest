@@ -72,6 +72,15 @@ describe('an action', () => {
     expect(await hands.tap('@e5')).toBe(['route: /home', 'window: 400x800', '', '@e6  heading  "Welcome back"  h1'].join('\n'));
   });
 
+  it('drags one node to another of the same view, and is LOCATOR_NOT_FOUND for a second ref not on the screen, spending nothing', async () => {
+    const device: FakeDevice = new FakeDevice({drag: (from, to) => Promise.resolve((device.calls.push(`drag ${JSON.stringify(from)} ${JSON.stringify(to)}`), done()))});
+    const {hands, spent} = setUp({device});
+    await hands.drag('@e5', '@e2');
+    expect(device.calls).toEqual(['drag {"ref":"@e14"} {"ref":"@e11"}']);
+    expect(await failure(hands.drag('@e5', '@e99'))).toEqual(['LOCATOR_NOT_FOUND', '@e99 is not on the screen now; observe to see what is']);
+    expect(spent).toHaveLength(1);
+  });
+
   it('is LOCATOR_NOT_FOUND for a ref not on the screen now, and spends nothing', async () => {
     const {hands, spent} = setUp();
     expect(await failure(hands.tap('@e40'))).toEqual(['LOCATOR_NOT_FOUND', '@e40 is not on the screen now; observe to see what is']);
@@ -310,6 +319,20 @@ describe('a picture of the screen', () => {
     expect(hands.recorded[0]).toEqual({tool: 'tap_at', input: {x: 200, y: 400}});
     expect(await failure(hands.tapAt(400, 10))).toEqual(['INVALID_ARGUMENT', '400,10 is outside the last screenshot, which is 384 by 768']);
     expect((await failure(hands.tapAt(-1, 10)))?.[0]).toBe('INVALID_ARGUMENT');
+  });
+
+  it('moves the pointer to a point of the last picture, and types where a press there put the caret, but not where the press failed', async () => {
+    const {hands, device} = setUp({device: new FakeDevice({screenshot: writer(), hover: target => Promise.resolve((device.calls.push(`hover ${JSON.stringify(target)}`), done()))})});
+    expect(await failure(hands.hoverAt(10, 10))).toEqual(['INVALID_ARGUMENT', 'hover_at moves the pointer to a point of the last screenshot, and none has been taken']);
+    await hands.screenshot();
+    await hands.hoverAt(192, 384);
+    await hands.typeAt(96, 96, 'ada');
+    expect(device.calls).toEqual(['hover {"x":200,"y":400}', 'press {"x":100,"y":100}', 'type "ada"']);
+    expect(hands.recorded.map(each => each.input)).toEqual([{x: 200, y: 400}, {x: 100, y: 100, text: 'ada'}]);
+    const covered = setUp({device: new FakeDevice({screenshot: writer(), press: () => Promise.resolve({ok: false, message: 'covered'})})});
+    await covered.hands.screenshot();
+    expect(await failure(covered.hands.typeAt(96, 96, 'ada'))).toEqual(['ACTION_FAILED', 'covered']);
+    expect(covered.device.calls.filter(call => call.startsWith('type'))).toEqual([]);
   });
 
   it('is withheld, with the reason, after a secret was filled, where the platform takes none, or where the driver did not take one', async () => {

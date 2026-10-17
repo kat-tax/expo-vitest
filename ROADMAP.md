@@ -114,11 +114,10 @@ These wait on an API key, and the runs are billed.
 
 ### The agent and the MCP server
 
-- More tools: `hover_at`, `type_at`, `press_at` and `select_at` on a
-  screenshot's points, `drag`, whose second node the replay cache would need
-  to record as it records the first, `upload`, which would let a model
-  choose a file of the project to hand a page, `start_recording` and
-  `stop_recording`, and on a device `open_app`.
+- More tools: `upload`, which would let a model choose a file of the
+  project to hand a page, `start_recording` and `stop_recording`, and on a
+  device `open_app`, which needs a control that brings the app back to the
+  front without a restart.
 - Stopping an MCP open the client cancelled while it runs. It goes on to
   its end, up to its three minutes, and the session it opened is closed
   then.

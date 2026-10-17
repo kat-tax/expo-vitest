@@ -26,8 +26,15 @@ function strictThroughout(schema: JsonSchema): boolean {
 describe("the grammar's tools", () => {
   it('are each one the device can do, sorted by name, every schema strict', () => {
     const tools = grammarTools({capabilities: every, secrets: ['ADA_PASSWORD'], pixels: true});
-    expect(names(tools)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'double_tap', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_secret']);
+    expect(names(tools)).toEqual(['back', 'check', 'complete_step', 'dismiss_keyboard', 'double_tap', 'long_press', 'navigate', 'observe', 'press', 'screenshot', 'scroll', 'scroll_to', 'tap', 'tap_at', 'type', 'type_at', 'type_secret']);
     expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
+  });
+
+  it('offer a drag, and a hover and typing at a point of a screenshot, where the device has each', () => {
+    const tools = grammarTools({capabilities: new Set(['press', 'type', 'hover', 'drag']), secrets: [], pixels: true});
+    expect(names(tools)).toEqual(['check', 'complete_step', 'double_tap', 'drag', 'hover', 'hover_at', 'observe', 'screenshot', 'tap', 'tap_at', 'type_at']);
+    expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
+    expect(names(grammarTools({capabilities: new Set(['press', 'type', 'hover']), secrets: [], pixels: false}))).not.toContain('hover_at');
   });
 
   it("offer a hover, the home screen, a dialog's answer, and on web a choice in a select and a secondary press, where the device has each", () => {

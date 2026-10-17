@@ -76,11 +76,12 @@ The server has four tools:
 | `close_session` | Closes a session and lets go of its driver. |
 
 A session's tools are the agent's: `observe`, `tap`, `double_tap`, `check`,
-`long_press`, `hover`, `type`, `type_secret` where the config has secrets,
-`press`, `scroll`, `scroll_to`, `navigate`, `back`, `home`, `alert`,
-`dismiss_keyboard`, on web `select` and `right_click`, `screenshot` and
-`tap_at` where the platform takes screenshots, the default agent's
-[project tools](agent.md#project-tools), and `locate`. A coding agent
+`long_press`, `drag`, `hover`, `type`, `type_secret` where the config has
+secrets, `press`, `scroll`, `scroll_to`, `navigate`, `back`, `home`,
+`alert`, `dismiss_keyboard`, on web `select` and `right_click`,
+`screenshot`, `tap_at`, `hover_at` and `type_at` where the platform takes
+screenshots, the default agent's [project tools](agent.md#project-tools),
+and `locate`. A coding agent
 observes, acts by ref, reads what changed, and when the flow works, asks
 `locate` how a test finds each node it used:
 
@@ -101,8 +102,8 @@ finds each one alone; where none does, the names near the one asked for.
 - A ref names the same node for the whole session. A node that has gone is
   `NODE_STALE`, and the answer says to observe again.
 - A secret's value never comes back in an answer: each is hidden as
-  `<secret:NAME>`. Once one is filled, `screenshot` and `tap_at` answer
-  `PIXEL_TAINTED` for the rest of the session.
+  `<secret:NAME>`. Once one is filled, `screenshot`, `tap_at`, `hover_at`
+  and `type_at` answer `PIXEL_TAINTED` for the rest of the session.
 - Up to `--max-sessions` are open at once, 4 by default and 16 at most. With
   several open, a call names its `session`, or it is `SESSION_REQUIRED`. All
   of them use one harness config; another is `CONFIG_IN_USE`.

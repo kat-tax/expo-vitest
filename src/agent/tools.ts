@@ -41,6 +41,7 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
     add('right_click', 'Press the node a ref names with the secondary button, as a right click does.', {ref});
   }
   if (can('longPress')) add('long_press', 'Press and hold the node a ref names.', {ref, durationMs: orNull({type: 'integer', description: 'How long to hold, in ms; 800 when null.'})});
+  if (can('drag')) add('drag', 'Press the node a ref names, draw the press to the node another ref names, and let go there, as for a slider, a card dropped on a list or a row moved.', {ref, to: string('The ref of the node to let go on, in the same view.')});
   if (can('fill')) add('type', 'Put text into the field a ref names: in place of what it holds where replace is true, after it otherwise.', {ref, text: string('What to type.'), replace: {type: 'boolean'}});
   if (can('fill') && options.secrets.length > 0) {
     add('type_secret', 'Fill the field a ref names with a secret of the step, by its name. The runner types the value; you never see it.', {ref, secret: {type: 'string', enum: [...options.secrets]}});
@@ -59,6 +60,8 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   if (options.pixels) {
     add('screenshot', 'See a picture of the screen, for what the view cannot say, such as a colour or an image.', {});
     if (can('press')) add('tap_at', 'Press a point of the last screenshot, for what the view has no node for.', {x: {type: 'number'}, y: {type: 'number'}});
+    if (can('hover')) add('hover_at', 'Move the pointer to a point of the last screenshot without pressing, for what the view has no node for.', {x: {type: 'number'}, y: {type: 'number'}});
+    if (can('press') && can('type')) add('type_at', 'Press a point of the last screenshot, then type text where the press put the caret, for a field the view has no node for.', {x: {type: 'number'}, y: {type: 'number'}, text: string('What to type.')});
   }
   add('complete_step', 'End the step: passed where the instruction is done and you checked it, failed where the app does not do it, blocked where you could not go on.', {
     status: {type: 'string', enum: ['passed', 'failed', 'blocked']},
