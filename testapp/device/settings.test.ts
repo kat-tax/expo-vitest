@@ -7,6 +7,22 @@ import {alert, alertTitle, expectCheckbox, field, openTab, relaunch, searchField
 
 const name = () => field('Display name', 'settings-name');
 
+// The digest's frequency, named by its label, and on Android by its label
+// and then its value, as Compose reads the row.
+const frequency = () => screen.getByRole('combobox', {name: /^Digest frequency/});
+
+// A choice of the theme: a radio, and on Windows an item of the list WinUI's
+// segmented control is, which is selected rather than checked.
+const theme = (choice: string) => screen.getByRole(device.platform === 'windows' ? 'listitem' : 'radio', {name: choice});
+const expectTheme = (choice: string) => (device.platform === 'windows' ? expect(theme(choice)).toBeSelected() : expect(theme(choice)).toBeChecked());
+
+// Notes per page, a stepper: its Increment button and the number beside it,
+// and on Windows, where it is WinUI's NumberBox, its Increase button and the
+// number in its field.
+const stepUp = () => screen.getByRole('button', {name: device.platform === 'windows' ? 'Increase' : 'Increment'}).press();
+const expectPerPage = (count: string) =>
+  device.platform === 'windows' ? expect(screen.getByRole('textbox', {name: /^Notes per page/})).toHaveValue(count) : expect(screen.getByText(count)).toBeVisible();
+
 beforeEach(async () => {
   await signedIn();
   await openTab('Settings');
@@ -24,18 +40,18 @@ async function press(label: string): Promise<void> {
   await screen.getByRole('button', {name: label}).press();
 }
 
-// On Android expo-interface's named switch has no role, and its picker's
-// drop-down role is on a node of its own with no name
-// (kat-tax/expo-interface#24). Marked failing there until that is fixed.
+// On Android expo-interface's named switch has no role
+// (kat-tax/expo-interface#24, item 1). Marked failing there until that is
+// fixed.
 (device.platform === 'android' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
   await name().fill('Ada L.');
   await screen.getByRole('switch', {name: 'Push notifications'}).uncheck();
-  await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toBeDisabled();
+  await expect(frequency()).toBeDisabled();
   await screen.getByRole('switch', {name: 'Email digest'}).check();
-  await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toBeEnabled();
-  await device.web.selectOption(screen.getByRole('combobox', {name: 'Digest frequency'}), 'Monthly');
-  await screen.getByRole('radio', {name: 'Dark'}).press();
-  await screen.getByRole('button', {name: 'Increment'}).press();
+  await expect(frequency()).toBeEnabled();
+  await device.web.selectOption(frequency(), 'Monthly');
+  await theme('Dark').press();
+  await stepUp();
   await setCheckbox('Share usage data', true);
 
   await relaunch(searchField());
@@ -43,9 +59,9 @@ async function press(label: string): Promise<void> {
   await expect(name()).toHaveValue('Ada L.');
   await expect(screen.getByRole('switch', {name: 'Push notifications'})).not.toBeChecked();
   await expect(screen.getByRole('switch', {name: 'Email digest'})).toBeChecked();
-  if (device.platform === 'web') await expect(screen.getByRole('combobox', {name: 'Digest frequency'})).toHaveValue('monthly');
-  await expect(screen.getByRole('radio', {name: 'Dark'})).toBeChecked();
-  await expect(screen.getByText('30')).toBeVisible();
+  if (device.platform === 'web') await expect(frequency()).toHaveValue('monthly');
+  await expectTheme('Dark');
+  await expectPerPage('30');
   await expectCheckbox('Share usage data', true);
 });
 

@@ -164,7 +164,7 @@ server, so a dev server someone has on 8081 is never used, and
 emulator with 4 GB (`emulator -avd <name> -memory 4096`). Two tests are
 marked failing there: one looks for a field by its name once it holds text,
 which on Android is named by that text, and one finds expo-interface's
-switch and picker by their roles, which they lack there
+switch by its role, which it lacks there
 ([kat-tax/expo-interface#24](https://github.com/kat-tax/expo-interface/issues/24)).
 
 On Windows the suite drives the Release build that expo-windows' own build
