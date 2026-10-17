@@ -72,12 +72,9 @@ These wait on an API key, and the runs are billed.
   switches and list items, with no `raise` while the keyboard is in use
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
   whether a combo box opened through its pattern shows on the screen.
-- **Every platform:** that a backend that hangs fails a test with a 1 second
-  timeout in about 2 seconds, evidence and all, which has been shown on web
-  and for agent-device, and not yet on Windows with an app that hangs;
-  three platforms in one run behind one Metro, which needs a Windows
-  development build; and the device suites of expo-windows and
-  expo-interface passing with no change to their tests.
+- **Every platform:** three platforms in one run behind one Metro, which
+  needs a Windows development build; and the device suites of expo-windows
+  and expo-interface passing with no change to their tests.
 - **CI recipes:** the EAS Workflows, Bitrise and Codemagic jobs on
   [CI](docs/ci.md) have not run, and the GitHub Actions jobs have run only
   as the test app's variants of them. Run each once on a sample app.

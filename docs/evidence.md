@@ -192,7 +192,9 @@ The driver is then closed, and the next test opens another. A test with a
 one-second timeout on a page that hangs is over, evidence and all, in about
 two seconds, and the test after it passes on a browser of its own, which
 the fixture's device suite checks in Chromium, Firefox and WebKit and over
-CDP.
+CDP. On Windows, with a window whose UI thread blocks, it is over in about
+three, since the host's close waits for the call it is stuck in; the host
+is stopped when that call times out, and the next test starts another.
 
 ## Video
 
