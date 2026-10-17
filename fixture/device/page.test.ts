@@ -150,6 +150,18 @@ it('keeps a signed-in session when the app ends, and starts from it after a rest
   await expect(screen.getByText('Signed out')).toBeVisible();
 });
 
+it('brings the app back where stopApp left its page blank, and leaves one in front as it is', async () => {
+  await device.open('/');
+  await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+  expect(await device.stopApp()).toBe('done');
+  await expect(screen.getByRole('heading', {name: 'Profile'})).toBeHidden();
+  expect(await device.resumeApp()).toBe('done');
+  await expect(screen.getByRole('heading', {name: 'Profile'})).toBeVisible();
+  await screen.getByTestId('name').fill('Ada');
+  expect(await device.resumeApp()).toBe('done');
+  await expect(screen.getByTestId('name')).toHaveValue('Ada');
+});
+
 it('travels a route, a place a second, and ends on the last', async () => {
   await device.open('/place');
   expect(await device.setLocation({latitude: 51.5, longitude: -0.12})).toBe('done');

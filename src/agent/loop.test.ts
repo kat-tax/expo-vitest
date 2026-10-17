@@ -345,6 +345,7 @@ describe("the grammar's tools", () => {
       ['hover_at', {x: 20, y: 20}],
       ['type_at', {x: 30, y: 30, text: 'ada'}],
       ['drag', {ref: '@e5', to: '@e2'}],
+      ['open_app', {}],
       ['double_tap', {ref: '@e5'}],
       ['hover', {ref: '@e5'}],
       ['select', {ref: '@e5', option: 'Blue'}],
@@ -365,7 +366,7 @@ describe("the grammar's tools", () => {
     const made = stepOf([calls, callsTool('complete_step', passed)], {
       device,
       pixels: true,
-      verbs: [...VERBS, 'type', 'hover', 'web', 'home', 'alert', 'drag'],
+      verbs: [...VERBS, 'type', 'hover', 'web', 'home', 'alert', 'drag', 'resumeApp'],
       params: {password: secret('ADA_PASSWORD')},
       uploads: new Map([['fixtures/avatar.png', '/app/fixtures/avatar.png']]),
     });
@@ -382,6 +383,7 @@ describe("the grammar's tools", () => {
       'press {"x":31,"y":31}',
       'type "ada"',
       'drag {"ref":"@e14"} {"ref":"@e11"}',
+      'control resumeApp',
       'press {"ref":"@e14"} count 2',
       'hover {"ref":"@e14"}',
       'select {"ref":"@e14"} "Blue"',

@@ -46,6 +46,7 @@ retries and timeouts are Vitest's own, and so is `expect`.
 | `toHaveToggleValue(true)` | `toBeChecked()` | renamed |
 | `waitFor(el).toBeVisible().withTimeout(ms)` | `await expect(locator).toBeVisible({timeout: ms})` | renamed |
 | `device.launchApp({newInstance: true})` | `device.restart()` | renamed |
+| `device.launchApp({newInstance: false})` | `device.resumeApp()` | renamed |
 | `launchApp({launchArgs, permissions})` | `launchArguments` and `permissions` in the harness config, applied to each restart | renamed |
 | `launchApp({delete: true})` | `device.clearState()` | renamed |
 | `device.reloadReactNative()` | `device.restart()`, the nearest | renamed |

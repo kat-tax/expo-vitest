@@ -451,6 +451,17 @@ class Device {
     return doneOrSkipped(await this.control({name: 'home'}));
   }
 
+  /**
+   * The app in front again where it left off, as Detox's `launchApp` with
+   * `newInstance: false` brings it back: from the background after `home`
+   * or another app, with no restart, or started where it is not running. On
+   * web, the page brought to the front, and opened at the app again where
+   * `stopApp` left it blank.
+   */
+  async resumeApp(): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'resumeApp'}));
+  }
+
   /** A build installed: the one given, from the root, or the harness config's `appPath`; in place of the one there with `reinstall`. */
   async installApp(path?: string, options: {reinstall?: boolean} = {}): Promise<'done' | 'skipped'> {
     return doneOrSkipped(await this.control({name: 'installApp', ...(path ? {path} : {}), ...(options.reinstall ? {reinstall: true} : {})}));

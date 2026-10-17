@@ -70,6 +70,7 @@ export type ControlRequest =
   | {name: 'restart'}
   | {name: 'clearState'}
   | {name: 'stopApp'}
+  | {name: 'resumeApp'}
   | {name: 'back'}
   | {name: 'home'}
   | {name: 'installApp'; path?: string; reinstall?: boolean}

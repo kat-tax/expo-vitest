@@ -57,6 +57,7 @@ export function grammarTools(options: GrammarOptions): ToolSpec[] {
   if (can('open')) add('navigate', "Open a URL, or a route of the app's, as /settings.", {url: string('An http or https URL, about:blank, a route, or a link in the app\'s own scheme.')});
   if (can('back')) add('back', 'Go back, as the back button does.', {});
   if (can('home')) add('home', "Go to the device's home screen, leaving the app running behind it.", {});
+  if (can('resumeApp')) add('open_app', 'Bring the app under test back to the front where it left off, as after going home or to another app, or start it where it is not running.', {});
   if (can('alert')) add('alert', 'Answer the system dialog that is up, or the next one to come: accept or dismiss.', {action: {type: 'string', enum: ['accept', 'dismiss']}});
   if (can('dismissKeyboard')) add('dismiss_keyboard', 'Close the on-screen keyboard.', {});
   add('observe', 'Read the whole screen again, when the last view or diff is not enough to go on.', {});

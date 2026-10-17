@@ -433,6 +433,11 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
             if (!app.bundleId) return failed(needsApp(request.name, platform, 'bundleId'), 'INVALID_ARGUMENT');
             await current.closeApp(app.bundleId);
             return ok(`ended ${app.bundleId}`);
+          case 'resumeApp':
+            // Opened without a relaunch: one in the background comes to the front as it was, and one not running starts.
+            if (!app.bundleId) return failed(needsApp(request.name, platform, 'bundleId'), 'INVALID_ARGUMENT');
+            await current.launch(app.bundleId, false, app.launchArguments ?? []);
+            return ok(`brought ${app.bundleId} to the front`);
           case 'back':
             await current.back();
             return ok('went back');

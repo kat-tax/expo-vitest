@@ -37,9 +37,9 @@ describe("the grammar's tools", () => {
     expect(names(grammarTools({capabilities: new Set(['press']), secrets: [], pixels: false, uploads: ['fixtures/avatar.png']}))).not.toContain('upload');
   });
 
-  it('offer a drag, and a hover and typing at a point of a screenshot, where the device has each', () => {
-    const tools = grammarTools({capabilities: new Set(['press', 'type', 'hover', 'drag']), secrets: [], pixels: true});
-    expect(names(tools)).toEqual(['check', 'complete_step', 'double_tap', 'drag', 'hover', 'hover_at', 'observe', 'screenshot', 'tap', 'tap_at', 'type_at']);
+  it('offer a drag, the app brought back, and a hover and typing at a point of a screenshot, where the device has each', () => {
+    const tools = grammarTools({capabilities: new Set(['press', 'type', 'hover', 'drag', 'resumeApp']), secrets: [], pixels: true});
+    expect(names(tools)).toEqual(['check', 'complete_step', 'double_tap', 'drag', 'hover', 'hover_at', 'observe', 'open_app', 'screenshot', 'tap', 'tap_at', 'type_at']);
     expect(tools.every(tool => tool.strict && strictThroughout(tool.inputSchema))).toBe(true);
     expect(names(grammarTools({capabilities: new Set(['press', 'type', 'hover']), secrets: [], pixels: false}))).not.toContain('hover_at');
   });

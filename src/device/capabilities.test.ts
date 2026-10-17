@@ -29,6 +29,7 @@ describe('the capabilities', () => {
   });
 
   it("are a platform's controls, less what it lacks, with the controls' own reason", () => {
+    expect([absentBecause('resumeApp', 'web'), absentBecause('resumeApp', 'windows'), absentBecause('resumeApp', 'android'), absentBecause('resumeApp', 'ios')]).toEqual([null, null, null, null]);
     expect(absentBecause('home', 'web')).toBe('a browser has no home screen');
     expect(absentBecause('setNetwork', 'ios')).toBe("the simulator shares the Mac's network");
     expect(absentBecause('setNetwork', 'android')).toBeNull();

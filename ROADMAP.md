@@ -118,9 +118,7 @@ These wait on an API key, and the runs are billed.
 
 ### The agent and the MCP server
 
-- More tools: `start_recording` and `stop_recording`, and on a device
-  `open_app`, which needs a control that brings the app back to the front
-  without a restart.
+- More tools: `start_recording` and `stop_recording`.
 - Stopping an MCP open the client cancelled while it runs. It goes on to
   its end, up to its three minutes, and the session it opened is closed
   then.

@@ -251,6 +251,7 @@ export function webDriver(options: DriverOptions): Driver {
     on(event: 'dialog', listener: (dialog: Dialog) => void): void;
     goBack(o?: unknown): Promise<unknown>;
     url(): string;
+    bringToFront(): Promise<void>;
     title(): Promise<string>;
     context(): Context;
     emulateMedia(o: {colorScheme: 'light' | 'dark'}): Promise<void>;
@@ -654,6 +655,15 @@ export function webDriver(options: DriverOptions): Driver {
             lastRead = null;
             await current.goto('about:blank', {timeout: navigation});
             return ok('left the app for a blank page, with its cookies and storage kept');
+          }
+          case 'resumeApp': {
+            // A page stopApp left blank opens at the app again; one still on the app is brought to the front as it is.
+            const current = await open();
+            lastRead = null;
+            const stopped = current.url() === 'about:blank';
+            if (stopped) await current.goto(target('/'), {waitUntil: 'load', timeout: navigation});
+            await current.bringToFront();
+            return ok(stopped ? `opened ${target('/')} again` : 'brought the page to the front');
           }
           case 'back': {
             const current = await open();

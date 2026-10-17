@@ -128,7 +128,7 @@ view where most of the screen changed, or `screen: unchanged`. A view over
 
 The tools it is offered are those the device can do: `tap`, `double_tap`,
 `check`, `long_press`, `drag`, `hover`, `type`, `type_secret`, `press`,
-`scroll`, `scroll_to`, `navigate`, `back`, `home`, `alert`,
+`scroll`, `scroll_to`, `navigate`, `back`, `home`, `open_app`, `alert`,
 `dismiss_keyboard`, `observe`, on web `select`, `right_click`, and `upload`
 where the agent has `uploads`, and while a picture may leave, `screenshot`,
 `tap_at`, `hover_at` and `type_at`, the last three at a point of the last

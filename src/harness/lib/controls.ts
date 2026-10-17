@@ -12,6 +12,7 @@ export const CHANGES_SCREEN: Record<ControlName, boolean> = {
   restart: true,
   clearState: true,
   stopApp: true,
+  resumeApp: true,
   back: true,
   home: true,
   installApp: false,

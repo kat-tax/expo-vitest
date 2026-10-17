@@ -285,6 +285,11 @@ export class Hands {
     return this.perform('home', undefined, {});
   }
 
+  /** The app under test in front again where it left off. */
+  openApp(): Promise<string> {
+    return this.perform('open_app', undefined, {});
+  }
+
   /** The system dialog up, or the next one, accepted or dismissed. */
   alert(action: 'accept' | 'dismiss'): Promise<string> {
     return this.perform('alert', undefined, {action});
@@ -517,6 +522,8 @@ export class Hands {
         return {event: 'control', what: 'dismiss_keyboard', call: driver => driver.control?.({name: 'dismissKeyboard'}), record: {}};
       case 'home':
         return {event: 'control', what: 'home', call: driver => driver.control?.({name: 'home'}), record: {}};
+      case 'open_app':
+        return {event: 'control', what: 'open_app', call: driver => driver.control?.({name: 'resumeApp'}), record: {}};
       case 'alert': {
         const action = input.action as 'accept' | 'dismiss';
         return {event: 'control', what: `alert ${action}`, call: driver => driver.control?.({name: 'alert', action}), record: {action}};

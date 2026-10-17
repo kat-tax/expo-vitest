@@ -57,6 +57,7 @@ export type AuthorisedActions = Pick<
   | 'navigate'
   | 'back'
   | 'home'
+  | 'openApp'
   | 'alert'
   | 'dismissKeyboard'
   | 'tapAt'
@@ -212,6 +213,7 @@ export function createStepContext(options: ContextOptions): {context: StepContex
       navigate: url => hands.navigate(url),
       back: () => hands.back(),
       home: () => hands.home(),
+      openApp: () => hands.openApp(),
       alert: action => hands.alert(action),
       dismissKeyboard: () => hands.dismissKeyboard(),
       tapAt: (x, y) => hands.tapAt(x, y),

@@ -302,6 +302,7 @@ export function grammarLoopTools(ctx: StepContext): LoopTool[] {
     back: () => actions.back(),
     dismiss_keyboard: () => actions.dismissKeyboard(),
     home: () => actions.home(),
+    open_app: () => actions.openApp(),
     alert: ({action}) => actions.alert(action as 'accept' | 'dismiss'),
     tap_at: ({x, y}) => actions.tapAt(x as number, y as number),
     hover_at: ({x, y}) => actions.hoverAt(x as number, y as number),

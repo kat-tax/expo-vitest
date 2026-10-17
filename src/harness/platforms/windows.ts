@@ -373,6 +373,12 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
             await stopApp();
             return ok(`ended ${processName}`);
           }
+          case 'resumeApp': {
+            // A window that is there is raised as it is; an app not running starts, as a first open starts it.
+            if (!processName) return failed(needsApp(request.name, 'windows', 'target'), 'INVALID_ARGUMENT');
+            if (await backend.hasWindow().catch(() => false)) return ok(`raised ${processName}: ${await backend.raise()}`);
+            return openRoute('/');
+          }
           case 'installApp': {
             const package_ = request.path ? path.resolve(options.root, request.path) : app.appPath;
             if (!package_) return failed(needsApp('installApp', 'windows', 'appPath'), 'INVALID_ARGUMENT');
