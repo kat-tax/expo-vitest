@@ -15,12 +15,12 @@ on a simulator, and then on an iPhone:
 - The locators, the matchers and the optional actions, recording each role's
   spelling and each `'skipped'` answer. A snapshot from a simulator, kept in
   `src/harness/lib/__fixtures__/`, would test the iOS role table, which maps
-  XCUIElement type names that have not been read off a device yet. In the
-  test app's trees from CI, agent-device reported a node's class
-  (`UITextField`, `SwiftUI.ListCollectionViewCell`, `UINavigationBar`) where
-  the table expects a type, and the table knows only some of agent-device's
-  own words for a type, so a secure field, a list's cells and a navigation
-  bar have no kind.
+  XCUIElement type names that have not been read off a device yet. The test
+  app's last run in CI read type names off the simulator (`TextField`,
+  `SecureTextField`, `Switch`, `Cell`), which the table maps; an earlier run
+  read some nodes by their class (`UITextField`,
+  `SwiftUI.ListCollectionViewCell`), which it does not. Which a run gets,
+  and why, is not known yet.
 - The app's life (`restart`, `clearState`, `back`, `home`, `resumeApp`,
   `activateApp`, `installApp`, `openLink`, `foregroundApp`), the device's
   settings, gating, masked and element screenshots, and the normalised
@@ -38,11 +38,15 @@ on a simulator, and then on an iPhone:
 
 ### The test app on iOS
 
-The suite runs on a simulator in CI and has yet to pass there whole. Its
-fields are found there by testID, since a secure field has no kind in the
-tree, and its checkboxes by label, since which type XCUITest gives
-expo-interface's, a button VoiceOver reads as a toggle, has not been read
-off a run.
+The suite signs in on a simulator in CI, and iOS then asks, in a sheet of
+its own over the app, whether to save the password. The suite does not
+answer it yet, so on its last run there the tests behind sign-in failed and
+8 of 31 passed: onboarding, the forgotten password, the agent's sign-in, a
+link to sign-in, and three of sign-in's own. The iOS job in
+`.github/workflows/testapp.yml` is off (`if: false`) until the suite answers
+the sheet, which waits on a Mac to try against. The same run met a deep
+link the simulator failed to open, and a request to agent-device that was
+cancelled.
 
 ### Hosted devices
 

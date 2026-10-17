@@ -185,7 +185,9 @@ deletes. A step that needs synthetic input waits for a quiet desk, or goes
 ahead with `HARNESS_FORCE=1`.
 
 On iOS the suite drives a simulator build of the same development build,
-whose dev server the run starts on port 41754.
+whose dev server the run starts on port 41754. It signs in there, and iOS
+then offers, in a sheet of its own, to save the password, which the suite
+does not answer yet, so the tests behind sign-in fail.
 
 ```sh
 cd testapp && bun install --no-save && npx expo prebuild --platform ios
@@ -212,7 +214,7 @@ node scripts/testapp.js --update-lockfile
 | Workflow | When | What |
 | --- | --- | --- |
 | `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture with its device tests on web. A second job runs the tests with coverage on Windows and compiles the Windows host there. |
-| `testapp.yml` | Pull requests that change the package's source, the test app, or how it runs | The test app's suite from the packed package: on web, on an Android emulator and an iOS simulator from its development build, and on Windows from the Release build expo-windows makes. Each build is cached by what it is made of, since none of the package is in it, and is saved as soon as it is built. Each job uploads what its run saw. |
+| `testapp.yml` | Pull requests that change the package's source, the test app, or how it runs | The test app's suite from the packed package: on web, on an Android emulator from its development build, and on Windows from the Release build expo-windows makes. Each build is cached by what it is made of, since none of the package is in it, and is saved as soon as it is built. Each job uploads what its run saw. Its iOS job, on a simulator, is off until the suite answers iOS's offer to save a password. |
 | `release.yml` | A `v*` tag matching `package.json` | Re-runs the checks, publishes to npm with provenance, creates a GitHub release. |
 
 ## Commits and writing

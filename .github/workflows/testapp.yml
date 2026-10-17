@@ -134,7 +134,12 @@ jobs:
         if: ${{ !cancelled() }}
         with: {name: testapp-android, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
 
+  # Off for now. The suite signs in on iOS, and iOS then asks, in a sheet of
+  # its own over the app, whether to save the password, which the suite does
+  # not answer yet, so the tests behind sign-in fail there (ROADMAP.md, The
+  # test app on iOS). Answering it waits on a Mac to try against.
   ios:
+    if: false
     name: Test app on iOS
     runs-on: macos-26
     timeout-minutes: 120
