@@ -5,7 +5,8 @@ import {rules} from './device/rules.mts';
 // The app the device tests drive, as an app's harness config names its own:
 // the page device/serve.mjs serves, started for the run and stopped after.
 // The agent acts with a model of rules, which needs no key; claude is for
-// the live smoke alone, which runs by hand. The secrets are made up for the
+// the live smoke alone, which runs by hand. The rules check that every call
+// carries the agent's provider options. The secrets are made up for the
 // fixture, and a run checks neither leaves the process.
 export default defineHarness({
   app: {
@@ -13,7 +14,7 @@ export default defineHarness({
   },
   assertionTimeout: 4000,
   agents: {
-    default: {model: rules, context: 'A sign-in page: an email, a recovery code and a password, then a welcome.'},
+    default: {model: rules, context: 'A sign-in page: an email, a recovery code and a password, then a welcome.', providerOptions: {rules: {app: 'sign-in'}}},
     claude: {model: anthropic(), context: 'A sign-in page: an email, a recovery code and a password, then a welcome.'},
   },
   secrets: {FIXTURE_PASSWORD: 'fixture-horse-battery', FIXTURE_RECOVERY: 'rc-4417-fixture-code'},

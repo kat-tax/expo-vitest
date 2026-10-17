@@ -4,6 +4,7 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {done, FakeDevice, hostOf, signIn} from '../../agent/__fixtures__/device.ts';
 import {callsTool, scriptedModel} from '../../agent/__fixtures__/model.ts';
+import type {AgentConfig} from '../../agent/config.ts';
 import {resolveAgent} from '../../agent/config.ts';
 import type {ActingHost} from '../../agent/hands.ts';
 import {SecretStore} from '../../agent/secrets.ts';
@@ -24,7 +25,7 @@ const read = (out: string, file: string) => fs.readFileSync(path.join(out, file)
 const finish = (summary = 'Explored the form.') => callsTool('complete_step', {status: 'passed', summary, errorCode: null});
 
 /** A device whose fill puts what it was given in the email field, and a run over it. */
-function setUp(model: Model, options: {secrets?: Record<string, string>; maxSteps?: number; timeout?: number; tools?: ReturnType<typeof defineTool>[]; host?: Partial<ActingHost>} = {}) {
+function setUp(model: Model, options: {secrets?: Record<string, string>; maxSteps?: number; timeout?: number; tools?: ReturnType<typeof defineTool>[]; host?: Partial<ActingHost>; agent?: Partial<AgentConfig>} = {}) {
   const device: FakeDevice = new FakeDevice({
     screenshot: writer,
     fill: (target, text) => {
@@ -39,7 +40,7 @@ function setUp(model: Model, options: {secrets?: Record<string, string>; maxStep
   const run = () =>
     runExplore({
       host: hostOf(device, options.host),
-      agent: resolveAgent({default: {model, context: 'A sign-in form.', ...(options.tools ? {tools: options.tools} : {})}}, 'default'),
+      agent: resolveAgent({default: {model, context: 'A sign-in form.', ...(options.tools ? {tools: options.tools} : {}), ...options.agent}}, 'default'),
       goal: 'send the form with no password',
       maxSteps: options.maxSteps ?? 8,
       timeout: options.timeout ?? 60_000,
@@ -50,6 +51,14 @@ function setUp(model: Model, options: {secrets?: Record<string, string>; maxStep
     });
   return {device, out, findings, steps, run};
 }
+
+describe("an explore's model", () => {
+  it("carries the agent's provider options on every call, as a test's agent does", async () => {
+    const model = scriptedModel([callsTool('tap', {ref: '@e5'}), finish()]);
+    await setUp(model, {agent: {providerOptions: {anthropic: {metadata: {user_id: 'explore'}}}}}).run();
+    expect(model.requests.map(request => request.providerOptions)).toEqual([{anthropic: {metadata: {user_id: 'explore'}}}, {anthropic: {metadata: {user_id: 'explore'}}}]);
+  });
+});
 
 describe('an explore', () => {
   it('acts toward the goal, keeps the tree and a picture of every step, and a finding with the step it came after', async () => {

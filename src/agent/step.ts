@@ -4,6 +4,7 @@
  * keeps it.
  */
 import {isHarnessError} from '../harness/lib/errors.ts';
+import type {ResolvedAgent} from './config.ts';
 import type {AgentErrorCode, AgentStepKind, Completion, CompletionRequest, Message, Model} from './types.ts';
 import {AgentError, isAgentCode, isAgentError} from './types.ts';
 
@@ -79,6 +80,31 @@ export async function callModel(model: Model, request: CompletionRequest, at: St
   }
   if (completion.stopReason === 'refusal') throw new AgentError('MODEL_PROVIDER_FAILED', `the model declined to answer${completion.detail ? ` (${completion.detail})` : ''}`, at);
   return completion;
+}
+
+const spaced = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+/**
+ * A step's model with its agent's options on it: the provider options on
+ * every call, and no call once one has read the agent's `maxInputTokens`,
+ * the cached part included, since what the next reads only grows. Made for
+ * each step, as it keeps what the step's last call read.
+ */
+export function withAgentOptions(model: Model, agent: Pick<ResolvedAgent, 'maxInputTokens' | 'providerOptions'>, at: StepOf): Model {
+  const {maxInputTokens: limit, providerOptions} = agent;
+  if (limit === undefined && providerOptions === undefined) return model;
+  let last: number | undefined;
+  return {
+    id: model.id,
+    async complete(request) {
+      if (limit !== undefined && last !== undefined && last >= limit) {
+        throw new AgentError('STEP_BUDGET_EXHAUSTED', `its last model call read ${spaced(last)} input tokens, at or past the agent's maxInputTokens of ${spaced(limit)}, and the next would read more`, at);
+      }
+      const completion = await model.complete(providerOptions ? {...request, providerOptions} : request);
+      last = completion.usage.input + completion.usage.cacheRead + completion.usage.cacheWrite;
+      return completion;
+    },
+  };
 }
 
 /** The assistant's turn as the history keeps it: what it said and called, and the provider's own turn, which goes back as it came. */

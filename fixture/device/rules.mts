@@ -33,6 +33,8 @@ function refOf(view: string, kind: string, name: string): string {
 export const rules: Model = {
   id: 'fixture-rules',
   async complete(request: CompletionRequest): Promise<Completion> {
+    // The agent's options for this provider, which the harness config gives and every call carries.
+    if (request.providerOptions?.rules?.app !== 'sign-in') throw new Error(`a call came without the agent's provider options: ${JSON.stringify(request.providerOptions)}`);
     const texts = textsOf(request.messages);
     const all = texts.join('\n');
     // A judgment: the welcome heading is what the tests assert, wait for and read.

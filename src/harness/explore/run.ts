@@ -18,7 +18,7 @@ import {grammarLoopTools, projectTool, runLoop} from '../../agent/loop.ts';
 import type {SecretStore} from '../../agent/secrets.ts';
 import {secret} from '../../agent/secrets.ts';
 import type {StepOf} from '../../agent/step.ts';
-import {stepSignal} from '../../agent/step.ts';
+import {stepSignal, withAgentOptions} from '../../agent/step.ts';
 import {toolsOn} from '../../agent/tools.ts';
 import type {Message, ToolSpec, Usage} from '../../agent/types.ts';
 import {AgentError, isAgentError} from '../../agent/types.ts';
@@ -114,7 +114,7 @@ export async function runExplore(options: ExploreOptions): Promise<ExploreReport
     step: {kind: 'act', instruction: goal, params, index: 0},
     target: {platform: host.platform, verbs: [...host.capabilities], pixels: host.capabilities.has('screenshot'), app: host.scheme ? {scheme: host.scheme} : {}},
     hands: {host, at, signal: signal.signal, secrets, stepSecrets: Object.values(params), taintStore: options.taintStore ?? {}, maxObservationBytes: agent.maxObservationBytes, screenshotMaxSide: agent.screenshotMaxSide},
-    model: agent.model,
+    model: withAgentOptions(agent.model, agent, at),
     agentContext: agent.context,
     limits: {modelCalls: agent.maxModelCalls, actions: options.maxSteps},
     deadline: started + options.timeout,

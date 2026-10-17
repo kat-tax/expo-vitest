@@ -30,7 +30,7 @@ import type {Redact} from './redact.ts';
 import {redactor} from './redact.ts';
 import {isSecret, SecretStore} from './secrets.ts';
 import type {StepOf} from './step.ts';
-import {stepSignal} from './step.ts';
+import {stepSignal, withAgentOptions} from './step.ts';
 import {toolsOn} from './tools.ts';
 import type {
   ActOptions,
@@ -294,14 +294,18 @@ export class AgentRuntime {
     return {host: this.host, at, signal, secrets: this.secrets, stepSecrets: Object.values(params).filter(isSecret), uniques: uniquesOf(params), maxObservationBytes: agent.maxObservationBytes, screenshotMaxSide: agent.screenshotMaxSide};
   }
 
-  /** A model whose calls are counted on a meter, and kept in the AI trace under `HARNESS_AI_TRACE`. */
-  private metered(model: Model, meter: Meter, step: {kind: AgentStepKind; index: number}, test: TestOf): Model {
+  /**
+   * A model whose calls are counted on a meter, and kept in the AI trace
+   * under `HARNESS_AI_TRACE`, with the agent's options on it.
+   */
+  private metered(model: Model, meter: Meter, step: {kind: AgentStepKind; index: number}, test: TestOf, {at, agent}: {at: StepOf; agent: ResolvedAgent}): Model {
     const tracing = on(this.environment.HARNESS_AI_TRACE);
+    const optioned = withAgentOptions(model, agent, at);
     return {
       id: model.id,
       complete: async request => {
         const started = Date.now();
-        const completion = await model.complete(request);
+        const completion = await optioned.complete(request);
         meter.calls += 1;
         meter.usage = addUsage(meter.usage, completion.usage);
         const cost = costOf(completion.model, completion.usage);
@@ -375,7 +379,7 @@ export class AgentRuntime {
         app: {...(this.host.url ? {url: this.host.url} : {}), ...(this.host.scheme ? {scheme: this.host.scheme} : {})},
       },
       hands: this.handsOptions(at, step.signal, agent, params),
-      ...(agent.model ? {model: this.metered(agent.model, meter, {kind: 'act', index}, test)} : {}),
+      ...(agent.model ? {model: this.metered(agent.model, meter, {kind: 'act', index}, test, {at, agent})} : {}),
       agentContext: agent.context,
       ledger: [...this.ledger],
       limits,
@@ -521,7 +525,7 @@ export class AgentRuntime {
     const meter: Meter = {calls: 0, usage: NO_USAGE, costUsd: 0};
     const index = this.index;
     this.index += 1;
-    const model = this.metered(agent.judge, meter, {kind, index}, test);
+    const model = this.metered(agent.judge, meter, {kind, index}, test, {at, agent});
     const hands = new Hands(this.handsOptions(at, step.signal, agent));
     return {words, at, agent, step, meter, model, hands, test, started: Date.now()};
   }

@@ -38,7 +38,19 @@ export interface AgentConfig {
   maxObservationBytes?: number;
   /** The long side of a screenshot the model sees, in pixels: 768. */
   screenshotMaxSide?: number;
+  /**
+   * The most a model call may read, in tokens, what the provider cached
+   * included. Once one call has read that many, the step makes no other,
+   * since an act's conversation only grows: STEP_BUDGET_EXHAUSTED. No limit
+   * but the model's own unless set.
+   */
+  maxInputTokens?: number;
+  /** Options for the model's provider, by the provider's name, sent with every call it makes: `{anthropic: {metadata: {user_id: 'ci'}}}`. */
+  providerOptions?: ProviderOptions;
 }
+
+/** Options for a model's provider, by the provider's name, which its adapter reads its own key of. */
+export type ProviderOptions = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 
 /** The harness config's keys for the agent. */
 export interface HarnessAgents {
@@ -54,7 +66,7 @@ export const AGENT_DEFAULTS = {maxSteps: 25, maxModelCalls: 25, timeout: 120_000
 /** The most an agent's context may take, in bytes, since every call reads it. */
 export const MAX_CONTEXT_BYTES = 16_384;
 
-const AGENT_KEYS = ['model', 'judge', 'system', 'context', 'tools', 'executor', 'maxSteps', 'maxModelCalls', 'timeout', 'judgmentTimeout', 'maxObservationBytes', 'screenshotMaxSide'];
+const AGENT_KEYS = ['model', 'judge', 'system', 'context', 'tools', 'executor', 'maxSteps', 'maxModelCalls', 'timeout', 'judgmentTimeout', 'maxObservationBytes', 'screenshotMaxSide', 'maxInputTokens', 'providerOptions'];
 const AGENT_NAME = /^[A-Za-z][\w-]*$/;
 const SECRET_NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
 const MODES = ['off', 'read-only', 'read-write'];
@@ -92,6 +104,8 @@ const CHECKS: Record<string, (value: unknown) => string | null> = {
   judgmentTimeout: value => (whole(value, 1) ? null : 'a whole number of ms, 1 or more'),
   maxObservationBytes: value => (whole(value, 1024) ? null : 'a whole number of bytes, 1024 or more'),
   screenshotMaxSide: value => (whole(value, 64, 4096) ? null : 'a whole number of pixels from 64 to 4096'),
+  maxInputTokens: value => (whole(value, 1) ? null : 'a whole number of tokens, 1 or more'),
+  providerOptions: value => (isObject(value) && Object.values(value).every(isObject) ? null : "an object of each provider's options by its name, such as {anthropic: {metadata: {user_id: 'ci'}}}"),
 };
 
 /**
@@ -150,6 +164,8 @@ export interface ResolvedAgent {
   judgmentTimeout: number;
   maxObservationBytes: number;
   screenshotMaxSide: number;
+  maxInputTokens?: number;
+  providerOptions?: ProviderOptions;
 }
 
 /**

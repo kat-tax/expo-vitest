@@ -190,6 +190,33 @@ describe('an act', () => {
   });
 });
 
+describe("an agent's model options", () => {
+  it("send the agent's provider options with every call, its judge's too", async () => {
+    const model = scriptedModel([callsTool('tap', {ref: '@e5'}), complete()]);
+    const judging = scriptedModel([verdict('pass', 'The welcome shows.')]);
+    const providerOptions = {anthropic: {metadata: {user_id: 'ci'}}};
+    const {runtime} = runtimeOf({harness: {agents: {default: {model: {...model, judge: judging} as Model, providerOptions}}}});
+    await runtime.act('sign in');
+    await runtime.assert('the welcome shows', {screenshot: false});
+    expect([...model.requests, ...judging.requests].map(request => request.providerOptions)).toEqual([providerOptions, providerOptions, providerOptions]);
+    const plain = runtimeOf({replies: [complete()]});
+    await plain.runtime.act('sign in');
+    expect(plain.model.requests[0]).not.toHaveProperty('providerOptions');
+  });
+
+  it('make no call once one has read maxInputTokens, what was cached included', async () => {
+    const model = scriptedModel([callsTool('tap', {ref: '@e5'}, {usage: usage(400, 10, 500, 100)}), complete()]);
+    const {runtime} = runtimeOf({harness: {agents: {default: {model, maxInputTokens: 1000}}}});
+    const error = await rejection(runtime.act('sign in'));
+    expect([error?.code, error?.explanation]).toEqual(['STEP_BUDGET_EXHAUSTED', "its last model call read 1 000 input tokens, at or past the agent's maxInputTokens of 1 000, and the next would read more"]);
+    expect(model.requests).toHaveLength(1);
+    const roomy = scriptedModel([callsTool('tap', {ref: '@e5'}, {usage: usage(400, 10, 500, 99)}), complete()]);
+    const below = runtimeOf({harness: {agents: {default: {model: roomy, maxInputTokens: 1000}}}});
+    await below.runtime.act('sign in');
+    expect(roomy.requests).toHaveLength(2);
+  });
+});
+
 describe('the cache', () => {
   it('records a passing act at the first check after it that holds, and replays it with no model call', async () => {
     const first = runtimeOf({replies: [callsTool('tap', {ref: '@e5'}), complete()]});

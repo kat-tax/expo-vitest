@@ -270,6 +270,8 @@ cache keys on the agent, so one never replays another's steps.
 | `timeout`, `judgmentTimeout` | In ms. | 120 000, 30 000 |
 | `maxObservationBytes` | The most a view may take. | 262 144 |
 | `screenshotMaxSide` | The long side of a picture the model sees, in pixels. | 768 |
+| `maxInputTokens` | The most a model call may read, in tokens, what the provider cached included. Once one call of a step, or of an `explore` run, has read that many, it makes no other, since an act's conversation only grows, and ends `STEP_BUDGET_EXHAUSTED`. | the model's own limit |
+| `providerOptions` | Options for the model's provider, by its name, sent with every call the agent makes: its acts, its judgments, `explore` and `bug-bash`. The Claude adapter puts those under `anthropic` in its request, beneath its own fields, and their `betas` beside its own: `{anthropic: {metadata: {user_id: 'ci'}}}`. A [model of your own](#models) reads them from the request. | none |
 
 ## Project tools
 

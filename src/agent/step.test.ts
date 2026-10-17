@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {HarnessError} from '../harness/lib/errors.ts';
-import {says, scriptedModel} from './__fixtures__/model.ts';
-import {assistantTurn, callModel, endedBy, sleep, stepSignal} from './step.ts';
+import {says, scriptedModel, usage} from './__fixtures__/model.ts';
+import {assistantTurn, callModel, endedBy, sleep, stepSignal, withAgentOptions} from './step.ts';
 import type {StepOf} from './step.ts';
 import {AgentError} from './types.ts';
 import type {CompletionRequest} from './types.ts';
@@ -116,6 +116,35 @@ describe('a model call', () => {
       },
     };
     expect(await callModel(model, request(controller.signal), at).catch((error: unknown) => error)).toBe(timeout);
+  });
+});
+
+describe("a step's model with its agent's options", () => {
+  it('is the model as it is where the agent sets neither', () => {
+    const model = scriptedModel([]);
+    expect(withAgentOptions(model, {}, at)).toBe(model);
+  });
+
+  it('carries the provider options on every call', async () => {
+    const model = scriptedModel([says('one'), says('two')]);
+    const optioned = withAgentOptions(model, {providerOptions: {anthropic: {metadata: {user_id: 'ci'}}}}, at);
+    expect(optioned.id).toBe('claude-opus-5-5');
+    await optioned.complete(request());
+    await optioned.complete(request());
+    expect(model.requests.map(each => each.providerOptions)).toEqual([{anthropic: {metadata: {user_id: 'ci'}}}, {anthropic: {metadata: {user_id: 'ci'}}}]);
+  });
+
+  it('makes no call once one has read maxInputTokens, the cached part included', async () => {
+    const model = scriptedModel([says('under', {usage: usage(10_000, 5, 989_000, 999)}), says('at', {usage: usage(10_000, 5, 990_000, 0)}), says('never')]);
+    const optioned = withAgentOptions(model, {maxInputTokens: 1_000_000}, at);
+    await optioned.complete(request());
+    await optioned.complete(request());
+    expect(await rejection(optioned.complete(request()))).toEqual([
+      'STEP_BUDGET_EXHAUSTED',
+      `agent.assert("the cart is empty"): its last model call read 1 000 000 input tokens, at or past the agent's maxInputTokens of 1 000 000, and the next would read more`,
+    ]);
+    expect(model.requests).toHaveLength(2);
+    expect(model.requests[0]).not.toHaveProperty('providerOptions');
   });
 });
 

@@ -48,6 +48,17 @@ describe('the request', () => {
     expect(FALLBACK_BETA).toBe('server-side-fallback-2026-07-01');
   });
 
+  it("carries the agent's anthropic options beneath its own fields, and their betas beside its own", () => {
+    const providerOptions = {anthropic: {metadata: {user_id: 'ci'}, max_tokens: 1, betas: ['a-beta-2026-01-01', FALLBACK_BETA, 7]}, other: {temperature: 0}};
+    const body = buildRequest({system: [], messages: [], tools: [], signal, providerOptions}, settings);
+    expect(body.metadata).toEqual({user_id: 'ci'});
+    expect(body.max_tokens).toBe(16_000);
+    expect(body.betas).toEqual([FALLBACK_BETA, 'a-beta-2026-01-01']);
+    expect('temperature' in body).toBe(false);
+    expect(buildRequest({system: [], messages: [], tools: [], signal, providerOptions: {anthropic: {betas: 'one'}}}, {...settings, fallbacks: false})).not.toHaveProperty('betas');
+    expect(buildRequest({system: [], messages: [], tools: [], signal, providerOptions: {anthropic: {betas: ['a-beta-2026-01-01']}}}, {...settings, fallbacks: false}).betas).toEqual(['a-beta-2026-01-01']);
+  });
+
   it('asks for the format as a closed JSON Schema, and offers no tools where there are none', () => {
     const body = buildRequest({system: [], messages: [], tools: [], format: {type: 'object', properties: {total: {type: 'number', minimum: 0}}, required: ['total']}, signal}, {...settings, fallbacks: false});
     expect(body.output_config).toEqual({effort: 'medium', format: {type: 'json_schema', schema: {type: 'object', properties: {total: {type: 'number'}}, required: ['total'], additionalProperties: false}}});

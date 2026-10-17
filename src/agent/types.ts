@@ -239,6 +239,8 @@ export interface CompletionRequest {
   /** `low` for judgments, `medium` for acting, unless the agent says otherwise. */
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   maxTokens?: number;
+  /** The agent's options for the model's provider, by the provider's name: an adapter reads its own key, and passes it on in its request. */
+  providerOptions?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   signal: AbortSignal;
 }
 

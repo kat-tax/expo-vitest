@@ -24,7 +24,21 @@ function failure(config: unknown): string | null {
 describe("the agent's keys of a harness config", () => {
   it('take agents by name, each with what an agent takes', () => {
     const agents: Record<string, AgentConfig> = {
-      default: {model, judge, system: 'Verify every outcome.', context: 'A shop.', tools: [seed], maxSteps: 30, maxModelCalls: 40, timeout: 90_000, judgmentTimeout: 20_000, maxObservationBytes: 100_000, screenshotMaxSide: 1024},
+      default: {
+        model,
+        judge,
+        system: 'Verify every outcome.',
+        context: 'A shop.',
+        tools: [seed],
+        maxSteps: 30,
+        maxModelCalls: 40,
+        timeout: 90_000,
+        judgmentTimeout: 20_000,
+        maxObservationBytes: 100_000,
+        screenshotMaxSide: 1024,
+        maxInputTokens: 200_000,
+        providerOptions: {anthropic: {metadata: {user_id: 'ci'}}},
+      },
       'admin-2': {executor, model: undefined},
     };
     expect(failure({agents, secrets: {ADA_PASSWORD: 'correct horse', TOKEN: () => 'tok_123456', UNSET: undefined}, cache: {mode: 'read-only', dir: '.cache', strict: true}})).toBeNull();
@@ -38,7 +52,7 @@ describe("the agent's keys of a harness config", () => {
     expect(failure({agents: {default: 'opus'}})).toBe('harness.config.ts: agents.default is "opus"; it takes an object');
     expect(failure({agents: {'2nd': {}}})).toBe('harness.config.ts: agents.2nd is not a name an agent can have: a letter, then letters, digits, _ and -');
     expect(failure({agents: {default: {prompt: 'x'}}})).toBe(
-      'harness.config.ts: agents.default.prompt is not something an agent takes; it takes model, judge, system, context, tools, executor, maxSteps, maxModelCalls, timeout, judgmentTimeout, maxObservationBytes, screenshotMaxSide',
+      'harness.config.ts: agents.default.prompt is not something an agent takes; it takes model, judge, system, context, tools, executor, maxSteps, maxModelCalls, timeout, judgmentTimeout, maxObservationBytes, screenshotMaxSide, maxInputTokens, providerOptions',
     );
   });
 
@@ -57,6 +71,10 @@ describe("the agent's keys of a harness config", () => {
     expect(field('judgmentTimeout', '30s')).toMatch(/judgmentTimeout is "30s"; it takes a whole number of ms/);
     expect(field('maxObservationBytes', 100)).toBe('harness.config.ts: agents.default.maxObservationBytes is 100; it takes a whole number of bytes, 1024 or more');
     expect(field('screenshotMaxSide', 8000)).toBe('harness.config.ts: agents.default.screenshotMaxSide is 8000; it takes a whole number of pixels from 64 to 4096');
+    expect(field('maxInputTokens', 0)).toBe('harness.config.ts: agents.default.maxInputTokens is 0; it takes a whole number of tokens, 1 or more');
+    const byProvider = "it takes an object of each provider's options by its name, such as {anthropic: {metadata: {user_id: 'ci'}}}";
+    expect(field('providerOptions', {anthropic: 'fast'})).toBe(`harness.config.ts: agents.default.providerOptions is an object; ${byProvider}`);
+    expect(field('providerOptions', [])).toBe(`harness.config.ts: agents.default.providerOptions is a list; ${byProvider}`);
   });
 
   it('refuse an executor beside a prompt or tools, which it brings itself', () => {
@@ -82,8 +100,8 @@ describe("the agent's keys of a harness config", () => {
 
 describe('an agent as a step runs it', () => {
   it('is the entry named, with the defaults of what it leaves out', () => {
-    const resolved = resolveAgent({default: {model, context: 'A shop.', maxSteps: 10, timeout: undefined}, admin: {model}}, 'default');
-    expect(resolved).toEqual({name: 'default', model, judge: model, context: 'A shop.', tools: [], ...AGENT_DEFAULTS, maxSteps: 10});
+    const resolved = resolveAgent({default: {model, context: 'A shop.', maxSteps: 10, timeout: undefined, maxInputTokens: 50_000}, admin: {model}}, 'default');
+    expect(resolved).toEqual({name: 'default', model, judge: model, context: 'A shop.', tools: [], ...AGENT_DEFAULTS, maxSteps: 10, maxInputTokens: 50_000});
     expect(AGENT_DEFAULTS).toEqual({maxSteps: 25, maxModelCalls: 25, timeout: 120_000, judgmentTimeout: 30_000, maxObservationBytes: 262_144, screenshotMaxSide: 768});
   });
 

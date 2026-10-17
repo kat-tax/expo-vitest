@@ -128,7 +128,6 @@ These wait on an API key, and the runs are billed.
   iOS its charters run one at a time.
 - Only the newest screenshots in the model's history. Each image stays,
   since editing a turn already sent breaks the thinking these models keep.
-- The model options `maxInputTokens` and `providerOptions`.
 - A network allowlist in CI, to show that the agent reaches nothing but the
   model and the app.
 

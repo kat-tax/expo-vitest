@@ -130,16 +130,22 @@ export function messagesOf(messages: readonly Message[], systemRole: boolean): {
  * name order and the system blocks byte for byte the same between turns,
  * with a breakpoint on the last system block and the automatic one on the
  * tail, so the cached prefix grows with the conversation. `tool_choice` is
- * `auto`: forced tool use is a 400 on these models.
+ * `auto`: forced tool use is a 400 on these models. The agent's options
+ * under `anthropic` go in too, beneath the adapter's own fields, which the
+ * loop stands on, and their betas beside its own.
  */
 export function buildRequest(request: CompletionRequest, settings: RequestSettings): Record<string, unknown> {
   const tools = [...request.tools]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(tool => ({name: tool.name, description: tool.description, input_schema: tool.strict ? strictSchema(tool.inputSchema) : tool.inputSchema, ...(tool.strict ? {strict: true} : {})}));
+  const {betas: extraBetas, ...extra} = (request.providerOptions?.anthropic ?? {}) as {betas?: unknown} & Record<string, unknown>;
+  const betas = [...new Set([...(settings.fallbacks ? [FALLBACK_BETA] : []), ...(Array.isArray(extraBetas) ? extraBetas.filter((beta): beta is string => typeof beta === 'string') : [])])];
   return {
+    ...extra,
     model: settings.model,
     max_tokens: settings.maxTokens,
-    ...(settings.fallbacks ? {betas: [FALLBACK_BETA], fallbacks: 'default'} : {}),
+    ...(betas.length > 0 ? {betas} : {}),
+    ...(settings.fallbacks ? {fallbacks: 'default'} : {}),
     output_config: {effort: settings.effort, ...(request.format ? {format: {type: 'json_schema', schema: strictSchema(request.format)}} : {})},
     system: request.system.map(block => ({type: 'text', text: block.text, ...(block.cache ? {cache_control: {type: 'ephemeral'}} : {})})),
     ...(tools.length > 0 ? {tools, tool_choice: {type: 'auto'}} : {}),

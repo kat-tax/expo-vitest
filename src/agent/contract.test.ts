@@ -74,6 +74,7 @@ describe('expo-vitest/agent', () => {
     expectTypeOf<Secret>().toEqualTypeOf<{readonly kind: 'secret'; readonly name: string; readonly purpose: 'password' | 'generic'}>();
     expectTypeOf<Unique>().toEqualTypeOf<{readonly kind: 'unique'; readonly value: string}>();
     expectTypeOf<Model>().toEqualTypeOf<{readonly id: string; complete(request: CompletionRequest): Promise<Completion>}>();
+    expectTypeOf<CompletionRequest['providerOptions']>().toEqualTypeOf<Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined>();
     expectTypeOf<StepExecutor['runStep']>().toEqualTypeOf<(ctx: StepContext) => Promise<StepOutcome>>();
     expectTypeOf<StepOutcome>().toEqualTypeOf<{status: 'passed' | 'failed' | 'blocked'; summary: string; errorCode?: AgentErrorCode}>();
     const error = new surface.AgentError('ASSERTION_FAILED', 'No.', {step: 'assert', instruction: 'the cart is empty'});
