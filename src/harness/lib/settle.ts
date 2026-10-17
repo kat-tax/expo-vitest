@@ -14,7 +14,7 @@
  */
 import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from './snapshot.ts';
 import {asSelector, findNode, isPoint} from './snapshot.ts';
-import {CHANGES_SCREEN} from './controls.ts';
+import {waitsAfter} from './controls.ts';
 import type {ControlRequest, ControlResult, Driver, FillOptions, LongPressOptions, PressOptions, ScrollIntoViewOptions, StepResult, StepTiming} from './types.ts';
 
 export interface Timing {
@@ -218,10 +218,10 @@ export function withTiming(driver: Driver, timing: Timing, clock: Clock = realCl
       : {}),
     ...(driver.control
       ? {
-          // A control that changes the screen waits for it as an action does; one that only reads, or did nothing, does not.
+          // A control that changes the screen waits for it as an action does; one that only reads, did nothing, or left nothing of the app's to read, does not.
           async control(request: ControlRequest): Promise<ControlResult> {
             const result = await (driver.control as NonNullable<Driver['control']>)(request);
-            return CHANGES_SCREEN[request.name] && !result.skipped ? afterStep(result, timing) : result;
+            return waitsAfter(request.name, driver.platform) && !result.skipped ? afterStep(result, timing) : result;
           },
         }
       : {}),

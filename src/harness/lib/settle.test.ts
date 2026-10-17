@@ -268,6 +268,16 @@ describe('withTiming', () => {
     expect('control' in withTiming(stub([home]), timing, fakeClock())).toBe(false);
   });
 
+  it('reads no window after a Windows app has stopped, since it has none', async () => {
+    const control = vi.fn(async (request: ControlRequest): Promise<ControlResult> => ok(`did ${request.name}`));
+    const gone = stub([home], {platform: 'windows', control, snapshot: vi.fn(() => Promise.reject(new Error('no window for MyApp')))});
+    expect(await withTiming(gone, timing, fakeClock()).control?.({name: 'stopApp'})).toEqual(ok('did stopApp'));
+    expect(gone.snapshot).not.toHaveBeenCalled();
+    const web = stub([home, home, home], {control});
+    await withTiming(web, timing, fakeClock()).control?.({name: 'stopApp'});
+    expect(web.snapshot).toHaveBeenCalled();
+  });
+
   it('hands a driver that waits by itself the times for a long press, a scroll and a swipe', async () => {
     const longPress = vi.fn(async (): Promise<StepResult> => ok('held'));
     const scrollIntoView = vi.fn(async (): Promise<StepResult> => ok('scrolled'));

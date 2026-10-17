@@ -1,10 +1,15 @@
 import {describe, expect, it} from 'vitest';
-import {CANNOT, CHANGES_SCREEN, cannot, describeControl, LACKS, lacking, needsApp, otherSensor, webGrants} from './controls.ts';
+import {CANNOT, CHANGES_SCREEN, cannot, describeControl, LACKS, lacking, needsApp, NO_SCREEN_AFTER, otherSensor, waitsAfter, webGrants} from './controls.ts';
 import {PLATFORMS} from './types.ts';
 
 describe('the controls', () => {
   it('wait for the screen after the ones that change it', () => {
     expect(Object.entries(CHANGES_SCREEN).filter(([, changes]) => changes).map(([name]) => name)).toEqual(['restart', 'clearState', 'stopApp', 'resumeApp', 'back', 'home', 'openLink', 'setAppearance', 'setOrientation', 'fold', 'dismissKeyboard', 'alert']);
+  });
+
+  it('wait for nothing where the platform leaves nothing of the app on screen', () => {
+    expect(NO_SCREEN_AFTER).toEqual({windows: ['stopApp']});
+    expect([waitsAfter('stopApp', 'windows'), waitsAfter('stopApp', 'android'), waitsAfter('restart', 'windows'), waitsAfter('foregroundApp', 'web')]).toEqual([false, true, true, false]);
   });
 
   it('are named in the journal by what they did', () => {

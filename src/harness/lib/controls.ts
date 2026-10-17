@@ -34,6 +34,14 @@ export const CHANGES_SCREEN: Record<ControlName, boolean> = {
   alert: true,
 };
 
+/** The controls after which a platform shows nothing of the app's to wait for: a Windows app stopped has no window. */
+export const NO_SCREEN_AFTER: Partial<Record<Platform, readonly ControlName[]>> = {windows: ['stopApp']};
+
+/** Whether a step waits for the screen to hold still after a control on a platform. */
+export function waitsAfter(name: ControlName, platform: Platform): boolean {
+  return CHANGES_SCREEN[name] && !(NO_SCREEN_AFTER[platform] ?? []).includes(name);
+}
+
 /** Why a platform has no counterpart for a control at all. */
 export const LACKS: Record<Platform, Partial<Record<ControlName, string>>> = {
   web: {
