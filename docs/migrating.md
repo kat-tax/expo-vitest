@@ -92,7 +92,7 @@ A flow is a test file, and each command a line of it.
 | `launchApp: {stopApp: true}` | `device.restart()` | renamed |
 | `launchApp: {arguments}`, `launchApp: {permissions}` | `launchArguments` and `permissions` in the harness config | renamed |
 | `stopApp`, `killApp` | `device.stopApp()` | renamed |
-| a second `appId` in a flow | | not yet: one app to a platform |
+| a second `appId` in a flow | `device.activateApp(appId)`, and `device.resumeApp()` for the app under test again | renamed |
 | `tapOn: Save` | `screen.getByText('Save').press()` | renamed |
 | `tapOn: {id: save}` | `screen.getByTestId('save').press()` | renamed |
 | `tapOn: {index: 2}` | `.nth(2).press()` | renamed |

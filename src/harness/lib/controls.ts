@@ -13,6 +13,7 @@ export const CHANGES_SCREEN: Record<ControlName, boolean> = {
   clearState: true,
   stopApp: true,
   resumeApp: true,
+  activateApp: true,
   back: true,
   home: true,
   installApp: false,
@@ -46,6 +47,7 @@ export function waitsAfter(name: ControlName, platform: Platform): boolean {
 export const LACKS: Record<Platform, Partial<Record<ControlName, string>>> = {
   web: {
     home: 'a browser has no home screen',
+    activateApp: 'a browser has no other app to bring up',
     installApp: 'nothing is installed in a browser',
     setAirplaneMode: 'a browser has no airplane mode; setNetwork takes the page offline',
     setBiometrics: 'a browser has no biometric sensor to answer',
@@ -55,6 +57,7 @@ export const LACKS: Record<Platform, Partial<Record<ControlName, string>>> = {
   windows: {
     back: "react-native-windows has no system back; press the app's own back control",
     home: 'Windows has no home screen to send an app to',
+    activateApp: "the Windows harness reads the windows of the app it drives, and no other's",
     setAppearance: "the app follows the Windows theme, which is the whole machine's",
     setOrientation: 'a desktop window has no orientation',
     setNetwork: "the network is the whole machine's",
@@ -102,6 +105,8 @@ export function describeControl(request: ControlRequest): string {
       return `installApp${request.reinstall ? ', again,' : ''}${request.path ? ` from ${request.path}` : ''}`;
     case 'openLink':
       return `openLink ${request.url}`;
+    case 'activateApp':
+      return `activateApp ${request.id}`;
     case 'setAppearance':
       return `setAppearance ${request.mode}`;
     case 'setOrientation':

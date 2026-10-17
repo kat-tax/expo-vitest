@@ -462,6 +462,17 @@ class Device {
     return doneOrSkipped(await this.control({name: 'resumeApp'}));
   }
 
+  /**
+   * Another app on the device brought to the front by its id, as Appium's
+   * `activateApp` and a second `appId` in a Maestro flow have it: its
+   * package on Android, its bundle id on iOS, started where it is not
+   * running. The screen is that app's until `resumeApp` brings the test's
+   * own back. Skipped on web and Windows, which drive the one app.
+   */
+  async activateApp(id: string): Promise<'done' | 'skipped'> {
+    return doneOrSkipped(await this.control({name: 'activateApp', id}));
+  }
+
   /** A build installed: the one given, from the root, or the harness config's `appPath`; in place of the one there with `reinstall`. */
   async installApp(path?: string, options: {reinstall?: boolean} = {}): Promise<'done' | 'skipped'> {
     return doneOrSkipped(await this.control({name: 'installApp', ...(path ? {path} : {}), ...(options.reinstall ? {reinstall: true} : {})}));

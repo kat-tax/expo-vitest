@@ -71,6 +71,7 @@ export type ControlRequest =
   | {name: 'clearState'}
   | {name: 'stopApp'}
   | {name: 'resumeApp'}
+  | {name: 'activateApp'; id: string}
   | {name: 'back'}
   | {name: 'home'}
   | {name: 'installApp'; path?: string; reinstall?: boolean}

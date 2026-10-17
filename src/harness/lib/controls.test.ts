@@ -4,7 +4,7 @@ import {PLATFORMS} from './types.ts';
 
 describe('the controls', () => {
   it('wait for the screen after the ones that change it', () => {
-    expect(Object.entries(CHANGES_SCREEN).filter(([, changes]) => changes).map(([name]) => name)).toEqual(['restart', 'clearState', 'stopApp', 'resumeApp', 'back', 'home', 'openLink', 'setAppearance', 'setOrientation', 'fold', 'dismissKeyboard', 'alert']);
+    expect(Object.entries(CHANGES_SCREEN).filter(([, changes]) => changes).map(([name]) => name)).toEqual(['restart', 'clearState', 'stopApp', 'resumeApp', 'activateApp', 'back', 'home', 'openLink', 'setAppearance', 'setOrientation', 'fold', 'dismissKeyboard', 'alert']);
   });
 
   it('wait for nothing where the platform leaves nothing of the app on screen', () => {
@@ -15,6 +15,7 @@ describe('the controls', () => {
   it('are named in the journal by what they did', () => {
     expect(describeControl({name: 'restart'})).toBe('restart');
     expect(describeControl({name: 'openLink', url: 'myapp://settings'})).toBe('openLink myapp://settings');
+    expect(describeControl({name: 'activateApp', id: 'com.android.settings'})).toBe('activateApp com.android.settings');
     expect(describeControl({name: 'installApp'})).toBe('installApp');
     expect(describeControl({name: 'installApp', path: 'app.apk', reinstall: true})).toBe('installApp, again, from app.apk');
     expect(describeControl({name: 'setAppearance', mode: 'dark'})).toBe('setAppearance dark');
@@ -52,6 +53,9 @@ describe('the controls', () => {
     expect(lacking({name: 'fold', pose: 'open'}, 'web')?.skipped).toBe(true);
     expect(lacking({name: 'setNetwork', online: false}, 'web')).toBeNull();
     expect(lacking({name: 'clipboard'}, 'windows')).toBeNull();
+    expect(lacking({name: 'activateApp', id: 'com.example.other'}, 'web')?.message).toBe('activateApp is not something the web harness can do: a browser has no other app to bring up');
+    expect(lacking({name: 'activateApp', id: 'Other.exe'}, 'windows')?.message).toBe("activateApp is not something the windows harness can do: the Windows harness reads the windows of the app it drives, and no other's");
+    expect(lacking({name: 'activateApp', id: 'com.example.other'}, 'android')).toBeNull();
   });
 
   it("answer for a sensor only where it is the platform's", () => {

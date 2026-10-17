@@ -173,6 +173,13 @@ it('brings the app back where stopApp left its page blank, and leaves one in fro
   await expect(screen.getByTestId('name')).toHaveValue('Ada');
 });
 
+it('brings up no other app in a browser, and says why', async () => {
+  await device.open('/');
+  expect(await device.activateApp('com.example.other')).toBe('skipped');
+  expect(device.lastSkip).toBe('activateApp is not something the web harness can do: a browser has no other app to bring up');
+  expect(device.can('activateApp')).toBe(false);
+});
+
 it('travels a route, a place a second, and ends on the last', async () => {
   await device.open('/place');
   expect(await device.setLocation({latitude: 51.5, longitude: -0.12})).toBe('done');

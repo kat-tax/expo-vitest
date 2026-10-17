@@ -16,9 +16,10 @@ on a simulator, and then on an iPhone:
   spelling and each `'skipped'` answer. A snapshot from a simulator, kept in
   `src/harness/lib/__fixtures__/`, would test the iOS role table, which maps
   XCUIElement type names that have not been read off a device yet.
-- The app's life (`restart`, `clearState`, `back`, `home`, `installApp`,
-  `openLink`, `foregroundApp`), the device's settings, gating, masked and
-  element screenshots, and the normalised status bar.
+- The app's life (`restart`, `clearState`, `back`, `home`, `resumeApp`,
+  `activateApp`, `installApp`, `openLink`, `foregroundApp`), the device's
+  settings, gating, masked and element screenshots, and the normalised
+  status bar.
 - An Expo development build launched at the run's dev server, with no
   developer menu, onboarding sheet or floating button in its first
   screenshot. Then [Controls](docs/controls.md#an-expo-development-build)
@@ -96,13 +97,12 @@ These wait on an API key, and the runs are billed.
 
 ### Steps and controls
 
-- What [Migrating](docs/migrating.md) marks "not yet": a second app in one
-  test; a picker column's value and clearing the keychain, which are iOS's
-  and wait on a Mac (agent-device's `settings reset-keychain` clears a
-  simulator's); a shake, the lock, power and volume keys, and adding media,
-  which agent-device has no command for; and a TV remote, agent-device's
-  `tv-remote`, which takes Android TV, tvOS and Vega alone, and waits on one
-  of those.
+- What [Migrating](docs/migrating.md) marks "not yet": a picker column's
+  value and clearing the keychain, which are iOS's and wait on a Mac
+  (agent-device's `settings reset-keychain` clears a simulator's); a shake,
+  the lock, power and volume keys, and adding media, which agent-device has
+  no command for; and a TV remote, agent-device's `tv-remote`, which takes
+  Android TV, tvOS and Vega alone, and waits on one of those.
 - Named keys on iOS and Android other than Enter, which answer `'skipped'`:
   agent-device sends Enter alone on a phone.
 

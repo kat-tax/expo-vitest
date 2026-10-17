@@ -655,6 +655,8 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(device.home).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.resumeApp).toEqualTypeOf<() => Promise<'done' | 'skipped'>>();
     expectTypeOf<'resumeApp'>().toExtend<Capability>();
+    expectTypeOf(device.activateApp).toEqualTypeOf<(id: string) => Promise<'done' | 'skipped'>>();
+    expectTypeOf<'activateApp'>().toExtend<Capability>();
     expectTypeOf(device.installApp).toEqualTypeOf<(path?: string, options?: {reinstall?: boolean}) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.openLink).toEqualTypeOf<(url: string) => Promise<'done' | 'skipped'>>();
     expectTypeOf(device.foregroundApp).toEqualTypeOf<() => Promise<string | null>>();

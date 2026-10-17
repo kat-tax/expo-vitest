@@ -72,7 +72,8 @@ flicker does not pass it.
 ## The app's life and the device's settings
 
 `device.restart()`, `clearState()`, `stopApp()`, `back()`, `home()`,
-`installApp()`, `openLink(url)` and `foregroundApp()`;
+`resumeApp()`, `activateApp(id)` for another app, `installApp()`,
+`openLink(url)` and `foregroundApp()`;
 `setAppearance('dark')`, `setOrientation()`, `setNetwork('offline')`,
 `setPermission()`, `setLocation()`, `setClipboard()`, `dismissKeyboard()`,
 `alert('accept')` and the rest. Each answers `'skipped'` where a platform has
