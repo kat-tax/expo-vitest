@@ -2,7 +2,7 @@ import http from 'node:http';
 import type {AddressInfo} from 'node:net';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {InspectorPage, Socket} from './metro.ts';
-import {cdp, choosePage, consoleLine, followConsole, metroFrom, readReact} from './metro.ts';
+import {cdp, choosePage, consoleLine, followConsole, metroFrom, readReact, serverOf, symbolicate} from './metro.ts';
 
 const page = (id: string, extra: Partial<InspectorPage> = {}): InspectorPage => ({
   id,
@@ -124,6 +124,41 @@ describe("the app's console", () => {
     // Into its pause, whose timer holds nothing open, before it is stopped.
     await new Promise(resolve => setTimeout(resolve, 20));
     idle.stop();
+  });
+});
+
+describe('a stack symbolicated', () => {
+  const frames = [{file: 'http://localhost:8081/index.bundle?platform=web', line: 900, column: 4, name: 'View'}, {file: 'http://localhost:8081/index.bundle?platform=web', line: 120, column: 9}];
+
+  it("is Metro's answer to one request for every frame, in its words and back", async () => {
+    const sent: {url: string; body: unknown}[] = [];
+    const send = async (url: string, init: {body: string}) => {
+      sent.push({url, body: JSON.parse(init.body)});
+      return {ok: true, json: async () => ({stack: [{file: '/app/node_modules/rnw/View.js', lineNumber: 9, column: 1, methodName: 'View'}, {file: '/app/src/Save.tsx', lineNumber: 12}, {lineNumber: 3}], codeFrame: null})};
+    };
+    expect(await symbolicate(frames, 'http://localhost:8081', send)).toEqual([
+      {file: '/app/node_modules/rnw/View.js', line: 9, column: 1, name: 'View'},
+      {file: '/app/src/Save.tsx', line: 12, column: 0},
+    ]);
+    expect(sent).toEqual([
+      {
+        url: 'http://localhost:8081/symbolicate',
+        body: {stack: [{file: frames[0]?.file, lineNumber: 900, column: 4, methodName: 'View'}, {file: frames[1]?.file, lineNumber: 120, column: 9, methodName: ''}]},
+      },
+    ]);
+  });
+
+  it('is null where Metro refuses, answers no stack, or cannot be reached', async () => {
+    expect(await symbolicate(frames, 'http://metro', async () => ({ok: false, json: async () => ({})}))).toBeNull();
+    expect(await symbolicate(frames, 'http://metro', async () => ({ok: true, json: async () => ({stack: 'no'})}))).toBeNull();
+    expect(await symbolicate(frames, 'http://metro', async () => ({ok: true, json: async () => null}))).toBeNull();
+    expect(await symbolicate(frames, 'http://metro', () => Promise.reject(new Error('refused')))).toBeNull();
+  });
+
+  it("is sent to the server a page's frame names", () => {
+    expect(serverOf('http://localhost:41751/node_modules/expo-router/entry.bundle?platform=web')).toBe('http://localhost:41751');
+    expect(serverOf('file:///C:/app/index.js')).toBeNull();
+    expect(serverOf('<anonymous>')).toBeNull();
   });
 });
 

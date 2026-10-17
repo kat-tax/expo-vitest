@@ -334,7 +334,7 @@ It is read from React's DevTools hook, which only a development build has:
 The walk is all that runs in the app, and what it leaves there is taken away
 when it is read. Where the tree can be read, a failing test's
 [evidence](evidence.md) names the component behind the node its failing step
-was for.
+was for, and the line of the app's own source that drew it.
 
 ## Errors
 

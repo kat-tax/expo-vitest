@@ -14,7 +14,8 @@ import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/control
 import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, LongPressOptions, PressOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
-import type {ReactTree} from '../lib/react.ts';
+import type {ReactTree, StackFrame} from '../lib/react.ts';
+import {framesExpression} from '../lib/react.ts';
 import type {HostChild} from './windows-host.ts';
 import {windowsHost} from './windows-host.ts';
 import {CLEAR, SEND_KEYS, literal} from './windows-keys.ts';
@@ -435,6 +436,10 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     react(): Promise<ReactTree | {unavailable: string}> {
       // A debug build's, through Metro's inspector, which react-native-windows builds into its host.
       return readReact({...metroFrom(process.env), ...(processName ? {target: processName} : {})});
+    },
+
+    reactFrames(id: number): Promise<{frames: StackFrame[]} | {unavailable: string}> {
+      return readReact<{frames: StackFrame[]}>({...metroFrom(process.env), ...(processName ? {target: processName} : {})}, framesExpression(id));
     },
 
     async longPress(what: Target, pressOptions: LongPressOptions = {}): Promise<StepResult> {

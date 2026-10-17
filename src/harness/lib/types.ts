@@ -1,5 +1,5 @@
 import type {HarnessCode} from './errors.ts';
-import type {ReactTree} from './react.ts';
+import type {ReactTree, StackFrame} from './react.ts';
 import type {Point, Snapshot, Target} from './snapshot.ts';
 
 /** The platforms the harness can drive. */
@@ -297,6 +297,8 @@ export interface Driver {
   pinch?(at: Point, scale: number): Promise<StepResult>;
   /** The React tree behind the native one, or why it cannot be read here. */
   react?(): Promise<ReactTree | {unavailable: string}>;
+  /** Where each element from a node of the React tree up was written, the innermost first, by the node's id in a walk of the tree as it is. */
+  reactFrames?(id: number): Promise<{frames: StackFrame[]} | {unavailable: string}>;
   /**
    * The app's life by name: a fresh launch, its state cleared, back, home, a
    * link, the app in front. A platform with no counterpart for one answers

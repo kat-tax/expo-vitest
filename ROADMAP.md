@@ -134,12 +134,6 @@ These wait on an API key, and the runs are billed.
 - A network allowlist in CI, to show that the agent reaches nothing but the
   model and the app.
 
-### Evidence and the React tree
-
-- The file and line of the component behind a failed press. React 19 has no
-  `_debugSource`; Metro's `/symbolicate` may give it from a stack.
-
-
 ### The run
 
 - Platforms side by side in one run. Vitest holds one file at a time for

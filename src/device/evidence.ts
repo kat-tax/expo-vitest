@@ -11,7 +11,7 @@
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type {ReactTree} from '../harness/lib/react.ts';
+import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
 import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import {renderSnapshot} from '../harness/lib/snapshot.ts';
@@ -330,8 +330,12 @@ export interface TraceInput {
   console?: ConsoleLine[];
   /** The agent's steps. */
   agents?: AgentNote[];
-  /** The component behind the node the failing step was for, and the chain above it, where the React tree was read. */
-  chain?: {node: string; component?: string; chain: string[]};
+  /**
+   * The component behind the node the failing step was for, and the chain
+   * above it, where the React tree was read, and the line of the project's
+   * own source that drew it, where a development build and Metro could say.
+   */
+  chain?: {node: string; component?: string; chain: string[]; source?: string};
 }
 
 /** A step's line in the table: what it did to the screen, from the screen before it. */
@@ -374,9 +378,9 @@ export function renderTrace(input: TraceInput): string {
   }
   if (input.chain) {
     // The end of the chain, nearest the node, is where the app's own components are.
-    const {node, component, chain} = input.chain;
+    const {node, component, chain, source} = input.chain;
     const tail = chain.length > 12 ? ['…', ...chain.slice(-12)] : chain;
-    lines.push('## Component', '', `${node} is drawn by ${component ?? 'no component of the app'}:`, '', `    ${tail.join(' › ')}`, '');
+    lines.push('## Component', '', `${node} is drawn by ${component ?? 'no component of the app'}${source ? `, written at ${source}` : ''}:`, '', `    ${tail.join(' › ')}`, '');
   }
   lines.push(input.failed ? '## Screen at failure' : '## Screen at the end', '');
   if (input.noScreenshot) lines.push(`Screenshot: not taken, ${input.noScreenshot}.`, '');
@@ -405,6 +409,8 @@ export interface EvidenceSource {
   tree(): Promise<Snapshot>;
   /** The React tree, where the backend can read it, or null. */
   react?(): Promise<ReactTree | null>;
+  /** Where in the project's source a node of the React tree was written, as `src/Save.tsx:12:5`, or null. */
+  drawnAt?(node: ReactNode): Promise<string | null>;
   journal: Journal;
 }
 
@@ -455,7 +461,10 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
     const failing = source.journal.steps.findLast(step => step.result === 'failed' && step.resolved) ?? source.journal.steps.findLast(step => step.resolved);
     const node = nodeOfStep(failing, tree);
     const behind = node ? reactNodeOf(node, react) : undefined;
-    if (node && behind) chain = {node: `${node.ref} ${node.kind ?? node.role} ${JSON.stringify(node.name)}`, ...(behind.component ? {component: behind.component} : {}), chain: behind.chain};
+    const written = behind && source.drawnAt ? await source.drawnAt(behind).catch(() => null) : null;
+    if (node && behind) {
+      chain = {node: `${node.ref} ${node.kind ?? node.role} ${JSON.stringify(node.name)}`, ...(behind.component ? {component: behind.component} : {}), chain: behind.chain, ...(written ? {source: written} : {})};
+    }
   }
   if (tree) {
     // A field a secret was typed into, where the field shows what it holds, has the value in the tree.

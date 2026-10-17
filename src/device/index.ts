@@ -38,8 +38,9 @@ import {claimDevice, sessionName} from './pool.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
 import {Journal} from './evidence.ts';
 import type {ComponentType, ReactElement, ReactNode as ReactChildren} from 'react';
-import type {ReactNode, ReactTree} from '../harness/lib/react.ts';
-import {reactNodeOf, withComponents} from '../harness/lib/react.ts';
+import type {ReactNode, ReactTree, StackFrame} from '../harness/lib/react.ts';
+import {appFrame, reactNodeOf, withComponents} from '../harness/lib/react.ts';
+import {metroFrom, serverOf, symbolicate} from '../harness/lib/metro.ts';
 import {checkCount, Locator} from './locator.ts';
 import type {LocatorHost, LocatorState, WaitOptions} from './locator.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
@@ -206,6 +207,17 @@ class Device {
         if (!driver.react) return null;
         const tree = await driver.react();
         return 'unavailable' in tree ? null : tree;
+      },
+      drawnAt: async node => {
+        const driver = this.driver as Driver;
+        if (!driver.reactFrames) return null;
+        const read = await driver.reactFrames(node.id);
+        const [first] = 'frames' in read ? read.frames : [];
+        if (!first) return null;
+        // A page's frames name the server that bundled them; a device's Metro is where the run reaches it.
+        const metro = this.platform === 'web' ? serverOf(first.file) : metroFrom(process.env).url;
+        const source = metro ? await symbolicate((read as {frames: StackFrame[]}).frames, metro) : null;
+        return source ? appFrame(source, ROOT) : null;
       },
     };
   }

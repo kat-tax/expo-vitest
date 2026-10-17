@@ -13,8 +13,8 @@ import type {Availability, ControlRequest, ControlResult, DialogAnswer, DragOpti
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
 import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard, noPinch} from './web-browsers.ts';
-import type {ReactTree} from '../lib/react.ts';
-import {walkExpression} from '../lib/react.ts';
+import type {ReactTree, StackFrame} from '../lib/react.ts';
+import {framesExpression, walkExpression} from '../lib/react.ts';
 import {COLLECT} from './web-collect.ts';
 
 const DEFAULT_URL = 'http://localhost:8081';
@@ -999,6 +999,11 @@ export function webDriver(options: DriverOptions): Driver {
       await collect();
       const current = await open();
       return current.evaluate<ReactTree | {unavailable: string}>(walkExpression());
+    },
+
+    async reactFrames(id: number): Promise<{frames: StackFrame[]} | {unavailable: string}> {
+      const current = await open();
+      return current.evaluate<{frames: StackFrame[]} | {unavailable: string}>(framesExpression(id));
     },
 
     async drag(from: Target, to: Target, dragOptions: DragOptions = {}): Promise<StepResult> {

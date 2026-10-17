@@ -248,6 +248,8 @@ describe('the trace', () => {
     expect(trace).toContain('## Console\n\n| at | level | text |\n| --- | --- | --- |\n| 1.50 s | warn | a \\| b c |');
     const plain = renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, chain: {node: '@e1 text "Hi"', chain: ['View']}});
     expect(plain).toContain('@e1 text "Hi" is drawn by no component of the app:\n\n    View\n');
+    const written = renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, chain: {node: '@e7 button "Save"', component: 'SaveButton', chain: ['SaveButton'], source: 'src/SaveButton.tsx:12:5'}});
+    expect(written).toContain('@e7 button "Save" is drawn by SaveButton, written at src/SaveButton.tsx:12:5:\n\n    SaveButton\n');
     const long = Array.from({length: 60}, (_, at) => ({level: 'log', text: `line ${at}`, at}));
     expect(renderTrace({titlePath: ['t'], platform: 'web', file: 'a.test.ts', failed: true, duration: 1, at: new Date(0), errors: [], steps: [], tree: null, console: long})).toContain('The last 50 of 60 lines.');
   });
@@ -383,6 +385,14 @@ describe('writeEvidence', () => {
     reading.journal.steps[0] = {...(reading.journal.steps[0] as Step), result: 'failed'};
     const again = await writeEvidence(reading, input(root));
     expect(fs.readFileSync(again.trace, 'utf8')).toContain('@e3 textbox "Name" is drawn by NameField:\n\n    App › NameField › TextInput');
+    // Where a development build and its Metro say where the node was written, and where they cannot.
+    const asked: number[] = [];
+    reading.drawnAt = async behind => (asked.push(behind.id), 'src/NameField.tsx:8:3');
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).toContain('@e3 textbox "Name" is drawn by NameField, written at src/NameField.tsx:8:3:');
+    expect(asked).toEqual([1]);
+    reading.drawnAt = () => Promise.reject(new Error('no Metro'));
+    expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).toContain('@e3 textbox "Name" is drawn by NameField:');
+    delete reading.drawnAt;
     reading.react = async () => ({nodes: [{id: 1, host: 'input', chain: ['TextInput'], ref: '@e3'}]});
     reading.tree = async () => tree(node('@e3', 'input', 'Name', {testId: 'name'}));
     expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).toContain('@e3 input "Name" is drawn by no component of the app:');

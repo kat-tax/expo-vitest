@@ -117,15 +117,23 @@ Steps nest, and `step` answers with what `body` answers.
 Where the [React tree](device-tests.md#the-react-tree) can be read, the tree
 at the end names the component behind each node, and a `## Component` part
 names the one behind the node the failing step was for, with the end of the
-chain of components above it:
+chain of components above it, and the line of the project's own source that
+drew it:
 
 ```markdown
 ## Component
 
-@e32 link "Settings" is drawn by TabLink:
+@e32 link "Settings" is drawn by TabLink, written at src/app/_layout.tsx:41:9:
 
     … › WebTabList › View › TabTrigger › Slot.Slot › TabLink › Pressable › View
 ```
+
+The line comes from a development build: React keeps the stack of the call
+that made each element, the frames from the node up go to Metro's
+`/symbolicate`, and the innermost outside `node_modules` is the one named,
+past the kit's own components to the screen that used them. On web the
+Metro is the server the page was bundled by, and on a device the one
+`HARNESS_METRO` names. Where neither can say, the line is left out.
 
 A `## Console` part lists what the app wrote to its console during the
 test, and the errors it did not catch, the last fifty lines: on web the

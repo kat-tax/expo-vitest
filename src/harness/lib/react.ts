@@ -63,7 +63,7 @@ const UNDRAWN = ['style', 'script', 'link', 'meta', 'title', 'head', 'noscript',
  * Fabric's `measureInWindow` on a device, for the nodes that carry
  * something to match by. At most `limit` nodes.
  */
-export const WALK = `(async (passOver, limit, undrawn) => {
+export const WALK = `(async (passOver, limit, undrawn, wanted, depth) => {
   const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (!hook || !hook.renderers) return {unavailable: 'there is no React DevTools hook in this runtime, which a production build leaves out'};
   const rootsOf = id => (hook.getFiberRoots ? Array.from(hook.getFiberRoots(id) || []) : []);
@@ -124,6 +124,34 @@ export const WALK = `(async (passOver, limit, undrawn) => {
       if (walked.nodes.length > best.nodes.length) best = walked;
     }
   }
+  // Where each element from the node up was written: React keeps the stack
+  // of the call that made an element on a development build, and its first
+  // frame past React's own call is the render that wrote it.
+  if (wanted !== null) {
+    const frameOf = fiber => {
+      const stack = fiber._debugStack && fiber._debugStack.stack;
+      if (typeof stack !== 'string') return null;
+      const frames = [];
+      for (const line of stack.split('\\n')) {
+        const found = /^\\s*at (?:(.*?) \\()?(.+?):(\\d+):(\\d+)\\)?\\s*$/.exec(line) || /^(.*?)@(.+?):(\\d+):(\\d+)$/.exec(line.trim());
+        if (found) frames.push({name: found[1] || '', file: found[2], line: Number(found[3]), column: Number(found[4])});
+      }
+      // The first is React's own call that made the element, whatever the
+      // engine names it (Hermes names none); a wrapper of it, as
+      // react-native-web's createElement, says so in its name.
+      const own = frames.slice(1).find(frame => !/jsx|createElement/i.test(frame.name));
+      if (!own) return null;
+      return {file: own.file, line: own.line, column: own.column, ...(own.name && own.name !== 'anonymous' ? {name: own.name} : {})};
+    };
+    const frames = [];
+    let fiber = best.fibers[wanted - 1];
+    for (let up = 0; fiber && up < depth; up++, fiber = fiber.return) {
+      const frame = frameOf(fiber);
+      const last = frames[frames.length - 1];
+      if (frame && !(last && last.file === frame.file && last.line === frame.line && last.column === frame.column)) frames.push(frame);
+    }
+    return {frames};
+  }
   const refs = globalThis.__harnessRefs;
   const measured = best.nodes.map((node, at) => {
     const host = best.fibers[at].stateNode;
@@ -152,7 +180,43 @@ export const WALK = `(async (passOver, limit, undrawn) => {
 
 /** The walk as an expression a runtime evaluates, with its arguments written in. */
 export function walkExpression(limit = 4000): string {
-  return `${WALK}(${JSON.stringify(PRIMITIVES)}, ${limit}, ${JSON.stringify(UNDRAWN)})`;
+  return `${WALK}(${JSON.stringify(PRIMITIVES)}, ${limit}, ${JSON.stringify(UNDRAWN)}, null, 0)`;
+}
+
+/** A frame of a stack: a bundle's position as a runtime gives it, or a source's once symbolicated. */
+export interface StackFrame {
+  file: string;
+  line: number;
+  column: number;
+  name?: string;
+}
+
+/** The fibers a frame walk climbs from a node at most: past a kit's components to the app's own. */
+export const FRAME_DEPTH = 40;
+
+/**
+ * The walk again, for one node of it by its id: where each element from the
+ * node up was written, the innermost first, on a development build. A walk
+ * of a tree that has not changed since numbers its nodes the same.
+ */
+export function framesExpression(id: number, limit = 4000, depth = FRAME_DEPTH): string {
+  return `${WALK}(${JSON.stringify(PRIMITIVES)}, ${limit}, ${JSON.stringify(UNDRAWN)}, ${id}, ${depth})`;
+}
+
+/**
+ * The innermost frame in the project's own source, as a path from its root:
+ * the line of the app that drew a node, past the libraries' own lines above
+ * it. Null where every frame is a library's, or outside the project.
+ */
+export function appFrame(frames: readonly StackFrame[], root: string): string | null {
+  const normal = (file: string) => file.replace(/\\/g, '/');
+  const home = normal(root).replace(/\/$/, '');
+  for (const frame of frames) {
+    const file = normal(frame.file);
+    if (file.includes('/node_modules/') || !file.toLowerCase().startsWith(`${home.toLowerCase()}/`)) continue;
+    return `${file.slice(home.length + 1)}:${frame.line}:${frame.column}`;
+  }
+  return null;
 }
 
 /** How much two boxes cover of each other: their overlap over their union, from 0 to 1. */

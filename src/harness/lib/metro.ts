@@ -14,7 +14,7 @@
  * and for the console `Runtime.enable`: nothing that pauses, or that the
  * runtime keeps after the connection goes.
  */
-import type {ReactTree} from './react.ts';
+import type {ReactTree, StackFrame} from './react.ts';
 import {walkExpression} from './react.ts';
 
 /** Where the walk leaves what it found in the app's runtime, and how often it is looked for, in ms. */
@@ -235,8 +235,11 @@ export function followConsole(given: MetroOptions, listener: (level: string, tex
   };
 }
 
-/** The React tree of the app Metro serves, or why it cannot be read. */
-export async function readReact(options: MetroOptions): Promise<ReactTree | {unavailable: string}> {
+/**
+ * The React tree of the app Metro serves, or why it cannot be read: the
+ * walk's answer, or another expression's that answers as the walk does.
+ */
+export async function readReact<Answer = ReactTree>(options: MetroOptions, expression: string = walkExpression()): Promise<Answer | {unavailable: string}> {
   const chosen = await pageFrom(options);
   if ('unavailable' in chosen) return chosen;
   const socket = connectTo(chosen.page, options);
@@ -248,20 +251,20 @@ export async function readReact(options: MetroOptions): Promise<ReactTree | {una
       timer = setTimeout(() => reject(new Error(`the app gave no answer within ${timeout / 1000} s`)), timeout);
     });
     await Promise.race([opened(socket), late]);
-    type Answer = {result?: {value?: ReactTree | {unavailable: string} | string}; exceptionDetails?: {text?: string; exception?: {description?: string}}};
-    const evaluate = async (expression: string) => (await Promise.race([session.call('Runtime.evaluate', {expression, returnByValue: true}), late])) as Answer;
-    const threw = (answer: Answer) => ({unavailable: `the walk threw in the app: ${answer.exceptionDetails?.exception?.description ?? answer.exceptionDetails?.text ?? 'no message'}`});
+    type Evaluated = {result?: {value?: Answer | {unavailable: string} | string}; exceptionDetails?: {text?: string; exception?: {description?: string}}};
+    const evaluate = async (source: string) => (await Promise.race([session.call('Runtime.evaluate', {expression: source, returnByValue: true}), late])) as Evaluated;
+    const threw = (answer: Evaluated) => ({unavailable: `the walk threw in the app: ${answer.exceptionDetails?.exception?.description ?? answer.exceptionDetails?.text ?? 'no message'}`});
     // Hermes's debugger cannot wait on React Native's own Promise, so the walk leaves what it found in the app, and
     // a look after reads it and takes it away.
     const started = await evaluate(
-      `(globalThis.${RESULT} = undefined, ${walkExpression()}.then(tree => { globalThis.${RESULT} = tree; }, error => { globalThis.${RESULT} = {unavailable: 'the walk threw in the app: ' + error}; }), 'started')`,
+      `(globalThis.${RESULT} = undefined, ${expression}.then(tree => { globalThis.${RESULT} = tree; }, error => { globalThis.${RESULT} = {unavailable: 'the walk threw in the app: ' + error}; }), 'started')`,
     );
     if (started.exceptionDetails) return threw(started);
     for (;;) {
       const look = await evaluate(`(() => { const found = globalThis.${RESULT}; if (found !== undefined) delete globalThis.${RESULT}; return found; })()`);
       if (look.exceptionDetails) return threw(look);
       const found = look.result?.value;
-      if (found !== undefined) return found as ReactTree | {unavailable: string};
+      if (found !== undefined) return found as Answer | {unavailable: string};
       await new Promise(resolve => setTimeout(resolve, LOOK_EVERY));
     }
   } catch (error) {
@@ -269,5 +272,41 @@ export async function readReact(options: MetroOptions): Promise<ReactTree | {una
   } finally {
     clearTimeout(timer);
     session.close();
+  }
+}
+
+/** How a request is sent: Node's own fetch by default. */
+export type Send = (url: string, init: {method: string; headers: Record<string, string>; body: string}) => Promise<{ok: boolean; json(): Promise<unknown>}>;
+
+/**
+ * Frames of a bundle Metro serves, as the source they came from, through
+ * its `/symbolicate`, in one request for them all. Null where Metro does
+ * not answer, or answers what is not a stack.
+ */
+export async function symbolicate(frames: readonly StackFrame[], url: string, send: Send = fetch): Promise<StackFrame[] | null> {
+  try {
+    const stack = frames.map(frame => ({file: frame.file, lineNumber: frame.line, column: frame.column, methodName: frame.name ?? ''}));
+    const answer = await send(`${url}/symbolicate`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({stack})});
+    if (!answer.ok) return null;
+    const read = ((await answer.json()) as {stack?: unknown} | null)?.stack;
+    if (!Array.isArray(read)) return null;
+    type Given = {file?: unknown; lineNumber?: unknown; column?: unknown; methodName?: unknown};
+    return (read as Given[]).flatMap(each =>
+      typeof each.file === 'string' && typeof each.lineNumber === 'number'
+        ? [{file: each.file, line: each.lineNumber, column: typeof each.column === 'number' ? each.column : 0, ...(typeof each.methodName === 'string' && each.methodName ? {name: each.methodName} : {})}]
+        : [],
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** The server a page's frame names, which is the Metro that bundled the page: the frame's origin, or null for a frame that names none. */
+export function serverOf(file: string): string | null {
+  try {
+    const {origin} = new URL(file);
+    return origin === 'null' ? null : origin;
+  } catch {
+    return null;
   }
 }

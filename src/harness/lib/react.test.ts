@@ -1,7 +1,7 @@
 import {runInThisContext} from 'node:vm';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import type {ReactNode, ReactTree} from './react.ts';
-import {PRIMITIVES, overlap, reactNodeOf, walkExpression, withComponents} from './react.ts';
+import type {ReactNode, ReactTree, StackFrame} from './react.ts';
+import {appFrame, framesExpression, PRIMITIVES, overlap, reactNodeOf, walkExpression, withComponents} from './react.ts';
 import type {Snapshot, SnapshotNode} from './snapshot.ts';
 
 /** A fiber, as React keeps one: its kind, its type, its props, and where it sits. */
@@ -47,6 +47,69 @@ function SaveButton() {}
 function App() {}
 const Pressable = {render: function Pressable() {}};
 const Memoised = {type: function Inner() {}};
+
+describe("where a node's elements were written", () => {
+  const bundle = 'http://localhost:8081/index.bundle?platform=web&dev=true';
+  const stack = (...frames: string[]) => ({stack: ['Error: react-stack-top-frame', ...frames].join('\n')});
+  /** A chain of fibers from the top down, each a child of the one before and its return the one before. */
+  function chain(...fibers: Record<string, unknown>[]): Record<string, unknown> {
+    fibers.forEach((each, at) => {
+      if (at > 0) (fibers[at - 1] as Record<string, unknown>).child = Object.assign(each, {return: fibers[at - 1]});
+    });
+    return fibers[0] as Record<string, unknown>;
+  }
+  const framesOf = (top: Record<string, unknown>, id: number, depth?: number) => {
+    Object.assign(globalThis, {__REACT_DEVTOOLS_GLOBAL_HOOK__: {renderers: new Map([[1, {}]]), getFiberRoots: () => new Set([{current: {child: top}}])}});
+    return runInThisContext(depth === undefined ? framesExpression(id) : framesExpression(id, 4000, depth)) as Promise<{frames: StackFrame[]}>;
+  };
+
+  it("climbs from the node, each element's first frame past React's own call, the innermost first", async () => {
+    const top = chain(
+      {tag: COMPOSITE, type: App, memoizedProps: {}, _debugStack: stack(`    at exports.jsxDEV (${bundle}:2:1)`, `    at Root (${bundle}:10:5)`)},
+      {tag: COMPOSITE, type: SaveButton, memoizedProps: {}, _debugStack: stack(`    at exports.jsxDEV (${bundle}:2:1)`, `    at App (${bundle}:40:7)`)},
+      {tag: FORWARD, type: Pressable, memoizedProps: {}, _debugStack: stack(`    at jsxDEV (${bundle}:2:1)`, `    at SaveButton (${bundle}:120:9)`)},
+      {tag: HOST, type: 'div', memoizedProps: {}, _debugStack: stack(`createElement@${bundle}:3:1`, `View@${bundle}:900:4`)},
+    );
+    expect(await framesOf(top, 1)).toEqual({
+      frames: [
+        {file: bundle, line: 900, column: 4, name: 'View'},
+        {file: bundle, line: 120, column: 9, name: 'SaveButton'},
+        {file: bundle, line: 40, column: 7, name: 'App'},
+        {file: bundle, line: 10, column: 5, name: 'Root'},
+      ],
+    });
+  });
+
+  it("drops React's own call by its place, as Hermes names no frame, and passes over a fiber with no stack or none past React's call, and a line that is no frame", async () => {
+    // Hermes names React's call and the render after it alike: anonymous.
+    const top = chain(
+      {tag: COMPOSITE, type: App, memoizedProps: {}, _debugStack: stack(`    at anonymous (${bundle}:2:1)`, `    at ${bundle}:7:3`)},
+      {tag: COMPOSITE, type: SaveButton, memoizedProps: {}, _debugStack: stack(`    at jsx (${bundle}:2:1)`, `    at App (${bundle}:40:7)`)},
+      {tag: FORWARD, type: Pressable, memoizedProps: {}, _debugStack: stack(`    at jsx (${bundle}:2:1)`, `    at App (${bundle}:40:7)`)},
+      {tag: COMPOSITE, type: SaveButton, memoizedProps: {}},
+      {tag: COMPOSITE, type: SaveButton, memoizedProps: {}, _debugStack: stack(`    at jsx (${bundle}:2:1)`)},
+      {tag: HOST, type: 'div', memoizedProps: {}, _debugStack: stack(`    at anonymous (${bundle}:2:1)`, '    at <anonymous>', `    at anonymous (${bundle}:120:9)`)},
+    );
+    expect((await framesOf(top, 1)).frames).toEqual([
+      {file: bundle, line: 120, column: 9},
+      {file: bundle, line: 40, column: 7, name: 'App'},
+      {file: bundle, line: 7, column: 3},
+    ]);
+    expect((await framesOf(top, 1, 2)).frames).toEqual([{file: bundle, line: 120, column: 9}]);
+    expect((await framesOf(top, 9)).frames).toEqual([]);
+  });
+
+  it("is the innermost in the project's own source, as a path from its root, past the libraries' own", () => {
+    const frames = [
+      {file: 'C:\\dev\\app\\node_modules\\react-native-web\\dist\\View.js', line: 9, column: 1},
+      {file: 'C:\\dev\\app\\src\\Save.tsx', line: 12, column: 5},
+      {file: 'C:\\dev\\app\\src\\App.tsx', line: 3, column: 1},
+    ];
+    expect(appFrame(frames, 'C:\\dev\\app')).toBe('src/Save.tsx:12:5');
+    expect(appFrame(frames, 'c:/dev/app/')).toBe('src/Save.tsx:12:5');
+    expect(appFrame([{file: '/elsewhere/Save.tsx', line: 1, column: 1}, frames[0] as StackFrame], '/dev/app')).toBeNull();
+  });
+});
 
 describe('the walk', () => {
   it('names the components above each host node, its innermost of the app, its props and its text', async () => {

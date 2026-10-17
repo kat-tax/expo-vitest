@@ -8,7 +8,8 @@ import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/co
 import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult, StepTiming} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
-import type {ReactTree} from '../lib/react.ts';
+import type {ReactTree, StackFrame} from '../lib/react.ts';
+import {framesExpression} from '../lib/react.ts';
 import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, readsAlike, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 import type {Wait} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
@@ -320,6 +321,10 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     react(): Promise<ReactTree | {unavailable: string}> {
       // A development build's, through Metro's inspector, where it is let.
       return readReact({...metroFrom(process.env), ...(options.app?.bundleId ? {app: options.app.bundleId} : {}), ...(options.target ? {target: options.target} : {})});
+    },
+
+    reactFrames(id: number): Promise<{frames: StackFrame[]} | {unavailable: string}> {
+      return readReact<{frames: StackFrame[]}>({...metroFrom(process.env), ...(options.app?.bundleId ? {app: options.app.bundleId} : {}), ...(options.target ? {target: options.target} : {})}, framesExpression(id));
     },
 
     swipe(from: Point, to: Point): Promise<StepResult> {
