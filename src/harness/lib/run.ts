@@ -160,6 +160,31 @@ export function numbered(file: string, n: number): string {
   return path.join(path.dirname(file), `${path.basename(file, extension)}-${n}${extension}`);
 }
 
+/**
+ * Arguments as one Windows command line, each quoted as the C runtime and
+ * CommandLineToArgvW read them back: as it is where it has no space, tab or
+ * quote, else in quotes, a quote escaped, and the backslashes before a quote
+ * or the closing one doubled.
+ */
+export function commandLine(args: readonly string[]): string {
+  return args
+    .map(arg => {
+      if (arg !== '' && !/[\s"]/.test(arg)) return arg;
+      let quoted = '"';
+      let slashes = 0;
+      for (const char of arg) {
+        if (char === '\\') {
+          slashes += 1;
+          continue;
+        }
+        quoted += char === '"' ? `${'\\'.repeat(slashes * 2 + 1)}"` : `${'\\'.repeat(slashes)}${char}`;
+        slashes = 0;
+      }
+      return `${quoted}${'\\'.repeat(slashes * 2)}"`;
+    })
+    .join(' ');
+}
+
 export function firstLine(text: string): string {
   // `split` always answers with at least one string, so the first is there.
   return text.trim().split(/\r?\n/)[0]!;

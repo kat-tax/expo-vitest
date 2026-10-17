@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
-import {firstLine, installed, numbered, prepare, run, runAsync, runBinary, stopProgram} from './run.ts';
+import {spawnSync} from 'node:child_process';
+import {commandLine, firstLine, installed, numbered, prepare, run, runAsync, runBinary, stopProgram} from './run.ts';
 
 // Every program here is this Node, so the cases run the same on every CI machine.
 const node = process.execPath;
@@ -163,6 +164,24 @@ describe('prepare', () => {
     } finally {
       fs.rmSync(folder, {recursive: true, force: true});
     }
+  });
+});
+
+describe('commandLine', () => {
+  it('leaves a plain argument as it is, and quotes one with a space or a quote, as Windows reads them back', () => {
+    expect(commandLine(['plain', 'myapp://settings?tab=1', 'C:\\Apps\\MyApp.exe'])).toBe('plain myapp://settings?tab=1 C:\\Apps\\MyApp.exe');
+    expect(commandLine([''])).toBe('""');
+    expect(commandLine(['two words'])).toBe('"two words"');
+    expect(commandLine(['say "hi"'])).toBe('"say \\"hi\\""');
+    // The backslashes before a quote, or the closing one, are doubled; the rest are as they are.
+    expect(commandLine(['C:\\a dir\\'])).toBe('"C:\\a dir\\\\"');
+    expect(commandLine(['a\\"b'])).toBe('"a\\\\\\"b"');
+  });
+
+  it.runIf(process.platform === 'win32')('is read back as the same arguments by a program on Windows', () => {
+    const args = ['plain', '', 'two words', 'say "hi"', 'C:\\a dir\\', 'a\\"b', 'tab\there'];
+    const read = spawnSync(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(process.argv.slice(1)))', commandLine(args)], {encoding: 'utf8', windowsVerbatimArguments: true, shell: false});
+    expect(JSON.parse(read.stdout)).toEqual(args);
   });
 });
 

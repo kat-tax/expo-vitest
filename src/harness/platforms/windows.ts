@@ -7,7 +7,7 @@ import type {PatternAnswer} from '../lib/patterns.ts';
 import {afterFill, afterPress, chooseFill, choosePress, scrollerAt} from '../lib/patterns.ts';
 import {desk, fileStore, refusal} from '../lib/quiet.ts';
 import {kindOnWindows, withKinds} from '../lib/roles.ts';
-import {firstLine, prepare, run} from '../lib/run.ts';
+import {commandLine, firstLine, prepare, run} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, needsApp} from '../lib/controls.ts';
@@ -63,6 +63,8 @@ interface Backend {
   hasWindow(): Promise<boolean>;
   snapshot(interactive: boolean): Promise<RawTree>;
   raise(): Promise<string>;
+  /** An exe started with none of the harness's handles; throws with Windows's reason where it will not start. */
+  start(exe: string, args: readonly string[], cwd: string): Promise<void>;
   /** A press at a point in the window's own pixels, or `count` in quick succession, as a double click. */
   click(point: Point, count?: number): Promise<string>;
   /** A press held at a point for `ms`. */
@@ -122,6 +124,9 @@ function hostBackend(processName: string): Backend {
     },
     snapshot: interactive => host.request<RawTree>('snapshot', {process: processName, interactive, max: 400}, 30_000),
     raise: () => host.request<string>('raise', {process: processName}),
+    async start(exe, args, cwd) {
+      await host.request('start', {exe, arguments: commandLine(args), cwd});
+    },
     click: (point, count = 1) => host.request<string>('click', {...windowed, points: [[point.x, point.y]], count}),
     hold: (point, ms) => host.request<string>('hold', {...windowed, x: point.x, y: point.y, ms}, 30_000),
     move: point => host.request<string>('move', {...windowed, x: point.x, y: point.y}),
@@ -265,12 +270,18 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     }
   }
 
-  /** The exe started with these arguments, as a launch or as a link handed to the window already open. */
-  function startExe(args: string[]): void {
-    const child = spawn(exe, args, {cwd: path.dirname(exe), detached: true, stdio: 'ignore'});
-    // What a failed start would say is said by the window that does not come.
-    child.on('error', () => {});
-    child.unref();
+  /**
+   * The exe started with these arguments, as a launch or as a link handed to
+   * the window already open; what Windows said where it would not start it,
+   * else null. The host starts it, so the app holds none of the harness's
+   * handles: one Node started would hold a Git Bash pipe the harness writes
+   * to, and the pipeline would wait for the app to end.
+   */
+  async function startExe(args: string[]): Promise<string | null> {
+    return backend.start(exe, args, path.dirname(exe)).then(
+      () => null,
+      (error: Error) => firstLine(error.message),
+    );
   }
 
   /** Ends the app and everything it started, and waits for its window to go. */
@@ -312,11 +323,13 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     if (!exe) return failed(`cannot open ${url}: no exe to launch (pass --target <exe>)`, 'APP_UNREACHABLE');
     if (!fs.existsSync(exe)) return failed(`cannot open ${url}: there is no ${path.relative(options.root, exe)} to start`, 'APP_UNREACHABLE');
     if (await backend.hasWindow().catch(() => false)) {
-      startExe([url]);
+      const refused = await startExe([url]);
+      if (refused) return failed(`could not hand ${url} to ${processName}: ${refused}`, 'APP_UNREACHABLE');
       return ok(`sent ${url} to ${processName}`);
     }
     const launchArguments = options.app?.launchArguments ?? [];
-    startExe([url, ...launchArguments]);
+    const refused = await startExe([url, ...launchArguments]);
+    if (refused) return failed(`could not start ${processName}: ${refused}`, 'APP_UNREACHABLE');
     if (!(await windowWithin(60_000))) return failed(`${processName} showed no window within 60 s of being started with ${url}`, 'APP_UNREACHABLE');
     return ok(`started ${processName} with ${url}${launchArguments.length ? `, and ${launchArguments.length} launch arguments` : ''}`);
   }

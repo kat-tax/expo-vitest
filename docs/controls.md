@@ -156,7 +156,10 @@ export default defineHarness({
 
 - **Launch arguments** are the app process's arguments on iOS, and `am start`
   arguments on Android, such as an extra. On Windows they follow the link on
-  the exe's command line.
+  the exe's command line, each quoted as a Windows program reads its
+  arguments back. The exe is started with none of the harness's handles, so
+  a pipeline the harness writes into, as `| tee` in Git Bash, ends with the
+  harness rather than with the app.
 - **Permissions** take agent-device's names: `camera`, `microphone`,
   `photos`, `contacts`, `notifications`, `calendar`, `location` and the
   rest. On a device each is set to `grant`, `deny` or `reset` before the

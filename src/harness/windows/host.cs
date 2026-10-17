@@ -25,6 +25,10 @@ using System.Windows.Automation;
 public static class HarnessHost {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
   [StructLayout(LayoutKind.Sequential)] struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] struct STARTUPINFO { public int cb; public string lpReserved; public string lpDesktop; public string lpTitle; public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags; public short wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError; }
+  [StructLayout(LayoutKind.Sequential)] struct PROCESS_INFORMATION { public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId; }
+  [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern bool CreateProcess(string application, StringBuilder commandLine, IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags, IntPtr environment, string currentDirectory, ref STARTUPINFO startup, out PROCESS_INFORMATION started);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
   [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
@@ -142,6 +146,7 @@ public static class HarnessHost {
       case "clipboard": return Json(OnSta(delegate { return System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""; }));
       case "setClipboard": return SetClipboard(Text(request, "text") ?? "");
       case "raise": return Raise(Text(request, "process"));
+      case "start": return Start(Text(request, "exe"), Text(request, "arguments") ?? "", Text(request, "cwd"));
       case "invoke": return Act(Text(request, "ref"), "Invoke");
       case "toggle": return Act(Text(request, "ref"), "Toggle");
       case "select": return Act(Text(request, "ref"), "SelectionItem");
@@ -952,6 +957,24 @@ public static class HarnessHost {
     info.cbSize = (uint)Marshal.SizeOf(info);
     GetLastInputInfo(ref info);
     return ((Environment.TickCount - (int)info.dwTime) / 1000.0).ToString("0.###", CultureInfo.InvariantCulture);
+  }
+
+  // An exe started with none of this process's handles. One Node starts
+  // inherits every handle that can be, a Git Bash pipe the harness writes to
+  // included, and holds it open for as long as it runs, so the pipeline waits
+  // for the app to end. Detached in a process group of its own, as Node's
+  // detached start makes it, and with no shell, which would ask before it ran
+  // an exe downloaded from the internet.
+  static string Start(string exe, string arguments, string cwd) {
+    STARTUPINFO startup = new STARTUPINFO();
+    startup.cb = Marshal.SizeOf(startup);
+    PROCESS_INFORMATION started;
+    StringBuilder line = new StringBuilder("\"" + exe + "\"" + (arguments.Length > 0 ? " " + arguments : ""));
+    const uint DETACHED_PROCESS = 0x00000008, CREATE_NEW_PROCESS_GROUP = 0x00000200;
+    if (!CreateProcess(exe, line, IntPtr.Zero, IntPtr.Zero, false, DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, IntPtr.Zero, cwd, ref startup, out started)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    CloseHandle(started.hThread);
+    CloseHandle(started.hProcess);
+    return "null";
   }
 
   // Windows refuses SetForegroundWindow to a process that does not own the
