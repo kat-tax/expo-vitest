@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {FakeDevice, hostOf} from '../../agent/__fixtures__/device.ts';
 import {SecretStore} from '../../agent/secrets.ts';
 import {HarnessError} from '../lib/errors.ts';
@@ -23,7 +23,7 @@ function stubCatalog(answer: (name: string, args: unknown) => Promise<ToolAnswer
   };
 }
 
-function serverOf(options: {open?: (args: OpenArgs) => Promise<McpSession>; configOf?: (args: OpenArgs) => string | null; maxSessions?: number; catalog?: Catalog} = {}) {
+function serverOf(options: {open?: (args: OpenArgs) => Promise<McpSession>; configOf?: (args: OpenArgs) => string | null; maxSessions?: number; catalog?: Catalog; send?: (line: string) => void; progressEvery?: number} = {}) {
   const closed: string[] = [];
   let opened = 0;
   const open =
@@ -33,7 +33,15 @@ function serverOf(options: {open?: (args: OpenArgs) => Promise<McpSession>; conf
       const name = `${args.target ?? 'web'}-${opened}`;
       return {platform: args.target ?? 'web', source: 'http://localhost:8090', config: args.config ?? null, catalog: options.catalog ?? stubCatalog(), close: async () => void closed.push(name)};
     });
-  const server = new McpServer({version: '0.1.0', maxSessions: options.maxSessions ?? 4, open, configOf: options.configOf ?? (args => args.config ?? null), secrets: () => [{name: 'ADA_PASSWORD', value: 'correct horse battery'}]});
+  const server = new McpServer({
+    version: '0.1.0',
+    maxSessions: options.maxSessions ?? 4,
+    open,
+    configOf: options.configOf ?? (args => args.config ?? null),
+    secrets: () => [{name: 'ADA_PASSWORD', value: 'correct horse battery'}],
+    ...(options.send ? {send: options.send} : {}),
+    ...(options.progressEvery ? {progressEvery: options.progressEvery} : {}),
+  });
   return {server, closed};
 }
 
@@ -187,6 +195,67 @@ describe('a session', () => {
     await turn();
     finish({content: [{type: 'text', text: 'pressed'}]});
     expect(parsed(await next).result?.content[0]?.text).toBe('pressed');
+  });
+
+  it('tells a client that gave a progress token that its call is still going, every two seconds, until it ends', async () => {
+    vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
+    try {
+      const sent: string[] = [];
+      let finish: (answer: ToolAnswer) => void = () => undefined;
+      const {server} = await started({catalog: stubCatalog(() => new Promise(resolve => (finish = resolve))), send: each => void sent.push(each)});
+      await server.handle(call(1, 'open_session', {}));
+      const running = server.handle(line(2, 'tools/call', {name: 'call', arguments: {tool: 'tap', args: {ref: '@e1'}}, _meta: {progressToken: 'tap-1'}}));
+      vi.advanceTimersByTime(4000);
+      expect(sent.map(each => JSON.parse(each))).toEqual([
+        {jsonrpc: '2.0', method: 'notifications/progress', params: {progressToken: 'tap-1', progress: 1, message: 'call tap: still going after 2 s'}},
+        {jsonrpc: '2.0', method: 'notifications/progress', params: {progressToken: 'tap-1', progress: 2, message: 'call tap: still going after 4 s'}},
+      ]);
+      await new Promise(resolve => setImmediate(resolve));
+      finish({content: [{type: 'text', text: 'pressed'}]});
+      expect(parsed(await running).result?.content[0]?.text).toBe('pressed');
+      vi.advanceTimersByTime(10_000);
+      expect(sent).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('names an open by its platform, and says nothing where the client gave no token, a token of another kind, or cancelled the call', async () => {
+    vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
+    try {
+      const sent: string[] = [];
+      let opened: (session: McpSession) => void = () => undefined;
+      let finish: (answer: ToolAnswer) => void = () => undefined;
+      const catalog = stubCatalog(() => new Promise(resolve => (finish = resolve)));
+      const {server} = await started({open: () => new Promise(resolve => (opened = resolve)), send: each => void sent.push(each), progressEvery: 1000});
+      const opening = server.handle(line(1, 'tools/call', {name: 'open_session', arguments: {target: 'android'}, _meta: {progressToken: 7}}));
+      vi.advanceTimersByTime(1000);
+      expect(JSON.parse(sent[0] as string).params).toEqual({progressToken: 7, progress: 1, message: 'open_session on android: still going after 1 s'});
+      opened({platform: 'android', config: null, catalog, close: async () => undefined});
+      await opening;
+      const turn = () => new Promise(resolve => setImmediate(resolve));
+      for (const meta of [undefined, {progressToken: {id: 3}}, 'tap']) {
+        const quiet = server.handle(line(2, 'tools/call', {name: 'call', arguments: {tool: 'tap'}, ...(meta === undefined ? {} : {_meta: meta})}));
+        vi.advanceTimersByTime(5000);
+        await turn();
+        finish({content: [{type: 'text', text: 'pressed'}]});
+        await quiet;
+      }
+      const cancelled = server.handle(line(3, 'tools/call', {name: 'call', arguments: {tool: 'tap'}, _meta: {progressToken: 'gone'}}));
+      await server.handle(line(undefined, 'notifications/cancelled', {requestId: 3}));
+      vi.advanceTimersByTime(5000);
+      await turn();
+      finish({content: [{type: 'text', text: 'pressed'}]});
+      expect(await cancelled).toBeNull();
+      expect(sent).toHaveLength(1);
+      const silent = await started({catalog, progressEvery: 1000});
+      await silent.server.handle(call(1, 'open_session', {}));
+      const unsent = silent.server.handle(line(2, 'tools/call', {name: 'close_session', arguments: {}, _meta: {progressToken: 1}}));
+      vi.advanceTimersByTime(5000);
+      expect(parsed(await unsent).result?.content[0]?.text).toMatch(/^closed /);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("runs a real catalog over the device, the agent's tools behind call", async () => {

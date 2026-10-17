@@ -9,11 +9,14 @@
 import {redactor} from '../../agent/redact.ts';
 import type {Catalog, ToolAnswer} from './catalog.ts';
 import type {Failure, Id, Request} from './rpc.ts';
-import {fail, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, parseLine, respond} from './rpc.ts';
+import {fail, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, notify, parseLine, respond} from './rpc.ts';
 import {SessionError, Sessions} from './sessions.ts';
 
 /** The protocol's revision this server speaks. */
 export const PROTOCOL = '2025-06-18';
+
+/** How often a call whose client asked to hear its progress says it is still going, in ms. */
+export const PROGRESS_EVERY = 2000;
 
 export const INSTRUCTIONS =
   'Open a session with open_session, read its tools with tools, then observe before you act: a ref names the same node for the rest of the session. Check a locator with locate, which answers with the screen.* call to write in a device test. Close the session when you are done.';
@@ -46,6 +49,10 @@ export interface ServerOptions {
   configOf(args: OpenArgs): string | null;
   /** Every secret value the config knows, which no answer may carry. */
   secrets?: () => readonly {name: string; value: string}[];
+  /** Sends the client a line it did not ask for: a call's progress. */
+  send?: (line: string) => void;
+  /** How often a call with a progress token says it is still going, in ms; `PROGRESS_EVERY` unless given. */
+  progressEvery?: number;
 }
 
 const object = (properties: Record<string, unknown>, required: string[] = []) => ({type: 'object', properties, ...(required.length > 0 ? {required} : {}), additionalProperties: false});
@@ -74,6 +81,18 @@ export const TOOLS = [
 const answer = (text: string, structuredContent?: Record<string, unknown>): ToolAnswer => ({content: [{type: 'text', text}], ...(structuredContent ? {structuredContent} : {})});
 const refused = (code: string, message: string): ToolAnswer => ({content: [{type: 'text', text: `${code}: ${message}`}], isError: true});
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** The token a request's client gave to hear its progress by, where it gave one. */
+function progressTokenOf(params: Record<string, unknown>): string | number | undefined {
+  const token = isObject(params._meta) ? params._meta.progressToken : undefined;
+  return typeof token === 'string' || typeof token === 'number' ? token : undefined;
+}
+
+/** A call as its progress names it: the session tool it runs, or the platform it opens on. */
+function describeCall(name: string, args: Record<string, unknown>): string {
+  if (name === 'call') return `call ${String(args.tool)}`;
+  return name === 'open_session' && typeof args.target === 'string' ? `open_session on ${args.target}` : name;
+}
 
 /** The arguments a tool takes, checked against its schema's types; the first that is wrong is INVALID_PARAMS. */
 function argsOf(name: string, given: unknown): {args: Record<string, unknown>} | {failure: Failure} {
@@ -136,13 +155,38 @@ export class McpServer {
     }
     const checked = argsOf(name, params.arguments);
     if ('failure' in checked) return fail(id, checked.failure);
+    const token = progressTokenOf(params);
+    const going = token === undefined ? null : this.progress(token, describeCall(name, checked.args), id);
     const result = await this.call(name, checked.args).catch((error: unknown) => {
       const code = (error as {code?: unknown} | null)?.code;
       return refused(typeof code === 'string' ? code : 'INTERNAL', this.hide(error instanceof Error ? error.message : String(error)));
     });
+    going?.stop();
     // A request the client cancelled while it ran gets no answer.
     if (this.cancelled.delete(id)) return null;
     return respond(id, result);
+  }
+
+  /**
+   * Tells the client, every few seconds, that a call it gave a progress
+   * token is still going, as an open that boots a device can take minutes,
+   * and a client that hears progress can wait for it rather than time it
+   * out. Each says how long so far, and none comes once the call ends or the
+   * client cancels it.
+   */
+  private progress(token: string | number, what: string, id: Id): {stop(): void} {
+    const send = this.options.send;
+    if (!send) return {stop: () => undefined};
+    const every = this.options.progressEvery ?? PROGRESS_EVERY;
+    let ticks = 0;
+    const timer = setInterval(() => {
+      if (this.cancelled.has(id)) return;
+      ticks += 1;
+      send(notify('notifications/progress', {progressToken: token, progress: ticks, message: `${what}: still going after ${Math.round((ticks * every) / 1000)} s`}));
+    }, every);
+    // A call that is still going holds the process open, and its progress need not.
+    (timer as unknown as {unref(): void}).unref();
+    return {stop: () => clearInterval(timer)};
   }
 
   /** A notification: a cancel marks its request, and the rest need nothing. */

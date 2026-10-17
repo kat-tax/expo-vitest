@@ -114,6 +114,11 @@ finds each one alone; where none does, the names near the one asked for.
 - An open answers within three minutes, a cold simulator's boot included.
   One that takes longer is `OPEN_TIMEOUT`, and the session is closed if it
   opens after. Each action has 15 seconds of its own, as an agent's does.
+- A call whose request carries a `progressToken` in its `_meta` hears every
+  two seconds that it is still going, as `notifications/progress` with how
+  long so far, so a client that waits on progress does not time out an open
+  that boots a device. None comes after the call ends or is cancelled. A
+  cancelled call gets no answer, though what it started still finishes.
 - A session closes at `close_session`, after 30 idle minutes, after 4 hours,
   and when the client goes. SIGINT and SIGTERM close them all.
 - stdout is the protocol's alone. Everything the server would print goes to

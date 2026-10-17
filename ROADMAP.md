@@ -119,8 +119,8 @@ These wait on an API key, and the runs are billed.
   to record as it records the first, `upload`, which would let a model
   choose a file of the project to hand a page, `start_recording` and
   `stop_recording`, and on a device `open_app`.
-- Progress notifications on a long MCP call. A cancellation now drops the
-  answer of the call in flight, and the call still finishes.
+- A cancelled MCP call that stops what it started. A cancellation now drops
+  the answer of the call in flight, and the call still finishes.
 - More than one MCP session at a time on Windows, Android and iOS, where a
   session's driver names no device. A pool could give each its own.
 - `bug-bash` taking a device for each charter from a pool. On Android and

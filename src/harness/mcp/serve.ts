@@ -54,14 +54,15 @@ export async function serve(args: readonly string[], root: string): Promise<numb
   }
   const version = (JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')) as {version: string}).version;
   let store: SecretStore | undefined;
+  const transport = streamTransport(process.stdin, process.stdout);
   const server = new McpServer({
     version,
     maxSessions: options.maxSessions,
     open: openArgs => openSession(openArgs, options, root, kept => void (store = kept)),
     configOf: openArgs => findHarnessFile(root, openArgs.config ?? options.config),
     secrets: () => store?.known() ?? [],
+    send: line => void transport.send(line),
   });
-  const transport = streamTransport(process.stdin, process.stdout);
   const stop = async () => {
     await server.close();
     process.exit(0);
