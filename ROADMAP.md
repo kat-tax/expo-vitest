@@ -102,9 +102,13 @@ These wait on an API key, and the runs are billed.
 
 ### Steps and controls
 
-- What [Migrating](docs/migrating.md) marks "not yet": a picker column's
-  value, a shake, a second app in one test, the system keys (lock,
-  power, volume, a TV remote), clearing the keychain, and adding media.
+- What [Migrating](docs/migrating.md) marks "not yet": a second app in one
+  test; a picker column's value and clearing the keychain, which are iOS's
+  and wait on a Mac (agent-device's `settings reset-keychain` clears a
+  simulator's); a shake, the lock, power and volume keys, and adding media,
+  which agent-device has no command for; and a TV remote, agent-device's
+  `tv-remote`, which takes Android TV, tvOS and Vega alone, and waits on one
+  of those.
 - Named keys on iOS and Android other than Enter, which answer `'skipped'`:
   agent-device sends Enter alone on a phone.
 
@@ -225,6 +229,8 @@ Filing an issue waits on the owner.
   - `type` and `keyboard enter` take no `--settle`, so the driver follows
     each with `wait stable`, a request of its own, which on an emulator
     costs about two seconds where a press's `--settle` costs about one;
+  - it has no command for a shake, the lock, power and volume keys, adding
+    media, or a named key on a phone but Enter;
   - adb's server can wedge after its runs;
   - an idea: adb's server protocol over its socket, in place of a process a
     call.
