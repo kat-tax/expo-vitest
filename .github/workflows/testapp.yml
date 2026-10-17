@@ -192,7 +192,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 150
     env:
-      EXPO_WINDOWS_REF: 093dba6af54c023ba16fef11d1c858d658c8d6fa
+      EXPO_WINDOWS_REF: f8f0449c1ea967d952d466d3ed36c23990b06384
       EXTRA_DEPENDENCIES: '@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.33.0'
     steps:
       - uses: actions/checkout@v7

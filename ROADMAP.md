@@ -75,10 +75,11 @@ These wait on an API key, and the runs are billed.
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
   whether a combo box opened through its pattern shows on the screen.
 - **Every platform:** three platforms in one run behind one Metro, which
-  needs a Windows development build that opens on the app's routes
-  ([kat-tax/expo-windows#2](https://github.com/kat-tax/expo-windows/issues/2));
-  and the device suites of expo-windows and expo-interface passing with no
-  change to their tests.
+  needs a Windows development build of the test app (a Debug build from
+  expo-windows 0.26 or later, which asks the dev server for Expo's virtual
+  entry) on a machine that also runs the Android emulator; and the device
+  suites of expo-windows and expo-interface passing with no change to their
+  tests.
 - **CI recipes:** the EAS Workflows, Bitrise and Codemagic jobs on
   [CI](docs/ci.md) have not run, and the GitHub Actions jobs have run only
   as the test app's variants of them. Run each once on a sample app.
