@@ -209,8 +209,9 @@ describe('withTiming', () => {
     expect((await withTiming(stub([home]), {...timing, settle: 1}).type('Ada')).message).toBe('typed');
   });
 
-  it('hands a driver that waits by itself the times, and reads nothing itself', async () => {
-    const driver = stub([home], {settles: true});
+  it('hands a driver that waits by itself the times, a key and typing too, and reads nothing itself', async () => {
+    const key = vi.fn(async (): Promise<StepResult> => ok('pressed Enter'));
+    const driver = stub([home], {settles: true, key});
     const timed = withTiming(driver, timing, fakeClock());
     await timed.press('@e1', {via: 'pointer'});
     expect(driver.press).toHaveBeenCalledWith('@e1', {via: 'pointer', settle: 100, settleTimeout: 1000});
@@ -218,6 +219,8 @@ describe('withTiming', () => {
     expect(driver.fill).toHaveBeenCalledWith('@e1', 'Ada', {settle: false});
     await timed.type('Ada');
     expect(driver.type).toHaveBeenCalledWith('Ada', {settle: 100, settleTimeout: 1000});
+    await timed.key?.('Enter');
+    expect(key).toHaveBeenCalledWith('Enter', {settle: 100, settleTimeout: 1000});
     expect(driver.snapshot).not.toHaveBeenCalled();
   });
 

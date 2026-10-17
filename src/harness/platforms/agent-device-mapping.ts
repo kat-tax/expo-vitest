@@ -338,6 +338,20 @@ export function settleArgs(wait?: Wait): string[] {
 }
 
 /**
+ * A wait for the screen to hold still on its own, as the Node client takes
+ * it: agent-device's `wait stable`, for a step that takes no `--settle`,
+ * as typing and a key do not.
+ */
+export function stableRequest(wait: Wait): Record<string, unknown> {
+  return {stable: true, quietMs: wait.quietMs, timeoutMs: wait.timeoutMs};
+}
+
+/** The same, as the command line takes it. */
+export function stableArgs(wait: Wait): string[] {
+  return ['wait', 'stable', String(wait.quietMs), String(wait.timeoutMs)];
+}
+
+/**
  * Presses in quick succession as the Node client takes them: two are its
  * double-tap gesture, the platform's own, and more are its repeated press,
  * 120 ms apart, which a recogniser of three taps takes as one.

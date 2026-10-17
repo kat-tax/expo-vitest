@@ -187,7 +187,7 @@ export function withTiming(driver: Driver, timing: Timing, clock: Clock = realCl
     async type(text: string): Promise<StepResult> {
       return afterStep(await driver.type(text, handed(timing)), timing);
     },
-    ...(driver.key ? {key: async (name: string): Promise<StepResult> => afterStep(await (driver.key as (name: string) => Promise<StepResult>)(name), timing)} : {}),
+    ...(driver.key ? {key: async (name: string): Promise<StepResult> => afterStep(await (driver.key as NonNullable<Driver['key']>)(name, handed(timing)), timing)} : {}),
     ...(driver.longPress
       ? {
           async longPress(target: Target, options: LongPressOptions = {}): Promise<StepResult> {

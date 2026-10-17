@@ -240,10 +240,12 @@ export default defineConfig(deviceConfig({settle: 300, transition: 0}));
 await screen.getByTestId('save').press({settle: 0});
 ```
 
-`0` or `false` turns either wait off. On iOS and Android the wait after a
-press or a fill is agent-device's own, so a device that takes a second to
-read is not read twice more. On web a read costs next to nothing while the
-page is unchanged. On Windows each read is a walk of the tree, so a step
+`0` or `false` turns either wait off. On iOS and Android the wait is
+agent-device's own, so a device that takes a second to read is not read
+twice more: a press's or a fill's `--settle`, and after typing or Enter,
+which take none, its `wait stable`, a request of its own that costs a step
+about two seconds on an emulator. On web a read costs next to nothing while
+the page is unchanged. On Windows each read is a walk of the tree, so a step
 costs two of them more.
 
 A change that comes once the screen has held still, such as the answer to a

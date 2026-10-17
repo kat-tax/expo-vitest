@@ -269,9 +269,10 @@ export interface Driver {
    * than only the roles themselves.
    *
    * Optional: a backend that cannot send one leaves it off, and the step is
-   * skipped rather than failed.
+   * skipped rather than failed. A driver that waits for the screen itself
+   * is handed the times, as a press is.
    */
-  key?(name: string): Promise<StepResult>;
+  key?(name: string, options?: StepTiming): Promise<StepResult>;
   /**
    * The actions a backend may have no counterpart for. Each is left off where
    * it is, and a locator then answers `skipped` or says the platform cannot.

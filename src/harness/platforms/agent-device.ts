@@ -5,11 +5,12 @@ import {firstLine, prepare} from '../lib/run.ts';
 import type {Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {asSelector, centreOf, describeTarget, findNode, follow, isPoint, seenInstead} from '../lib/snapshot.ts';
 import {cannot, describeControl, lacking, needsApp, otherSensor} from '../lib/controls.ts';
-import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult} from '../lib/types.ts';
+import type {Availability, ControlRequest, ControlResult, DragOptions, Driver, DriverOptions, FillOptions, HostedDevice, LongPressOptions, Platform, PressOptions, ScrollIntoViewOptions, SnapshotOptions, StepResult, StepTiming} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree} from '../lib/react.ts';
 import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, readsAlike, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import type {Wait} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -58,6 +59,22 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return ok(done);
     } catch (error) {
       return failed(`${failing}: ${(error as Error).message}`, codeOf(error));
+    }
+  }
+
+  /**
+   * The screen let hold still after a step that takes no `--settle`, as
+   * typing and a key do not, by agent-device's `wait stable`, where the step
+   * was handed a settle. What it says where the screen did not hold still,
+   * which fails no step, as a press's own settle fails none.
+   */
+  async function stillAfter(current: AgentDeviceTransport, wait: Wait | undefined): Promise<string> {
+    if (!wait) return '';
+    try {
+      await current.settle(wait);
+      return '';
+    } catch (error) {
+      return `; the screen did not hold still: ${firstLine((error as Error).message)}`;
     }
   }
 
@@ -257,11 +274,12 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     },
 
     /** A named key where the focus is: Enter, agent-device's one, the keyboard's own return key; any other is skipped. */
-    async key(keyName: string): Promise<StepResult> {
+    async key(keyName: string, keyOptions: StepTiming = {}): Promise<StepResult> {
       if (keyName !== 'Enter') return {ok: true, skipped: true, message: `agent-device sends Enter alone on ${platform}, not ${keyName}`};
       try {
-        await (await transport()).command({command: 'keyboard', action: 'enter'});
-        return ok('pressed Enter');
+        const current = await transport();
+        await current.command({command: 'keyboard', action: 'enter'});
+        return ok(`pressed Enter${await stillAfter(current, waitFrom(keyOptions))}`);
       } catch (error) {
         return failed(`Enter failed: ${(error as Error).message}`, codeOf(error));
       }
@@ -312,8 +330,14 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return step(`pinched to ${scale} times at ${at.x},${at.y}`, 'pinch failed', current => current.pinch(at, scale));
     },
 
-    type(text: string): Promise<StepResult> {
-      return step(`typed ${JSON.stringify(text)}`, 'typing failed', current => current.type(text));
+    async type(text: string, typeOptions: StepTiming = {}): Promise<StepResult> {
+      try {
+        const current = await transport();
+        await current.type(text);
+        return ok(`typed ${JSON.stringify(text)}${await stillAfter(current, waitFrom(typeOptions))}`);
+      } catch (error) {
+        return failed(`typing failed: ${(error as Error).message}`, codeOf(error));
+      }
     },
 
     async screenshot(file: string): Promise<StepResult> {

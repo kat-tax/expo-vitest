@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, pinchArgs, pinchRequest, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, pinchArgs, pinchRequest, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, stableArgs, stableRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -414,6 +414,11 @@ describe('the wait after an action', () => {
     expect(settleRequest()).toEqual({});
     expect(settleArgs({quietMs: 150, timeoutMs: 2000})).toEqual(['--settle', '--settle-quiet', '150', '--timeout', '2000']);
     expect(settleArgs()).toEqual([]);
+  });
+
+  it("is agent-device's wait stable after a step that takes no --settle, in the client's words and on its command line", () => {
+    expect(stableRequest({quietMs: 150, timeoutMs: 2000})).toEqual({stable: true, quietMs: 150, timeoutMs: 2000});
+    expect(stableArgs({quietMs: 150, timeoutMs: 2000})).toEqual(['wait', 'stable', '150', '2000']);
   });
 
   it('asks for a double press as the double-tap gesture, and for more as presses repeated', () => {

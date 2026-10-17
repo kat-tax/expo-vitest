@@ -143,8 +143,6 @@ These wait on an API key, and the runs are billed.
 
 ### Open questions
 
-- Whether agent-device's `type` takes `--settle`, so typing waits for the
-  screen as a press and a fill do.
 - Which React Native release first says its app takes more than one
   debugger (0.86.3 does), and two checks of the React tree: that a
   developer's React Native DevTools stay connected while the harness reads
@@ -224,6 +222,9 @@ Filing an issue waits on the owner.
   - with no `--device` it picks an emulator image that is not booted over a
     phone on adb;
   - its Node client has no `connect`;
+  - `type` and `keyboard enter` take no `--settle`, so the driver follows
+    each with `wait stable`, a request of its own, which on an emulator
+    costs about two seconds where a press's `--settle` costs about one;
   - adb's server can wedge after its runs;
   - an idea: adb's server protocol over its socket, in place of a process a
     call.

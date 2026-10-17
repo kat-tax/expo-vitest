@@ -49,6 +49,8 @@ import {
   settingRequest,
   settleArgs,
   settleRequest,
+  stableArgs,
+  stableRequest,
   targetArgs,
   typingArgs,
   typingRequest,
@@ -90,6 +92,8 @@ export interface AgentDeviceTransport {
   /** Two fingers at a point, drawn apart to `scale` times their distance, or together below 1. */
   pinch(at: Point, scale: number): Promise<void>;
   type(text: string): Promise<void>;
+  /** The screen let hold still, after a step that takes no `--settle` of its own. */
+  settle(wait: Wait): Promise<void>;
   /** A picture of the screen, with the status bar as the run asks for it. */
   screenshot(file: string, statusBar?: 'fixed' | 'real'): Promise<void>;
   /** Opens an app by its id, relaunched where asked, with the arguments a fresh launch is given. */
@@ -144,7 +148,7 @@ type Call = (options: Record<string, unknown>) => Promise<unknown>;
 interface Client {
   devices: {capabilities: Call; list: Call};
   apps: {open: Call; close: Call; install: Call; reinstall: Call};
-  command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call};
+  command: {back: Call; home: Call; appState: Call; orientation: Call; fold: Call; clipboard: Call; keyboard: Call; alert: Call; wait: Call};
   settings: {update: Call};
   recording: {record: Call};
   capture: {snapshot: Call; screenshot: Call};
@@ -295,6 +299,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async type(text) {
       await call(signal => client.interactions.type({...select, text, ...typingRequest(options.platform), signal}), 'ACTION_FAILED');
     },
+    async settle(wait) {
+      await call(signal => client.command.wait({...select, ...stableRequest(wait), signal}), 'ACTION_FAILED');
+    },
     async screenshot(file, statusBar) {
       await call(signal => client.capture.screenshot({path: file, ...screenshotRequest(options.platform, statusBar), signal}), 'ACTION_FAILED');
     },
@@ -404,6 +411,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async type(text) {
       await agent(['type', text, ...typingArgs(options.platform)], 'ACTION_FAILED');
+    },
+    async settle(wait) {
+      await agent(stableArgs(wait), 'ACTION_FAILED');
     },
     async screenshot(file, statusBar) {
       await agent(['screenshot', file, ...screenshotArgs(options.platform, statusBar)], 'ACTION_FAILED');
