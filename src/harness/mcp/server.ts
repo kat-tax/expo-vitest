@@ -234,7 +234,7 @@ export class McpServer {
     const config = this.options.configOf(args);
     const sharing = this.sessions.ids.map(id => this.sessions.get(id).value).find(each => each.config !== config);
     if (sharing) return refused('CONFIG_IN_USE', `the open sessions use ${sharing.config ?? 'no harness config'}; close them to open one on ${config ?? 'no harness config'}`);
-    const opened = await this.sessions.open(() => this.options.open(args, signal));
+    const opened = await this.sessions.open(() => this.options.open(args, signal), signal);
     const {catalog, platform, source} = opened.value;
     // A browser is a session's own, but Windows is one desktop and a device is one device: two sessions there would act on each other's app.
     const busy = platform === 'web' ? undefined : this.sessions.ids.find(id => id !== opened.id && this.sessions.get(id).value.platform === platform);

@@ -17,7 +17,7 @@ export const OPEN_MS = 3 * 60_000;
 /** Why the table refused, in e2e's words for it. */
 export class SessionError extends Error {
   override readonly name = 'SessionError';
-  readonly code: 'NO_SESSION' | 'SESSION_REQUIRED' | 'SESSION_OPEN' | 'OPEN_TIMEOUT';
+  readonly code: 'NO_SESSION' | 'SESSION_REQUIRED' | 'SESSION_OPEN' | 'OPEN_TIMEOUT' | 'CANCELLED';
 
   constructor(code: SessionError['code'], message: string) {
     super(message);
@@ -82,15 +82,19 @@ export class Sessions<T> {
     return timer;
   }
 
-  /** A new session around what `make` answers; SESSION_OPEN where the most are open already. */
-  async open(make: () => Promise<T>): Promise<Session<T>> {
+  /**
+   * A new session around what `make` answers; SESSION_OPEN where the most
+   * are open already, and CANCELLED as soon as `signal` says so, which frees
+   * its place at once, wherever the open has got to.
+   */
+  async open(make: () => Promise<T>, signal?: AbortSignal): Promise<Session<T>> {
     if (this.rows.size + this.opening >= this.options.max) {
       throw new SessionError('SESSION_OPEN', `${this.options.max} session${this.options.max === 1 ? ' is' : 's are'} open, the most there may be: close one first (${this.ids.join(', ')})`);
     }
     this.opening += 1;
     let value: T;
     try {
-      value = await this.bounded(make());
+      value = await this.bounded(make(), signal);
     } finally {
       this.opening -= 1;
     }
@@ -102,26 +106,34 @@ export class Sessions<T> {
     return session;
   }
 
-  /** What an open answers, or OPEN_TIMEOUT once it has taken too long; what it answers after that is let go of. */
-  private bounded(pending: Promise<T>): Promise<T> {
+  /**
+   * What an open answers, or OPEN_TIMEOUT once it has taken too long, or
+   * CANCELLED once the signal says so; what it answers after either is let
+   * go of.
+   */
+  private bounded(pending: Promise<T>, signal?: AbortSignal): Promise<T> {
     const ms = this.options.openMs ?? OPEN_MS;
     return new Promise((resolve, reject) => {
-      let late = false;
-      const timer = setTimeout(() => {
-        late = true;
-        reject(new SessionError('OPEN_TIMEOUT', `the session did not open in ${ms / 1000} s, and is closed if it opens after; expo-harness doctor says what this machine can drive`));
-      }, ms);
+      let ended = false;
+      /** Ends the wait, once: false where it had ended already. */
+      const end = (finish: () => void): boolean => {
+        if (ended) return false;
+        ended = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', cancelled);
+        finish();
+        return true;
+      };
+      const cancelled = () => end(() => reject(new SessionError('CANCELLED', 'the open was cancelled, and the session is closed if it opens after')));
+      const timer = setTimeout(() => end(() => reject(new SessionError('OPEN_TIMEOUT', `the session did not open in ${ms / 1000} s, and is closed if it opens after; expo-harness doctor says what this machine can drive`))), ms);
       (timer as unknown as {unref?: () => void}).unref?.();
+      if (signal?.aborted) cancelled();
+      else signal?.addEventListener('abort', cancelled, {once: true});
       pending.then(
         value => {
-          clearTimeout(timer);
-          if (late) void this.options.close(value).catch(() => undefined);
-          else resolve(value);
+          if (!end(() => resolve(value))) void this.options.close(value).catch(() => undefined);
         },
-        (error: unknown) => {
-          clearTimeout(timer);
-          reject(error);
-        },
+        (error: unknown) => void end(() => reject(error)),
       );
     });
   }

@@ -163,6 +163,27 @@ describe("a session's time", () => {
     expect(late.sessions.size).toBe(0);
   });
 
+  it('gives up an open its signal cancels at once, wherever it has got to, frees its place, and lets go of what it answers after', async () => {
+    const {sessions, closed} = tableOf(1);
+    let answer: (value: string) => void = () => undefined;
+    const controller = new AbortController();
+    const opening = sessions.open(() => new Promise<string>(resolve => (answer = resolve)), controller.signal);
+    const refused = expect(opening).rejects.toMatchObject({code: 'CANCELLED', message: 'the open was cancelled, and the session is closed if it opens after'});
+    controller.abort();
+    await refused;
+    expect((await sessions.open(async () => 'web')).id).toBe('s1');
+    answer('android');
+    await vi.advanceTimersByTimeAsync(0);
+    expect([closed, sessions.ids]).toEqual([['android'], ['s1']]);
+    // An open already cancelled is given up before it starts to wait; one that ends first is not given up.
+    const before = tableOf(1);
+    await expect(before.sessions.open(async () => 'ios', AbortSignal.abort())).rejects.toMatchObject({code: 'CANCELLED'});
+    const done = new AbortController();
+    expect((await before.sessions.open(async () => 'web', done.signal)).value).toBe('web');
+    done.abort();
+    expect(before.sessions.ids).toEqual(['s1']);
+  });
+
   it('keeps an open that fails after its time from answering twice', async () => {
     const {sessions} = tableOf(1);
     let fail: (error: Error) => void = () => undefined;
