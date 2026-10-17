@@ -7,9 +7,7 @@ import {alert, alertTitle, expectCheckbox, field, openTab, relaunch, searchField
 
 const name = () => field('Display name', 'settings-name');
 
-// The digest's frequency, named by its label, and on Android by its label
-// and then its value, as Compose reads the row.
-const frequency = () => screen.getByRole('combobox', {name: /^Digest frequency/});
+const frequency = () => screen.getByRole('combobox', {name: 'Digest frequency'});
 
 // A choice of the theme: a radio, and on Windows an item of the list WinUI's
 // segmented control is, which is selected rather than checked.
@@ -30,20 +28,22 @@ beforeEach(async () => {
 });
 
 /**
- * A button of the form, scrolled to first, since an Android list draws a row
- * only once it is scrolled to. The scroll looks for the button's text, which
- * agent-device finds as it scrolls: the name the button goes by is the
- * tree's reading of that text, which agent-device does not see.
+ * Scrolls a row of the form onto the screen by its text, since an Android
+ * list draws a row only once it is scrolled to. The scroll looks for the
+ * text, which agent-device finds as it scrolls: the name a control goes by
+ * is the tree's reading of that text, which agent-device does not see.
  */
-async function press(label: string): Promise<void> {
+async function scrollTo(label: string): Promise<void> {
   await screen.getByText(label).scrollIntoView();
+}
+
+/** A button of the form, scrolled to first. */
+async function press(label: string): Promise<void> {
+  await scrollTo(label);
   await screen.getByRole('button', {name: label}).press();
 }
 
-// On Android expo-interface's named switch has no role
-// (kat-tax/expo-interface#24, item 1). Marked failing there until that is
-// fixed.
-(device.platform === 'android' ? it.fails : it)('keeps what each control was set to across a relaunch', async () => {
+it('keeps what each control was set to across a relaunch', async () => {
   await name().fill('Ada L.');
   await screen.getByRole('switch', {name: 'Push notifications'}).uncheck();
   await expect(frequency()).toBeDisabled();
@@ -52,6 +52,7 @@ async function press(label: string): Promise<void> {
   await device.web.selectOption(frequency(), 'Monthly');
   await theme('Dark').press();
   await stepUp();
+  await scrollTo('Share usage data');
   await setCheckbox('Share usage data', true);
 
   await relaunch(searchField());
@@ -62,6 +63,7 @@ async function press(label: string): Promise<void> {
   if (device.platform === 'web') await expect(frequency()).toHaveValue('monthly');
   await expectTheme('Dark');
   await expectPerPage('30');
+  await scrollTo('Share usage data');
   await expectCheckbox('Share usage data', true);
 });
 

@@ -140,11 +140,7 @@ there from its own lockfile, with the packed package unpacked into its
 with what expo-vitest brings beside the app's own packages, so the app is
 installed in place, as to build it, with `bun install --no-save`, which
 leaves the lockfile as it is. Web is served by Expo's dev server, which the
-run starts on a port of its own. Where the browser runs on Linux or macOS,
-the two tests that run a row's action from its menu are marked failing: a
-right click there raises its event while the button is down, and
-expo-interface's menu is closed by the release
-([kat-tax/expo-interface#24](https://github.com/kat-tax/expo-interface/issues/24)).
+run starts on a port of its own.
 
 On Android the suite drives the app's development build, which loads its
 JavaScript from the dev server the run starts on port 41752, reached
@@ -161,18 +157,16 @@ cd ../.. && TESTAPP_PLATFORMS=android HARNESS_TARGET=emulator-5554 HARNESS_METRO
 Each first launch opens the build through its `exp+testapp` link to that
 server, so a dev server someone has on 8081 is never used, and
 `HARNESS_METRO` keeps the React tree's reads on it too. A whole run needs an
-emulator with 4 GB (`emulator -avd <name> -memory 4096`). Two tests are
-marked failing there: one looks for a field by its name once it holds text,
-which on Android is named by that text, and one finds expo-interface's
-switch by its role, which it lacks there
-([kat-tax/expo-interface#24](https://github.com/kat-tax/expo-interface/issues/24)).
+emulator with 4 GB (`emulator -avd <name> -memory 4096`). One test is
+marked failing there: it looks for a field by its name once it holds text,
+which on Android is named by that text.
 
 On Windows the suite drives the Release build that expo-windows' own build
 script makes from the app, with its JavaScript bundled in:
 
 ```sh
 APP_SOURCE="$PWD/testapp" \
-EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.33.0" \
+EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.34.0" \
 EXPECT_LINKED=ExpoInterface \
   bash path/to/expo-windows/ci/build.sh .harness/win
 TESTAPP_PLATFORMS=windows HARNESS_TARGET="$(cygpath -aw .harness/win/WinCi/windows/x64/Release/TestApp.exe)" bun run test:testapp

@@ -8,12 +8,6 @@ import {field, rowAction, searchField, signedIn} from './helpers';
 const row = (title: string) => screen.getByText(title);
 const search = searchField;
 
-// On web where a right click raises contextmenu while the button is still
-// down, as on Linux and macOS, expo-interface's row menu is closed by the
-// click's own release (kat-tax/expo-interface#24, item 3). Marked failing
-// there until that is fixed; Windows raises it after the release.
-const rowMenu = device.platform === 'web' && process.platform !== 'win32' ? it.fails : it;
-
 // A filter by its name, which every platform draws as a control that can be
 // on: a pressed button on web, a checkbox on Android, and on Windows a toggle
 // button, which reads as checked.
@@ -45,13 +39,13 @@ it('filters the favourites and the archive', async () => {
   await expect(row('Trip to Lisbon')).toBeHidden();
 });
 
-rowMenu('favourites a note from its row, which the favourites then show', async () => {
+it('favourites a note from its row, which the favourites then show', async () => {
   await rowAction(row('Groceries'), 'Add to favourites');
   await filter('Favourites').press();
   await expect(row('Groceries')).toBeVisible();
 });
 
-rowMenu('archives a note from its row, which leaves the list for the archive', async () => {
+it('archives a note from its row, which leaves the list for the archive', async () => {
   await rowAction(row('Groceries'), 'Archive');
   await expect(row('Groceries')).toBeHidden();
   await filter('Archived').press();
