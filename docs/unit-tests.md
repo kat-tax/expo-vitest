@@ -73,7 +73,7 @@ The tree of a component reads the same on every platform: a field is a
 
 | A unit test | Unlike a device |
 | --- | --- |
-| lays nothing out | Everything rendered is on the screen, and has no bounds. `scrollIntoView` has nothing to do, a node is off the screen only where it is hidden, and a swipe or a drag, which draw across the screen, is for a device test. |
+| lays nothing out | Everything rendered is on the screen, and has no bounds. `scrollIntoView` has nothing to do, a node is off the screen only where it is hidden, and a swipe, a drag or a pinch, which draw across the screen, is for a device test. |
 | draws nothing | `device.screenshot` fails with `UNSUPPORTED_CAPABILITY`, and `toMatchScreenshot` passes, saying nothing was compared, so a test shared with a device test still runs. `device.can('screenshot')` is false. |
 | has no device | Restarting the app, its settings and the rest of [Controls](controls.md) are for a device test, and `device.can` says so for each. |
 | moves the focus as its platform does | On web a press focuses what it pressed, as a browser does; on iOS and Android the field a person typed in keeps the focus. |

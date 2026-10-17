@@ -102,8 +102,8 @@ These wait on an API key, and the runs are billed.
 
 ### Steps and controls
 
-- What [Migrating](docs/migrating.md) marks "not yet": a pinch, a picker
-  column's value, a shake, a second app in one test, the system keys (lock,
+- What [Migrating](docs/migrating.md) marks "not yet": a picker column's
+  value, a shake, a second app in one test, the system keys (lock,
   power, volume, a TV remote), clearing the keychain, and adding media.
 - Named keys on iOS and Android other than Enter, which answer `'skipped'`:
   agent-device sends Enter alone on a phone.

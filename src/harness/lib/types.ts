@@ -288,6 +288,12 @@ export interface Driver {
   swipe?(from: Point, to: Point, options?: StepTiming): Promise<StepResult>;
   /** A press on what one target names, drawn to what another names and let go there. */
   drag?(from: Target, to: Target, options?: DragOptions): Promise<StepResult>;
+  /**
+   * Two fingers either side of a point, in the window's own pixels, drawn
+   * apart to `scale` times the distance between them, or together for a
+   * scale below 1.
+   */
+  pinch?(at: Point, scale: number): Promise<StepResult>;
   /** The React tree behind the native one, or why it cannot be read here. */
   react?(): Promise<ReactTree | {unavailable: string}>;
   /**

@@ -6,12 +6,13 @@ import {HarnessError, codeOf} from '../lib/errors.ts';
 import {firstLine, numbered, prepare} from '../lib/run.ts';
 import type {Bounds, Point, Snapshot, SnapshotNode, Target} from '../lib/snapshot.ts';
 import {kindOnWeb} from '../lib/roles.ts';
+import {pinchTouches} from '../lib/gestures.ts';
 import {asSelector, describeTarget, findNode, isPoint, narrow, seenInstead} from '../lib/snapshot.ts';
 import {CANNOT, cannot, describeControl, lacking, webGrants} from '../lib/controls.ts';
 import type {Availability, ControlRequest, ControlResult, DialogAnswer, DragOptions, Driver, DriverOptions, LongPressOptions, OptionChoice, PressOptions, SnapshotOptions, StepResult, WebCookie, WebRoute} from '../lib/types.ts';
 import {failed, ok} from '../lib/types.ts';
 import type {BrowserName} from './web-browsers.ts';
-import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard} from './web-browsers.ts';
+import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installHint, isShell, launchOptions, modeFrom, playwrightBases, noClipboard, noPinch} from './web-browsers.ts';
 import type {ReactTree} from '../lib/react.ts';
 import {walkExpression} from '../lib/react.ts';
 import {COLLECT} from './web-collect.ts';
@@ -183,6 +184,12 @@ export function webDriver(options: DriverOptions): Driver {
     grantPermissions(permissions: string[]): Promise<void>;
     clearPermissions(): Promise<void>;
     setGeolocation(where: {latitude: number; longitude: number} | null): Promise<void>;
+    /** Chromium only. */
+    newCDPSession(page: Page): Promise<CDPSession>;
+  }
+  interface CDPSession {
+    send(method: string, params?: unknown): Promise<unknown>;
+    detach(): Promise<void>;
   }
   interface Dialog {
     accept(): Promise<void>;
@@ -1020,6 +1027,34 @@ export function webDriver(options: DriverOptions): Driver {
       await current.mouse.move(from.x, from.y);
       await current.mouse.wheel(from.x - to.x, from.y - to.y);
       return ok(`swiped from ${from.x},${from.y} to ${to.x},${to.y}`);
+    },
+
+    async pinch(at: Point, scale: number): Promise<StepResult> {
+      // Two fingers at once come only through Chromium's DevTools protocol:
+      // Playwright gives Firefox and WebKit no touch of more than one.
+      const refused = mode.cdp ? null : noPinch(mode.browser);
+      if (refused) return {ok: true, skipped: true, message: refused};
+      try {
+        const current = await open();
+        lastRead = null;
+        const session = await current.context().newCDPSession(current);
+        try {
+          const touches = pinchTouches(at, scale);
+          const points = (fingers: [Point, Point]) => fingers.map((finger, id) => ({x: finger.x, y: finger.y, id}));
+          await session.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: points(touches[0] as [Point, Point])});
+          // A frame apart, as fingers move, so a page that follows them sees each step.
+          for (const fingers of touches.slice(1)) {
+            await new Promise(resolve => setTimeout(resolve, 16));
+            await session.send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: points(fingers)});
+          }
+          await session.send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+        } finally {
+          await session.detach().catch(() => {});
+        }
+        return ok(`pinched to ${scale} times at ${at.x},${at.y}`);
+      } catch (error) {
+        return failed(firstLine((error as Error).message), codeOf(error));
+      }
     },
 
     async key(name: string): Promise<StepResult> {

@@ -189,6 +189,20 @@ it("finds an image by its alt and anything by its title, as Testing Library's qu
   await expect(screen.findByTitle('Open', {}, {timeout: 0})).rejects.toThrow('the titles there: "Close", "Delete the draft", "Online"');
 });
 
+it('pinches two fingers apart on a node, and together, where the browser takes two at once', async () => {
+  await device.open('/pinch');
+  const photo = screen.getByRole('img', {name: 'Photo'});
+  if (!device.can('pinch')) {
+    await expect(photo.pinch(2)).rejects.toThrow(expect.objectContaining({code: 'UNSUPPORTED_CAPABILITY'}));
+    return;
+  }
+  await photo.pinch(2);
+  await expect(screen.getByTestId('fingers')).toHaveText('Fingers 2');
+  await expect(screen.getByTestId('scale')).toHaveText('Scale 2.0');
+  await photo.pinch(0.5);
+  await expect(screen.getByTestId('scale')).toHaveText('Scale 0.5');
+});
+
 it('names its own steps', async () => {
   await step('Open the profile', async () => {
     await device.open('/');

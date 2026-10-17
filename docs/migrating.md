@@ -35,7 +35,8 @@ retries and timeouts are Vitest's own, and so is `expect`.
 | `.tapReturnKey()` | `.key('Enter')` | renamed |
 | `.swipe('up', 'fast')`, `.scroll(200, 'down')` | `.swipe('up', {distance})` | renamed |
 | `.scrollTo('bottom')`, `waitFor(el).toBeVisible().whileElement(list).scroll()` | `.scrollIntoView()` on what is wanted | renamed |
-| `.pinch()`, `.setColumnToValue()` | | not yet |
+| `.pinch(scale)` | `.pinch(scale)` | same |
+| `.setColumnToValue()` | | not yet |
 | `.getAttributes()` | `.node()` | renamed |
 | `expect(el).toBeVisible()` | `await expect(locator).toBeVisible()` | same |
 | `expect(el).not.toBeVisible()` | `toBeHidden()` | renamed |

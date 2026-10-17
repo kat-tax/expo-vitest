@@ -5,7 +5,8 @@
 // is the page the agent signs in on; /press counts clicks and double clicks;
 // /drag takes a drop and follows a held pointer; /session keeps who signed
 // in; /place follows where the page is; /names names things as a screen
-// reader does; every other path is the profile page.
+// reader does; /pinch follows two fingers; every other path is the profile
+// page.
 import fs from 'node:fs';
 import http from 'node:http';
 
@@ -23,6 +24,7 @@ http
     if (pathname === '/session') return response.writeHead(200, html).end(file('session.html'));
     if (pathname === '/place') return response.writeHead(200, html).end(file('place.html'));
     if (pathname === '/names') return response.writeHead(200, html).end(file('names.html'));
+    if (pathname === '/pinch') return response.writeHead(200, html).end(file('pinch.html'));
     if (pathname === '/web/frame') return response.writeHead(200, html).end(file('frame.html'));
     if (pathname === '/web/report.csv') {
       return response.writeHead(200, {'content-type': 'text/csv', 'content-disposition': 'attachment; filename="report.csv"'}).end('name,drafts\nAda,3\n');

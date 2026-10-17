@@ -91,7 +91,7 @@ stays `denied` whatever is granted. A page that asks
 `device.can(name)` says whether this platform and this device have a step or
 a control, and `device.capabilities` is the set of every one they have. The
 names are the steps, `open`, `press`, `fill`, `type`, `screenshot`, `key`,
-`longPress`, `hover`, `focus`, `scrollIntoView`, `swipe` and `drag`, then
+`longPress`, `hover`, `focus`, `scrollIntoView`, `swipe`, `drag` and `pinch`, then
 `video` for a [recording](evidence.md#video), `web` for
 [`device.web`](device-tests.md#deviceweb), which web alone has,
 `screenshot:element` for a [picture of one element](matchers.md#tomatchscreenshot),

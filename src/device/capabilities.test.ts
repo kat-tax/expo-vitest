@@ -5,7 +5,7 @@ const pixel = {name: 'Pixel 9 Pro XL', kind: 'emulator', osVersion: '16'};
 
 describe('the capabilities', () => {
   it('are the steps first, then every control, each once', () => {
-    expect(CAPABILITIES.slice(0, 15)).toEqual(ACTIONS.web);
+    expect(CAPABILITIES.slice(0, ACTIONS.web.length)).toEqual(ACTIONS.web);
     expect(CAPABILITIES).toContain('restart');
     expect(CAPABILITIES).toContain('alert');
     expect(new Set(CAPABILITIES).size).toBe(CAPABILITIES.length);
@@ -64,6 +64,14 @@ describe('the capabilities', () => {
     expect(absentBecause('clipboard', 'web', {browser: 'chromium'})).toBeNull();
     expect(absentBecause('clipboard', 'android', {browser: 'webkit'})).toBeNull();
     expect(capabilitiesOf('web', {browser: 'webkit'}).has('open')).toBe(true);
+  });
+
+  it('pinch on iOS and Android, and on web in Chromium alone, which takes two fingers at once', () => {
+    expect([absentBecause('pinch', 'android'), absentBecause('pinch', 'ios'), absentBecause('pinch', 'web'), absentBecause('pinch', 'web', {browser: 'chromium'})]).toEqual([null, null, null, null]);
+    expect(absentBecause('pinch', 'web', {browser: 'firefox'})).toBe('Firefox takes no touch of two fingers from Playwright; Chromium does');
+    expect(absentBecause('pinch', 'web', {browser: 'webkit'})).toBe('WebKit takes no touch of two fingers from Playwright; Chromium does');
+    expect(absentBecause('pinch', 'windows')).toBe('the windows harness has no pinch');
+    expect(absentBecause('pinch', 'ios', {unit: true})).toBe('a unit test has no pinch, which a device test has on the running app');
   });
 
   it('install and clear an app on Windows only where the harness config says how', () => {

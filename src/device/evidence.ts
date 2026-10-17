@@ -32,6 +32,7 @@ export type StepEvent =
   | 'scroll'
   | 'swipe'
   | 'drag'
+  | 'pinch'
   | 'snapshot'
   | 'screenshot'
   | 'assert'
@@ -43,7 +44,7 @@ export type StepEvent =
   | 'verified';
 
 /** The events that change the screen, which a `verified` step can vouch for. */
-const ACTIONS = new Set<StepEvent>(['open', 'press', 'longPress', 'fill', 'clear', 'type', 'key', 'check', 'hover', 'focus', 'scroll', 'swipe', 'drag', 'control', 'agent', 'web']);
+const ACTIONS = new Set<StepEvent>(['open', 'press', 'longPress', 'fill', 'clear', 'type', 'key', 'check', 'hover', 'focus', 'scroll', 'swipe', 'drag', 'pinch', 'control', 'agent', 'web']);
 
 /** What the screen held: each node as what it is, which one had the focus, and how many could be acted on. */
 export interface TreeDigest {

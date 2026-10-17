@@ -92,6 +92,11 @@ export function noClipboard(browser: BrowserName): string | null {
   return browser === 'chromium' ? null : `the clipboard is driven in Chromium alone, and this is ${TITLES[browser]}`;
 }
 
+/** Why a browser takes no pinch, or null where it does: two fingers at once come only through Chromium's DevTools protocol. */
+export function noPinch(browser: BrowserName): string | null {
+  return browser === 'chromium' ? null : `${TITLES[browser]} takes no touch of two fingers from Playwright; Chromium does`;
+}
+
 /** The command that fetches a browser, or ffmpeg, for the playwright-core the harness loads, which takes no build but its own. */
 export function installHint(what: BrowserName | 'ffmpeg'): string {
   return `run \`npx expo-harness install ${what}\``;

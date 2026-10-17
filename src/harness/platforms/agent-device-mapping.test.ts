@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, pinchArgs, pinchRequest, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -432,6 +432,11 @@ describe('the wait after an action', () => {
     expect(dragRequest({x: 10, y: 20}, {x: 110, y: 5})).toEqual({method: 'pan', options: {x: 10, y: 20, dx: 100, dy: -15, durationMs: DRAG_MOVE_MS}});
     expect(dragArgs({ref: '@e2'}, {ref: '@e5'}, 800)).toEqual(['gesture', 'drag', '@e2', '@e5', '800', '500']);
     expect(dragArgs({x: 10, y: 20}, {x: 110, y: 5})).toEqual(['gesture', 'pan', '10', '20', '100', '-15', '500']);
+  });
+
+  it("pinches with agent-device's own gesture of two fingers, at the point", () => {
+    expect(pinchRequest({x: 120, y: 340}, 2)).toEqual({scale: 2, x: 120, y: 340});
+    expect(pinchArgs({x: 120, y: 340}, 0.5)).toEqual(['gesture', 'pinch', '0.5', '120', '340']);
   });
 });
 

@@ -35,6 +35,8 @@ import {
   installArgs,
   launchArgs,
   packageFolders,
+  pinchArgs,
+  pinchRequest,
   recordArgs,
   repeatArgs,
   repeatRequest,
@@ -85,6 +87,8 @@ export interface AgentDeviceTransport {
   /** Scrolls the way the content moves until a selector is on screen. */
   scrollUntil(direction: 'up' | 'down', until: string, wait?: Wait): Promise<void>;
   swipe(from: Point, to: Point): Promise<void>;
+  /** Two fingers at a point, drawn apart to `scale` times their distance, or together below 1. */
+  pinch(at: Point, scale: number): Promise<void>;
   type(text: string): Promise<void>;
   /** A picture of the screen, with the status bar as the run asks for it. */
   screenshot(file: string, statusBar?: 'fixed' | 'real'): Promise<void>;
@@ -144,7 +148,7 @@ interface Client {
   settings: {update: Call};
   recording: {record: Call};
   capture: {snapshot: Call; screenshot: Call};
-  interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call; pan: Call; drag: Call};
+  interactions: {press: Call; fill: Call; type: Call; longPress: Call; focus: Call; scroll: Call; swipe: Call; pan: Call; drag: Call; pinch: Call};
   sessions: {close: Call};
 }
 
@@ -285,6 +289,9 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
     async swipe(from, to) {
       await call(signal => client.interactions.swipe({...select, from, to, signal}), 'ACTION_FAILED');
     },
+    async pinch(at, scale) {
+      await call(signal => client.interactions.pinch({...select, ...pinchRequest(at, scale), signal}), 'ACTION_FAILED');
+    },
     async type(text) {
       await call(signal => client.interactions.type({...select, text, ...typingRequest(options.platform), signal}), 'ACTION_FAILED');
     },
@@ -391,6 +398,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
     },
     async swipe(from, to) {
       await agent(['swipe', String(from.x), String(from.y), String(to.x), String(to.y)], 'ACTION_FAILED');
+    },
+    async pinch(at, scale) {
+      await agent(pinchArgs(at, scale), 'ACTION_FAILED');
     },
     async type(text) {
       await agent(['type', text, ...typingArgs(options.platform)], 'ACTION_FAILED');

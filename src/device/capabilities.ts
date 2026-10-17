@@ -7,9 +7,9 @@
 import {CHANGES_SCREEN, LACKS} from '../harness/lib/controls.ts';
 import type {AppOptions, ControlName, DeviceFacts, Platform} from '../harness/lib/types.ts';
 import type {BrowserName} from '../harness/platforms/web-browsers.ts';
-import {noClipboard} from '../harness/platforms/web-browsers.ts';
+import {noClipboard, noPinch} from '../harness/platforms/web-browsers.ts';
 
-export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'drag' | 'video' | 'web' | 'screenshot:element' | 'statusBar' | ControlName;
+export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'key' | 'longPress' | 'hover' | 'focus' | 'scrollIntoView' | 'swipe' | 'drag' | 'pinch' | 'video' | 'web' | 'screenshot:element' | 'statusBar' | ControlName;
 
 /**
  * The steps each platform's driver has, whatever the device, then what its
@@ -17,11 +17,11 @@ export type Capability = 'open' | 'press' | 'fill' | 'type' | 'screenshot' | 'ke
  * in every one, which a device's has.
  */
 export const ACTIONS: Record<Platform, Capability[]> = {
-  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'web', 'screenshot:element'],
+  web: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'pinch', 'video', 'web', 'screenshot:element'],
   // Windows has no screen recorder without a dependency.
   windows: ['open', 'press', 'fill', 'type', 'screenshot', 'key', 'longPress', 'hover', 'focus', 'scrollIntoView', 'swipe', 'drag', 'screenshot:element'],
-  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'screenshot:element', 'statusBar'],
-  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'video', 'screenshot:element', 'statusBar'],
+  android: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'pinch', 'video', 'screenshot:element', 'statusBar'],
+  ios: ['open', 'press', 'fill', 'type', 'screenshot', 'longPress', 'focus', 'scrollIntoView', 'swipe', 'drag', 'pinch', 'video', 'screenshot:element', 'statusBar'],
 };
 
 const CONTROLS = Object.keys(CHANGES_SCREEN) as ControlName[];
@@ -62,6 +62,7 @@ export function absentBecause(capability: Capability, platform: Platform, circum
   if (capability === 'installApp' && platform === 'windows' && !/\.msix(bundle)?$/i.test(app.appPath ?? '')) return 'only an .msix is installed on Windows, and app.windows.appPath names none';
   if (capability === 'clearState' && platform === 'windows' && !app.stateDir) return 'app.windows.stateDir names no folder to delete';
   if ((capability === 'clipboard' || capability === 'setClipboard') && platform === 'web') return noClipboard(browser);
+  if (capability === 'pinch' && platform === 'web') return noPinch(browser);
   return null;
 }
 

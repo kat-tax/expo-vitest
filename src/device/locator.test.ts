@@ -133,6 +133,26 @@ describe('an action', () => {
     expect(gone.driver.drag).not.toHaveBeenCalled();
   });
 
+  it('pinches at the middle of its node, to the scale asked', async () => {
+    const pinch = vi.fn(async (): Promise<StepResult> => ok('pinched'));
+    const {driver, locate} = rig(() => [save], {pinch});
+    await locate(query('testId', 'save')).pinch(2);
+    expect(driver.pinch).toHaveBeenCalledWith({x: 50, y: 40}, 2);
+  });
+
+  it('cannot pinch where the platform has none, nor a node with no bounds, nor to a scale that is not above 0', async () => {
+    const {locate} = rig(() => [save]);
+    await expect(locate(query('testId', 'save')).pinch(2)).rejects.toThrow(expect.objectContaining({code: 'UNSUPPORTED_CAPABILITY', message: 'a pinch is not something the web harness can do'}));
+    const firefox = rig(() => [save], {pinch: vi.fn(async (): Promise<StepResult> => ({ok: true, skipped: true, message: 'Firefox takes no touch of two fingers from Playwright; Chromium does'}))});
+    await expect(firefox.locate(query('testId', 'save')).pinch(2)).rejects.toThrow(expect.objectContaining({code: 'UNSUPPORTED_CAPABILITY', message: 'Firefox takes no touch of two fingers from Playwright; Chromium does'}));
+    const unlaid = rig(() => [cancel], {pinch: vi.fn(async (): Promise<StepResult> => ok('pinched'))});
+    await expect(unlaid.locate(query('role', 'button', {name: 'Cancel'})).pinch(0.5)).rejects.toThrow(expect.objectContaining({code: 'NOT_ACTIONABLE', message: '@e3   button "Cancel" has no bounds to pinch on'}));
+    expect(unlaid.driver.pinch).not.toHaveBeenCalled();
+    for (const scale of [0, -2, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(locate(query('testId', 'save')).pinch(scale)).rejects.toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: `pinch takes a scale above 0: above 1 to zoom in, below 1 to zoom out; it was given ${scale}`}));
+    }
+  });
+
   it('keeps the real time on a device that names no clock of its own', async () => {
     const {driver, host} = rig(() => [save]);
     await new Locator({...host, clock: undefined}, query('testId', 'save')).press();
@@ -453,6 +473,13 @@ describe('the journal', () => {
     const locate = (asked: LocatorQuery) => new Locator({...host, journal}, asked);
     await locate(query('testId', 'save')).dragTo(locate(query('role', 'button', {name: 'Cancel'})));
     expect(journal.steps.map(step => [step.event, step.what, step.result])).toEqual([['drag', 'getByTestId("save") to getByRole("button", {name: "Cancel"})', 'ok']]);
+  });
+
+  it('records a pinch with its scale', async () => {
+    const {host} = rig(() => [save], {pinch: vi.fn(async (): Promise<StepResult> => ok('pinched'))});
+    const journal = new Journal(host.clock?.now);
+    await new Locator({...host, journal}, query('testId', 'save')).pinch(1.5);
+    expect(journal.steps.map(step => [step.event, step.what, step.result])).toEqual([['pinch', 'getByTestId("save") to 1.5 times', 'ok']]);
   });
 });
 

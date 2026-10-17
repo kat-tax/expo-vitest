@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installArguments, installHint, isShell, launchOptions, modeFrom, noClipboard, playwrightBases} from './web-browsers.ts';
+import {BROWSERS, GRANTS, HEADED_NEEDS_FULL, TITLES, browserLines, browserRoots, buildOf, candidates, grantsIn, installArguments, installHint, isShell, launchOptions, modeFrom, noClipboard, noPinch, playwrightBases} from './web-browsers.ts';
 
 const env = (values: Record<string, string> = {}) => values as unknown as NodeJS.ProcessEnv;
 
@@ -62,6 +62,12 @@ describe('the browsers', () => {
     expect(noClipboard('chromium')).toBeNull();
     expect(noClipboard('webkit')).toBe('the clipboard is driven in Chromium alone, and this is WebKit');
     expect(noClipboard('firefox')).toBe('the clipboard is driven in Chromium alone, and this is Firefox');
+  });
+
+  it('take a pinch, two fingers at once, in Chromium alone', () => {
+    expect(noPinch('chromium')).toBeNull();
+    expect(noPinch('firefox')).toBe('Firefox takes no touch of two fingers from Playwright; Chromium does');
+    expect(noPinch('webkit')).toBe('WebKit takes no touch of two fingers from Playwright; Chromium does');
   });
 
   it('are known by the folder each build is kept in', () => {

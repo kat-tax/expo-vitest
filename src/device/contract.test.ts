@@ -592,6 +592,8 @@ describe('the types a consumer compiled against', () => {
     expectTypeOf(one.press).parameters.toEqualTypeOf<[options?: {via?: 'pointer'; count?: number; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.press).returns.toEqualTypeOf<Promise<void>>();
     expectTypeOf<keyof NonNullable<Parameters<Locator['dragTo']>[1]>>().toEqualTypeOf<'hold' | 'timeout'>();
+    expectTypeOf<Locator['pinch']>().toEqualTypeOf<(scale: number, options?: {timeout?: number}) => Promise<void>>();
+    expectTypeOf<'pinch'>().toExtend<Capability>();
     expectTypeOf(one.fill).parameters.toEqualTypeOf<[text: string, options?: {via?: 'keys'; settle?: number | false; transition?: number | false; settleTimeout?: number}]>();
     expectTypeOf(one.node).returns.toEqualTypeOf<Promise<SnapshotNode | undefined>>();
     expectTypeOf<NonNullable<Parameters<typeof one.waitFor>[0]>>().toMatchObjectType<{timeout?: number}>();

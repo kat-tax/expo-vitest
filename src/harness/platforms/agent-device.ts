@@ -308,6 +308,10 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       return step(`swiped from ${from.x},${from.y} to ${to.x},${to.y}`, 'swipe failed', current => current.swipe(from, to));
     },
 
+    pinch(at: Point, scale: number): Promise<StepResult> {
+      return step(`pinched to ${scale} times at ${at.x},${at.y}`, 'pinch failed', current => current.pinch(at, scale));
+    },
+
     type(text: string): Promise<StepResult> {
       return step(`typed ${JSON.stringify(text)}`, 'typing failed', current => current.type(text));
     },

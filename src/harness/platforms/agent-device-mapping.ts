@@ -379,6 +379,16 @@ export function dragArgs(from: Target, to: Target, hold = 0): string[] {
   return ['gesture', method, ...words.map(String)];
 }
 
+/** A pinch as the Node client takes it: agent-device's own, of two fingers, at a point. */
+export function pinchRequest(at: Point, scale: number): {scale: number; x: number; y: number} {
+  return {scale, x: at.x, y: at.y};
+}
+
+/** The same, as the command line takes it. */
+export function pinchArgs(at: Point, scale: number): string[] {
+  return ['gesture', 'pinch', String(scale), String(at.x), String(at.y)];
+}
+
 /**
  * The gap between typed characters on iOS, in ms. agent-device types as fast
  * as it can, which on a simulator is faster than a React Native field that

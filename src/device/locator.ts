@@ -9,7 +9,7 @@ import type {HarnessCode} from '../harness/lib/errors.ts';
 import {HarnessError} from '../harness/lib/errors.ts';
 import type {Clock} from '../harness/lib/settle.ts';
 import type {Bounds, Point, Selector, Snapshot, SnapshotNode, Target} from '../harness/lib/snapshot.ts';
-import {follow} from '../harness/lib/snapshot.ts';
+import {centreOf, follow} from '../harness/lib/snapshot.ts';
 import type {Direction, DragOptions, Driver, FillOptions, LongPressOptions, Platform, PressOptions, StepResult, WebControls} from '../harness/lib/types.ts';
 import type {Journal, StepEvent} from './evidence.ts';
 import type {Polling, SnapshotFeed} from './polling.ts';
@@ -306,6 +306,33 @@ export class Locator {
     const to = target.only(target.resolve(snapshot));
     if (!to) throw target.notFound(snapshot, timeout ?? this.host.polling.assertionTimeout);
     await this.record('drag', node, () => this.optional('a drag', driver => driver.drag?.({ref: node.ref}, {ref: to.ref}, dragging), true), undefined, `to ${describeQuery(target.query)}`);
+  }
+
+  /**
+   * Two fingers on the middle of the node, drawn apart to `scale` times the
+   * distance between them, as Detox's `pinch`: above 1 to zoom in, below it
+   * to zoom out. An error where the platform has none, as for a drag.
+   */
+  async pinch(scale: number, options: WaitOptions = {}): Promise<void> {
+    if (!(scale > 0 && Number.isFinite(scale))) throw this.error('INVALID_ARGUMENT', `pinch takes a scale above 0: above 1 to zoom in, below 1 to zoom out; it was given ${scale}`);
+    const {node} = await this.one(options.timeout);
+    await this.record(
+      'pinch',
+      node,
+      () =>
+        this.optional(
+          'a pinch',
+          driver => {
+            if (!driver.pinch) return undefined;
+            const at = centreOf(node);
+            if (!at) throw this.error('NOT_ACTIONABLE', `${describeCandidate(node)} has no bounds to pinch on`);
+            return driver.pinch(at, scale);
+          },
+          true,
+        ),
+      undefined,
+      `to ${scale} times`,
+    );
   }
 
   /** The pointer over the node, without a press; `skipped` on a device, which has no pointer. */
