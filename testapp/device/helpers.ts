@@ -108,42 +108,31 @@ export async function relaunch(first: Locator): Promise<void> {
 }
 
 /**
- * A text field by the name a person hears for it, or by its testID where the
- * tree cannot find it by that name. On Android a field that holds text is
- * named by that text, which sign-in.test.ts shows, marked failing there. On
- * iOS a secure field has no role in the tree: agent-device reports its
- * class, UITextField, and a word for its type the role table does not map.
+ * A text field by the name a person hears for it, or on Android by its
+ * testID: there a field that holds text is named by that text, which
+ * sign-in.test.ts shows, marked failing there.
  */
 export function field(name: string, testId: string): Locator {
-  return device.platform === 'android' || device.platform === 'ios' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
+  return device.platform === 'android' ? screen.getByTestId(testId) : screen.getByRole('textbox', {name});
 }
 
 /**
  * A checkbox by its name. iOS has no checkbox: expo-interface draws one as a
- * button that VoiceOver reads as a toggle, selected while it is on. There it
- * is found by its label, whichever of the two XCUITest reports it as, and
- * the two helpers after this read it as selected rather than checked.
+ * button VoiceOver reads as a toggle, which XCUITest reports as a switch,
+ * checked while it is on.
  */
 export function checkbox(name: string): Locator {
-  return device.platform === 'ios' ? screen.getByLabelText(name) : screen.getByRole('checkbox', {name});
+  return screen.getByRole(device.platform === 'ios' ? 'switch' : 'checkbox', {name});
 }
 
 /** Turns a checkbox on or off, pressing it only where it is not so already. */
 export async function setCheckbox(name: string, on: boolean): Promise<void> {
-  if (device.platform !== 'ios') {
-    await (on ? checkbox(name).check() : checkbox(name).uncheck());
-    return;
-  }
-  const node = await checkbox(name).waitFor();
-  if (Boolean(node?.selected) !== on) await checkbox(name).press();
-  await expectCheckbox(name, on);
+  await (on ? checkbox(name).check() : checkbox(name).uncheck());
 }
 
 /** That a checkbox is on, or off. */
 export async function expectCheckbox(name: string, on: boolean): Promise<void> {
-  const box = checkbox(name);
-  if (device.platform === 'ios') await (on ? expect(box).toBeSelected() : expect(box).not.toBeSelected());
-  else await (on ? expect(box).toBeChecked() : expect(box).not.toBeChecked());
+  await (on ? expect(checkbox(name)).toBeChecked() : expect(checkbox(name)).not.toBeChecked());
 }
 
 /**
