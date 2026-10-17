@@ -131,13 +131,7 @@ jobs:
         if: ${{ !cancelled() }}
         with: {name: testapp-android, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
 
-  # Off for now. expo-interface's iOS form buttons report the whole row as
-  # their frame and take a tap only on what they draw, so a press at the
-  # frame's middle misses Sign in and the suite cannot get past it
-  # (kat-tax/expo-interface#22, item 8). It comes back on once the kit is
-  # fixed.
   ios:
-    if: false
     name: Test app on iOS
     runs-on: macos-26
     timeout-minutes: 120
@@ -147,8 +141,19 @@ jobs:
         with: {node-version: 24}
       - uses: oven-sh/setup-bun@v2
         with: {bun-version-file: package.json}
+      - uses: actions/cache@v6
+        with: {path: ~/.bun/install/cache, key: 'bun-${{ runner.os }}-${{ hashFiles(''bun.lock'', ''testapp/bun.lock'') }}', restore-keys: 'bun-${{ runner.os }}-'}
       - run: bun install --frozen-lockfile
+      # Cached as the Android job's is: a development build is made of the
+      # app's packages, its config and its icons alone.
+      - name: The development build, where what it is built from is unchanged
+        id: build
+        uses: actions/cache/restore@v6
+        with:
+          path: testapp/build/Build/Products/Debug-iphonesimulator/*.app
+          key: testapp-ios-1-${{ hashFiles('testapp/package.json', 'testapp/bun.lock', 'testapp/app.json', 'testapp/assets/**') }}
       - name: Build the development build for the simulator
+        if: steps.build.outputs.cache-hit != 'true'
         working-directory: testapp
         run: |
           bun install --no-save
@@ -158,6 +163,12 @@ jobs:
           xcodebuild -quiet -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build
           ls -d build/Build/Products/Debug-iphonesimulator/*.app
+      - name: Keep the development build for the next run, whatever the suite makes of it
+        if: steps.build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: testapp/build/Build/Products/Debug-iphonesimulator/*.app
+          key: ${{ steps.build.outputs.cache-primary-key }}
       - name: Boot a simulator on the newest runtime, and install the app
         id: simulator
         run: |

@@ -15,7 +15,12 @@ on a simulator, and then on an iPhone:
 - The locators, the matchers and the optional actions, recording each role's
   spelling and each `'skipped'` answer. A snapshot from a simulator, kept in
   `src/harness/lib/__fixtures__/`, would test the iOS role table, which maps
-  XCUIElement type names that have not been read off a device yet.
+  XCUIElement type names that have not been read off a device yet. In the
+  test app's trees from CI, agent-device reported a node's class
+  (`UITextField`, `SwiftUI.ListCollectionViewCell`, `UINavigationBar`) where
+  the table expects a type, and the table knows only some of agent-device's
+  own words for a type, so a secure field, a list's cells and a navigation
+  bar have no kind.
 - The app's life (`restart`, `clearState`, `back`, `home`, `resumeApp`,
   `activateApp`, `installApp`, `openLink`, `foregroundApp`), the device's
   settings, gating, masked and element screenshots, and the normalised
@@ -33,13 +38,11 @@ on a simulator, and then on an iPhone:
 
 ### The test app on iOS
 
-The test app launches on a simulator and its onboarding passes, but it
-cannot sign in. expo-interface's iOS `Button` in a form row reports the whole
-row as its frame and takes a press only on what it draws, and a press goes
-to the middle of the frame
-([kat-tax/expo-interface#22](https://github.com/kat-tax/expo-interface/issues/22),
-item 8). The iOS job in `.github/workflows/testapp.yml` is off (`if: false`)
-until the kit is fixed, and goes back on then.
+The suite runs on a simulator in CI and has yet to pass there whole. Its
+fields are found there by testID, since a secure field has no kind in the
+tree, and its checkboxes by label, since which type XCUITest gives
+expo-interface's, a button VoiceOver reads as a toggle, has not been read
+off a run.
 
 ### Hosted devices
 
