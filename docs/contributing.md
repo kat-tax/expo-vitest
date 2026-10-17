@@ -140,7 +140,11 @@ there from its own lockfile, with the packed package unpacked into its
 with what expo-vitest brings beside the app's own packages, so the app is
 installed in place, as to build it, with `bun install --no-save`, which
 leaves the lockfile as it is. Web is served by Expo's dev server, which the
-run starts on a port of its own.
+run starts on a port of its own. Where the browser runs on Linux or macOS,
+the two tests that run a row's action from its menu are marked failing: a
+right click there raises its event while the button is down, and
+expo-interface's menu is closed by the release
+([kat-tax/expo-interface#24](https://github.com/kat-tax/expo-interface/issues/24)).
 
 On Android the suite drives the app's development build, which loads its
 JavaScript from the dev server the run starts on port 41752, reached
