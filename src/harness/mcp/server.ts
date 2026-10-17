@@ -162,8 +162,14 @@ export class McpServer {
       return refused(typeof code === 'string' ? code : 'INTERNAL', this.hide(error instanceof Error ? error.message : String(error)));
     });
     going?.stop();
-    // A request the client cancelled while it ran gets no answer.
-    if (this.cancelled.delete(id)) return null;
+    // A request the client cancelled while it ran gets no answer. A session
+    // it opened is closed: the client never hears its id, and it would hold
+    // a place, and on Windows or a device the platform, until it sat idle.
+    if (this.cancelled.delete(id)) {
+      const opened = name === 'open_session' ? result.structuredContent?.session : undefined;
+      if (typeof opened === 'string') await this.sessions.close(opened).catch(() => undefined);
+      return null;
+    }
     return respond(id, result);
   }
 

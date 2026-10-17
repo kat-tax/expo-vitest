@@ -117,8 +117,10 @@ finds each one alone; where none does, the names near the one asked for.
 - A call whose request carries a `progressToken` in its `_meta` hears every
   two seconds that it is still going, as `notifications/progress` with how
   long so far, so a client that waits on progress does not time out an open
-  that boots a device. None comes after the call ends or is cancelled. A
-  cancelled call gets no answer, though what it started still finishes.
+  that boots a device. None comes after the call ends or is cancelled.
+- A cancelled call gets no answer. What it started still finishes, and a
+  session a cancelled `open_session` opened is closed as soon as it is open,
+  since the client never hears its id.
 - A session closes at `close_session`, after 30 idle minutes, after 4 hours,
   and when the client goes. SIGINT and SIGTERM close them all.
 - stdout is the protocol's alone. Everything the server would print goes to

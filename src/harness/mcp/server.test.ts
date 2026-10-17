@@ -258,6 +258,32 @@ describe('a session', () => {
     }
   });
 
+  it('closes a session whose open the client cancelled, which it never hears the id of, and frees its platform', async () => {
+    const closed: string[] = [];
+    let opened: (session: McpSession) => void = () => undefined;
+    const session = (name: string): McpSession => ({platform: 'android', config: null, catalog: stubCatalog(), close: async () => void closed.push(name)});
+    const {server} = await started({open: () => new Promise(resolve => (opened = resolve))});
+    const opening = server.handle(call(1, 'open_session', {target: 'android'}));
+    await server.handle(line(undefined, 'notifications/cancelled', {requestId: 1}));
+    opened(session('first'));
+    expect(await opening).toBeNull();
+    expect(closed).toEqual(['first']);
+    const again = server.handle(call(2, 'open_session', {target: 'android'}));
+    await new Promise(resolve => setImmediate(resolve));
+    opened(session('second'));
+    expect(parsed(await again).result?.structuredContent?.session).toBe('s2');
+    // An open the client cancelled that failed left nothing to close.
+    const failing = await started({open: async () => Promise.reject(new HarnessError('APP_UNREACHABLE', 'nothing answers at the url'))});
+    const refusedOpen = failing.server.handle(call(1, 'open_session', {}));
+    await failing.server.handle(line(undefined, 'notifications/cancelled', {requestId: 1}));
+    expect(await refusedOpen).toBeNull();
+    // A session that will not close is no answer to a request that gets none.
+    const stuck = await started({open: async () => ({platform: 'web', config: null, catalog: stubCatalog(), close: () => Promise.reject(new Error('the browser would not close'))})});
+    const stuckOpen = stuck.server.handle(call(1, 'open_session', {}));
+    await stuck.server.handle(line(undefined, 'notifications/cancelled', {requestId: 1}));
+    expect(await stuckOpen).toBeNull();
+  });
+
   it("runs a real catalog over the device, the agent's tools behind call", async () => {
     const device = new FakeDevice();
     const catalog = createCatalog({host: hostOf(device), secrets: new SecretStore({}, {} as NodeJS.ProcessEnv), signal: new AbortController().signal});
