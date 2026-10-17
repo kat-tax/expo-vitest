@@ -66,8 +66,7 @@ These wait on an API key, and the runs are billed.
 ## Checks still to run
 
 - **Android:** `setClipboard` on an Android before 16, which has the
-  clipboard command agent-device uses; `fold` on a foldable; `installApp`
-  with a real build; `bug-bash`.
+  clipboard command agent-device uses; `fold` on a foldable; `bug-bash`.
 - **Windows:** presses through Invoke and Toggle on a real app's buttons,
   switches and list items, with no `raise` while the keyboard is in use
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
