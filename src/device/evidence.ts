@@ -158,6 +158,8 @@ export class Journal {
   /** Set by the agent: what the evidence writes is redacted by it, and keeps no picture where it says none may be. */
   privacy: Privacy | undefined;
   private began = 0;
+  /** How many tests have begun, so a step that ends after its test has, as one a timeout left behind, stays out of the next one's record. */
+  private test = 0;
   private running: Step | null = null;
   /** The titles of the test's own steps under way, outermost first. */
   private groups: string[] = [];
@@ -170,6 +172,7 @@ export class Journal {
 
   /** Starts a test's record afresh. */
   begin(): void {
+    this.test++;
     this.steps = [];
     this.console = [];
     this.last = null;
@@ -254,22 +257,31 @@ export class Journal {
   ): Promise<T> {
     const startedAt = this.now() - this.began;
     const running: Step = {index: 0, ...step, startedAt, durationMs: 0, result: 'ok', message: ''};
+    const test = this.test;
     this.running = running;
     try {
       const value = await work();
-      this.finish(running, judge(value));
+      if (this.test === test) this.finish(running, judge(value));
       return value;
     } catch (error) {
-      this.finish(running, {result: 'failed', message: (error as Error).message});
+      if (this.test === test) this.finish(running, {result: 'failed', message: (error as Error).message});
       throw error;
     } finally {
-      this.running = null;
+      if (this.running === running) this.running = null;
     }
   }
 
   private finish(running: Step, outcome: {result: Step['result']; message: string; polls?: number; readings?: string[]}): void {
     const {index: _index, ...rest} = running;
     this.add({...rest, durationMs: this.now() - this.began - running.startedAt, ...outcome});
+  }
+
+  /** The step under way, as a trace shows one that had not answered by now, or null. */
+  underWay(): Step | null {
+    const running = this.running;
+    if (!running) return null;
+    const durationMs = this.now() - this.began - running.startedAt;
+    return {...running, index: this.steps.length + 1, durationMs, result: 'failed', message: `had not answered after ${duration(durationMs)}`};
   }
 
   /**
@@ -326,6 +338,8 @@ export interface TraceInput {
   tree: Snapshot | null;
   /** Why there is no screenshot, where there is none. */
   noScreenshot?: string;
+  /** What the driver did not answer, where it stopped answering after the screenshot. */
+  stuck?: string;
   /** What the app wrote to its console. */
   console?: ConsoleLine[];
   /** The agent's steps. */
@@ -384,6 +398,7 @@ export function renderTrace(input: TraceInput): string {
   }
   lines.push(input.failed ? '## Screen at failure' : '## Screen at the end', '');
   if (input.noScreenshot) lines.push(`Screenshot: not taken, ${input.noScreenshot}.`, '');
+  if (input.stuck) lines.push(`${input.stuck.charAt(0).toUpperCase()}${input.stuck.slice(1)}.`, '');
   if (!input.tree) lines.push('No tree was read.');
   else {
     const interactive = input.tree.nodes.filter(node => node.interactive).length;
@@ -424,15 +439,44 @@ export interface Written {
   folder: string;
   trace: string;
   screenshot?: string;
+  /** What the driver did not answer in time, after which the evidence asked it nothing more. */
+  stuck?: string;
+}
+
+/** How long the evidence waits for each of the driver's answers, at most. */
+export const EVIDENCE_WAIT = 5000;
+
+/** How long a test's evidence waits for each answer: no longer than the test's own timeout, where it has one, and at most EVIDENCE_WAIT. */
+export function evidenceWait(testTimeout?: number): number {
+  return testTimeout !== undefined && testTimeout > 0 ? Math.min(EVIDENCE_WAIT, testTimeout) : EVIDENCE_WAIT;
+}
+
+/** What `inTime` answers for a promise that has not answered in time. */
+export const LATE: unique symbol = Symbol('late');
+
+/** What a promise answers, or LATE where it has not within `ms`; a rejection after that is let go. */
+export async function inTime<T>(answer: Promise<T>, ms: number): Promise<T | typeof LATE> {
+  answer.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<typeof LATE>(resolve => {
+    timer = setTimeout(() => resolve(LATE), ms);
+  });
+  try {
+    return await Promise.race([answer, late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
  * Writes a test's evidence to its folder, replacing what an earlier run left
  * there: `screenshot.png`, `tree.txt`, `tree.json` and `trace.md`. A driver
  * closed by the test's own `afterEach` leaves no picture, and the tree is
- * then the last the journal kept.
+ * then the last the journal kept. So does a driver that does not answer
+ * within `wait` ms, as one stuck on a page that hangs: it is asked nothing
+ * more, and what it did not answer is the evidence's `stuck`.
  */
-export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInput, 'tree' | 'steps' | 'noScreenshot' | 'platform'> & {root: string}): Promise<Written> {
+export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInput, 'tree' | 'steps' | 'noScreenshot' | 'stuck' | 'platform'> & {root: string; wait?: number}): Promise<Written> {
   const folder = resultsFolder(input.root, source.platform, input.file, input.titlePath);
   fs.rmSync(folder, {recursive: true, force: true});
   fs.mkdirSync(folder, {recursive: true});
@@ -442,26 +486,42 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
   const {privacy} = source.journal;
   const hide = (text: string) => (privacy ? privacy.redact(text) : text);
   const withheld = privacy?.withheld();
+  const wait = input.wait ?? EVIDENCE_WAIT;
+  // Whatever the driver is stuck on, a question after it waits behind it.
+  let stuck: string | undefined;
+  const ask = async <T>(what: string, question: () => Promise<T>): Promise<T | undefined> => {
+    if (stuck) return undefined;
+    const answer = await inTime(question(), wait);
+    if (answer !== LATE) return answer;
+    stuck = `the driver did not answer for ${what} within ${duration(wait)}, so the evidence asked it nothing more`;
+    return undefined;
+  };
   if (source.open()) {
     const file = path.join(folder, 'screenshot.png');
     try {
       if (withheld) noScreenshot = withheld;
-      else if (await source.screenshot(file)) screenshot = file;
-      else noScreenshot = 'the backend could not take one';
+      else if (await ask('a screenshot', () => source.screenshot(file))) screenshot = file;
+      else noScreenshot = stuck ?? 'the backend could not take one';
     } catch (error) {
       noScreenshot = `taking it failed: ${(error as Error).message.split('\n')[0]}`;
     }
-    tree = await source.tree().catch(() => tree);
+    tree = (await ask('the tree', () => source.tree()).catch(() => undefined)) ?? tree;
   } else noScreenshot = 'the driver was closed';
+  // The step a timeout left under way, which no step in the journal shows.
+  const underWay = source.journal.underWay();
+  const steps = underWay ? [...source.journal.steps, underWay] : source.journal.steps;
   // The components behind the nodes, and above the one the failing step was for, where the React tree can be read.
   let chain: TraceInput['chain'];
-  const react = source.open() && source.react ? await source.react().catch(() => null) : null;
+  const readReact = source.open() ? source.react?.bind(source) : undefined;
+  const react = readReact ? ((await ask('the React tree', readReact).catch(() => null)) ?? null) : null;
   if (react && tree) {
     tree = withComponents(tree, react);
-    const failing = source.journal.steps.findLast(step => step.result === 'failed' && step.resolved) ?? source.journal.steps.findLast(step => step.resolved);
+    const failing = steps.findLast(step => step.result === 'failed' && step.resolved) ?? steps.findLast(step => step.resolved);
     const node = nodeOfStep(failing, tree);
     const behind = node ? reactNodeOf(node, react) : undefined;
-    const written = behind && source.drawnAt ? await source.drawnAt(behind).catch(() => null) : null;
+    // Where the node was written comes from Metro as well as the driver, so one slow to say is no sign the driver is stuck.
+    const drawn = behind && source.drawnAt ? await inTime(source.drawnAt(behind), wait).catch(() => null) : null;
+    const written = drawn === LATE ? null : drawn;
     if (node && behind) {
       chain = {node: `${node.ref} ${node.kind ?? node.role} ${JSON.stringify(node.name)}`, ...(behind.component ? {component: behind.component} : {}), chain: behind.chain, ...(written ? {source: written} : {})};
     }
@@ -472,12 +532,24 @@ export async function writeEvidence(source: EvidenceSource, input: Omit<TraceInp
     fs.writeFileSync(path.join(folder, 'tree.json'), `${hide(JSON.stringify(tree, null, 2))}\n`);
   }
   const trace = path.join(folder, 'trace.md');
-  const {root: _root, ...rest} = input;
+  const {root: _root, wait: _wait, ...rest} = input;
   fs.writeFileSync(
     trace,
-    hide(renderTrace({...rest, platform: source.platform, steps: source.journal.steps, tree, console: source.journal.console, agents: source.journal.agents, ...(noScreenshot ? {noScreenshot} : {}), ...(chain ? {chain} : {})})),
+    hide(
+      renderTrace({
+        ...rest,
+        platform: source.platform,
+        steps,
+        tree,
+        console: source.journal.console,
+        agents: source.journal.agents,
+        ...(noScreenshot ? {noScreenshot} : {}),
+        ...(stuck && stuck !== noScreenshot ? {stuck} : {}),
+        ...(chain ? {chain} : {}),
+      }),
+    ),
   );
   // The agent's pictures go beside the trace, where its errors said they would be.
   for (const note of source.journal.agents) if (note.picture) fs.writeFileSync(path.join(folder, note.picture.name), note.picture.png);
-  return {folder, trace, ...(screenshot ? {screenshot} : {})};
+  return {folder, trace, ...(screenshot ? {screenshot} : {}), ...(stuck ? {stuck} : {})};
 }

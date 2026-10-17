@@ -15,7 +15,7 @@ import path from 'node:path';
 import type {TestArtifactBase, TestAttachment} from 'vitest';
 import {afterEach, beforeEach, recordArtifact} from 'vitest';
 import type {Written} from './evidence.ts';
-import {resultsFolder, writeEvidence} from './evidence.ts';
+import {evidenceWait, resultsFolder, writeEvidence} from './evidence.ts';
 import {device} from './index.ts';
 import {keepVideo, videoName} from './video.ts';
 
@@ -51,6 +51,8 @@ interface Task {
   name: string;
   suite?: {name: string; suite?: Task['suite']};
   file: {filepath: string};
+  /** The test's own timeout, or the config's, in ms; 0 for none. */
+  timeout?: number;
   meta: Record<string, unknown>;
   result?: {state?: string; startTime?: number; duration?: number; errors?: {message?: string; code?: string; name?: string}[]};
 }
@@ -85,8 +87,14 @@ afterEach(async context => {
       duration: task.result?.duration ?? Date.now() - started,
       at: new Date(started),
       errors: (task.result?.errors ?? []).map(error => `${error.code ? `${error.code}: ` : ''}${error.message ?? String(error)}`),
+      wait: evidenceWait(task.timeout),
     });
     console.log(`evidence: ${path.relative(ROOT, written.trace)}`);
+  }
+  // A driver that stopped answering is let go, recording and all, so the next test opens another rather than waiting behind it.
+  if (written?.stuck) {
+    console.warn(`${written.stuck}; it is closed, and the next test opens another`);
+    await device.drop(evidenceWait(task.timeout));
   }
   // The recording ends after the evidence is written, so it runs to the screen the evidence shows.
   const folder = written?.folder ?? resultsFolder(ROOT, device.platform, file, titlePath);

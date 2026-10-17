@@ -6,7 +6,8 @@
 // beside a button under a notice and one below the fold; /drag takes a drop
 // and follows a held pointer; /session keeps who signed in; /place follows
 // where the page is; /names names things as a screen reader does; /pinch
-// follows two fingers; every other path is the profile page.
+// follows two fingers; /hang stops answering; every other path is the
+// profile page.
 import fs from 'node:fs';
 import http from 'node:http';
 
@@ -25,6 +26,7 @@ http
     if (pathname === '/place') return response.writeHead(200, html).end(file('place.html'));
     if (pathname === '/names') return response.writeHead(200, html).end(file('names.html'));
     if (pathname === '/pinch') return response.writeHead(200, html).end(file('pinch.html'));
+    if (pathname === '/hang') return response.writeHead(200, html).end(file('hang.html'));
     if (pathname === '/web/frame') return response.writeHead(200, html).end(file('frame.html'));
     if (pathname === '/web/report.csv') {
       return response.writeHead(200, {'content-type': 'text/csv', 'content-disposition': 'attachment; filename="report.csv"'}).end('name,drafts\nAda,3\n');

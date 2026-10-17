@@ -73,7 +73,8 @@ These wait on an API key, and the runs are billed.
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
   whether a combo box opened through its pattern shows on the screen.
 - **Every platform:** that a backend that hangs fails a test with a 1 second
-  timeout in under 2 seconds, which has been shown for agent-device only;
+  timeout in about 2 seconds, evidence and all, which has been shown on web
+  and for agent-device, and not yet on Windows with an app that hangs;
   three platforms in one run behind one Metro, which needs a Windows
   development build; and the device suites of expo-windows and
   expo-interface passing with no change to their tests.

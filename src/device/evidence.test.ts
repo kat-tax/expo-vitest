@@ -4,7 +4,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot, SnapshotNode} from '../harness/lib/snapshot.ts';
 import type {EvidenceSource, Step, TreeDigest} from './evidence.ts';
-import {Journal, diffDigests, digest, identify, renderTrace, resultsFolder, sanitiseTitle, writeEvidence} from './evidence.ts';
+import {EVIDENCE_WAIT, Journal, LATE, diffDigests, digest, evidenceWait, identify, inTime, renderTrace, resultsFolder, sanitiseTitle, writeEvidence} from './evidence.ts';
 
 const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: false, ...extra});
 const tree = (...nodes: SnapshotNode[]): Snapshot => ({platform: 'web', nodes});
@@ -131,6 +131,29 @@ describe('the journal', () => {
     journal.agents.push({kind: 'act', instruction: 'sign in', agent: 'default', outcome: 'passed', turns: []});
     journal.begin();
     expect([journal.steps, journal.agents]).toEqual([[], []]);
+  });
+
+  it("says what step is under way, and keeps one that ends after its test has out of the next test's record", async () => {
+    const {time, now} = clock();
+    const journal = new Journal(now);
+    journal.begin();
+    expect(journal.underWay()).toBeNull();
+    let answer: () => void = () => {};
+    const opened = journal.run({event: 'open', what: '/hang'}, () => new Promise<void>(resolve => (answer = resolve)));
+    time.at += 1500;
+    expect(journal.underWay()).toEqual({index: 1, event: 'open', what: '/hang', startedAt: 0, durationMs: 1500, result: 'failed', message: 'had not answered after 1.5 s'});
+    let fail: (error: Error) => void = () => {};
+    journal.begin();
+    const filled = journal.run({event: 'fill', what: 'Name'}, () => new Promise<void>((_resolve, reject) => (fail = reject)));
+    journal.begin();
+    void journal.run({event: 'press', what: 'Save'}, () => new Promise<void>(() => {}));
+    // Each of the two left behind ends now, in a test that is not theirs.
+    answer();
+    await opened;
+    fail(new Error('the browser closed'));
+    await expect(filled).rejects.toThrow('the browser closed');
+    expect(journal.steps).toEqual([]);
+    expect(journal.underWay()).toMatchObject({index: 1, event: 'press', what: 'Save', startedAt: 0});
   });
 
   it("says an action was seen to take effect, naming the last that did not fail, and nothing when there was none", async () => {
@@ -302,6 +325,23 @@ describe('the trace', () => {
   });
 });
 
+describe('waiting for the driver', () => {
+  it("waits for each answer no longer than the test's own timeout, and five seconds at most", () => {
+    expect([evidenceWait(), evidenceWait(0), evidenceWait(1000), evidenceWait(120_000)]).toEqual([5000, 5000, 1000, EVIDENCE_WAIT]);
+  });
+
+  it('answers what a promise does, or LATE where it has not in time, letting a rejection after that go', async () => {
+    expect(await inTime(Promise.resolve(7), 50)).toBe(7);
+    await expect(inTime(Promise.reject(new Error('no window')), 50)).rejects.toThrow('no window');
+    let reject: (error: Error) => void = () => {};
+    const later = new Promise<never>((_resolve, fail) => (reject = fail));
+    expect(await inTime(later, 10)).toBe(LATE);
+    // Unhandled, it would fail the run.
+    reject(new Error('closed after'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+});
+
 describe('writeEvidence', () => {
   /** A device that answers what the writer asks, as a test sets. */
   function source(options: {open?: boolean; screenshot?: () => Promise<boolean>; tree?: () => Promise<Snapshot>; last?: Snapshot | null} = {}): EvidenceSource {
@@ -369,6 +409,45 @@ describe('writeEvidence', () => {
     fs.rmSync(root, {recursive: true, force: true});
   });
 
+  it('asks a driver that does not answer in time nothing more, and says what it did not answer', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
+    const never = () => new Promise<never>(() => {});
+    const asked: string[] = [];
+    const stuck = source({screenshot: never, tree: async () => (asked.push('tree'), settings)});
+    stuck.react = async () => (asked.push('react'), null);
+    const written = await writeEvidence(stuck, {...input(root), wait: 20});
+    expect(written.stuck).toBe('the driver did not answer for a screenshot within 20 ms, so the evidence asked it nothing more');
+    expect(asked).toEqual([]);
+    const trace = fs.readFileSync(written.trace, 'utf8');
+    expect(trace).toContain('Screenshot: not taken, the driver did not answer for a screenshot within 20 ms, so the evidence asked it nothing more.\n\n2 nodes');
+    expect(trace).not.toContain('The driver');
+    // A picture, then no tree: the tree is the last the journal kept, and the trace says why.
+    const late = await writeEvidence(source({tree: never}), {...input(root), wait: 20});
+    expect([late.screenshot === undefined, late.stuck]).toEqual([false, 'the driver did not answer for the tree within 20 ms, so the evidence asked it nothing more']);
+    expect(fs.readFileSync(late.trace, 'utf8')).toContain('The driver did not answer for the tree within 20 ms, so the evidence asked it nothing more.\n\n2 nodes');
+    // The React tree late: the picture and the tree are fresh, and the driver is still one that stopped answering.
+    const reading = source();
+    reading.react = never;
+    expect((await writeEvidence(reading, {...input(root), wait: 20})).stuck).toBe('the driver did not answer for the React tree within 20 ms, so the evidence asked it nothing more');
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
+  it('shows the step a timeout left under way, which the chain is then for', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
+    const {time, now} = clock();
+    const waiting = source();
+    waiting.journal = new Journal(now);
+    waiting.journal.begin();
+    waiting.journal.last = home;
+    void waiting.journal.run({event: 'press', what: 'getByTestId("name")', resolved: '@e3   textbox "Name" #name'}, () => new Promise<never>(() => {}));
+    time.at += 1200;
+    waiting.react = async () => ({nodes: [{id: 1, host: 'input', chain: ['App', 'NameField', 'TextInput'], component: 'NameField', ref: '@e3'}]});
+    const trace = fs.readFileSync((await writeEvidence(waiting, input(root))).trace, 'utf8');
+    expect(trace).toContain('| 1 | 0.00 s | press getByTestId("name") → @e3   textbox "Name" #name | 1.2 s | failed: had not answered after 1.2 s |  |');
+    expect(trace).toContain('@e3 textbox "Name" is drawn by NameField:');
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
   it('gives each node the component behind it, and the failing step its chain, where the React tree can be read', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-'));
     const reading = source();
@@ -392,6 +471,10 @@ describe('writeEvidence', () => {
     expect(asked).toEqual([1]);
     reading.drawnAt = () => Promise.reject(new Error('no Metro'));
     expect(fs.readFileSync((await writeEvidence(reading, input(root))).trace, 'utf8')).toContain('@e3 textbox "Name" is drawn by NameField:');
+    // A Metro slow to say is left out, and is no sign the driver stopped answering.
+    reading.drawnAt = () => new Promise<never>(() => {});
+    const slow = await writeEvidence(reading, {...input(root), wait: 20});
+    expect([slow.stuck, fs.readFileSync(slow.trace, 'utf8')]).toEqual([undefined, expect.stringContaining('@e3 textbox "Name" is drawn by NameField:')]);
     delete reading.drawnAt;
     reading.react = async () => ({nodes: [{id: 1, host: 'input', chain: ['TextInput'], ref: '@e3'}]});
     reading.tree = async () => tree(node('@e3', 'input', 'Name', {testId: 'name'}));

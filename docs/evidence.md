@@ -169,6 +169,31 @@ closes the driver there leaves no screenshot, and the trace says so, with
 the last tree the test read. There is nothing to close: the device closes
 by itself when its file ends, after the file's own hooks.
 
+## A driver that stops answering
+
+A test whose app hangs, as when its JavaScript loops for ever, fails at its
+own timeout, and its evidence then waits for each answer from the driver
+no longer than that timeout, and five seconds at most. Whatever the driver
+is stuck on, a question after it would wait behind it, so a driver that
+does not answer in that time is asked nothing more. The trace says what it
+did not answer, the tree is the last the test read, and the step the
+timeout left under way is in the steps, with how long it had gone without
+an answer:
+
+```markdown
+| 1 | 0.00 s | open /hang | 2.0 s | failed: had not answered after 2.0 s |  |
+
+## Screen at failure
+
+Screenshot: not taken, the driver did not answer for a screenshot within 1.0 s, so the evidence asked it nothing more.
+```
+
+The driver is then closed, and the next test opens another. A test with a
+one-second timeout on a page that hangs is over, evidence and all, in about
+two seconds, and the test after it passes on a browser of its own, which
+the fixture's device suite checks in Chromium, Firefox and WebKit and over
+CDP.
+
 ## Video
 
 `video` in the [harness config](configuration.md#harnessconfigts), or

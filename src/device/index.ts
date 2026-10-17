@@ -36,7 +36,7 @@ import {checkRoute, route} from './travel.ts';
 import type {Claim} from './pool.ts';
 import {claimDevice, sessionName} from './pool.ts';
 import type {EvidenceSource, Step, StepEvent, TreeDigest} from './evidence.ts';
-import {Journal} from './evidence.ts';
+import {inTime, Journal} from './evidence.ts';
 import type {ComponentType, ReactElement, ReactNode as ReactChildren} from 'react';
 import type {ReactNode, ReactTree, StackFrame} from '../harness/lib/react.ts';
 import {appFrame, reactNodeOf, withComponents} from '../harness/lib/react.ts';
@@ -625,6 +625,22 @@ class Device {
 
   async close(): Promise<void> {
     await this.driver?.close();
+    this.forget();
+  }
+
+  /**
+   * Lets go of a driver that has stopped answering, so the next step opens
+   * another rather than waiting behind it: it is asked to close, and
+   * forgotten whether or not it has within `wait` ms.
+   */
+  async drop(wait: number): Promise<void> {
+    const driver = this.driver;
+    this.forget();
+    if (driver) await inTime(driver.close().catch(() => {}), wait);
+  }
+
+  /** No driver: the device back in the pool, nothing recording, and no tree kept from before. */
+  private forget(): void {
     this.driver = null;
     // The session is closed, so the device can go back to the pool.
     this.claim?.release();

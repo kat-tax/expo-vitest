@@ -34,6 +34,9 @@ device and on Windows.
 - A screenshot that differs: `.harness/<platform>-<name>.expected.png`,
   `.actual.png` and `.diff.png` are side by side, the changed pixels red in
   the diff.
+- A test that timed out on a step that `had not answered`: the app hung, or
+  its backend did. The trace says what the driver did not answer, and the
+  next test opens another driver. Find what the app was doing at that step.
 
 ## When it is written
 
