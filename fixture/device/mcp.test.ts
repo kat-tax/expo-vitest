@@ -3,6 +3,7 @@
 // on the page the harness config's command serves. Every line it writes to
 // stdout must be JSON, since one stray line ends a client's session.
 import {spawn} from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import {onlyOn} from 'expo-vitest';
 
@@ -44,7 +45,7 @@ function connect() {
 }
 
 onlyOn(['web'], () => {
-  it('opens a session on the page, observes, locates, taps, hands a page a file it may, and closes, every line it writes JSON', async () => {
+  it('opens a session on the page, records it, observes, locates, taps, hands a page a file it may, keeps the video, and closes, every line it writes JSON', async () => {
     const server = connect();
     const hello = await server.request('initialize', {protocolVersion: '2025-06-18', capabilities: {}, clientInfo: {name: 'fixture', version: '1'}});
     expect(hello.result).toMatchObject({protocolVersion: '2025-06-18', serverInfo: {name: 'expo-harness'}});
@@ -57,6 +58,8 @@ onlyOn(['web'], () => {
     const first = opened.result?.content?.[0]?.text ?? '';
     expect(first, server.stderr()).toMatch(/^session s1 on web /);
     expect(first).toContain('button  "Save"  #save');
+    const started = await server.request('tools/call', {name: 'call', arguments: {tool: 'start_recording'}});
+    expect(started.result?.content?.[0]?.text).toBe('recording the screen; stop_recording keeps it');
 
     const located = await server.request('tools/call', {name: 'call', arguments: {tool: 'locate', args: {role: 'button', name: 'Save'}}});
     const found = located.result?.structuredContent as {count: number; suggestion: string; matches: {ref: string}[]};
@@ -78,6 +81,12 @@ onlyOn(['web'], () => {
     expect(handed.result?.content?.[0]?.text).toContain('"Attached features.json"');
     const refused = await server.request('tools/call', {name: 'call', arguments: {tool: 'upload', args: {ref: input, file: 'harness.config.ts'}}});
     expect(refused.result).toMatchObject({isError: true});
+
+    // A video of what the session did, kept in the project.
+    const stopped = await server.request('tools/call', {name: 'call', arguments: {tool: 'stop_recording'}});
+    const video = (stopped.result?.structuredContent as {file: string} | undefined)?.file ?? '';
+    expect(video, JSON.stringify(stopped.result)).toMatch(/\.webm$/);
+    expect(fs.statSync(video).size).toBeGreaterThan(0);
     expect((await server.request('tools/call', {name: 'close_session', arguments: {}})).result?.content?.[0]?.text).toBe('closed s1');
     server.end();
     expect(await server.exited).toBe(0);

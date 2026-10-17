@@ -81,7 +81,8 @@ secrets, `press`, `scroll`, `scroll_to`, `navigate`, `back`, `home`,
 `open_app`, `alert`, `dismiss_keyboard`, on web `select`, `right_click`,
 and `upload` where the default agent has `uploads`, `screenshot`,
 `tap_at`, `hover_at` and `type_at` where the platform takes screenshots,
-the default agent's [project tools](agent.md#project-tools), and `locate`.
+the default agent's [project tools](agent.md#project-tools), `locate`, and
+`start_recording` and `stop_recording` where the platform records video.
 A coding agent observes, acts by ref, reads what changed, and when the flow
 works, asks `locate` how a test finds each node it used:
 
@@ -102,8 +103,13 @@ finds each one alone; where none does, the names near the one asked for.
 - A ref names the same node for the whole session. A node that has gone is
   `NODE_STALE`, and the answer says to observe again.
 - A secret's value never comes back in an answer: each is hidden as
-  `<secret:NAME>`. Once one is filled, `screenshot`, `tap_at`, `hover_at`
-  and `type_at` answer `PIXEL_TAINTED` for the rest of the session.
+  `<secret:NAME>`. Once one is filled, `screenshot`, `tap_at`, `hover_at`,
+  `type_at` and `start_recording` answer `PIXEL_TAINTED` for the rest of
+  the session, and a recording running then is thrown away at its stop.
+- `stop_recording` keeps the session's video in
+  `.harness/mcp/recordings/`, named by when it stopped, a `.webm` on web and
+  an `.mp4` on a device, and answers where. An agent in a test is recorded
+  by the test's own [video](evidence.md#video) setting instead.
 - Up to `--max-sessions` are open at once, 4 by default and 16 at most. With
   several open, a call names its `session`, or it is `SESSION_REQUIRED`. All
   of them use one harness config; another is `CONFIG_IN_USE`.

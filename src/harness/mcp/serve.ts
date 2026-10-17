@@ -25,7 +25,14 @@ async function openSession(args: OpenArgs, defaults: McpOptions, root: string, k
   keep(app.secrets);
   const controller = new AbortController();
   const named = project.config?.agents?.default;
-  const catalog = createCatalog({host: app.host, secrets: app.secrets, tools: toolsOn(named?.tools ?? [], app.platform), uploads: uploadsFrom(named?.uploads, root), signal: controller.signal});
+  const catalog = createCatalog({
+    host: app.host,
+    secrets: app.secrets,
+    tools: toolsOn(named?.tools ?? [], app.platform),
+    uploads: uploadsFrom(named?.uploads, root),
+    recordings: path.join(root, '.harness', 'mcp', 'recordings'),
+    signal: controller.signal,
+  });
   return {
     platform: app.platform,
     ...(app.state.found ? {source: app.state.found} : {}),

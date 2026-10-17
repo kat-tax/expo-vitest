@@ -118,7 +118,6 @@ These wait on an API key, and the runs are billed.
 
 ### The agent and the MCP server
 
-- More tools: `start_recording` and `stop_recording`.
 - Stopping an MCP open the client cancelled while it runs. It goes on to
   its end, up to its three minutes, and the session it opened is closed
   then.

@@ -10,7 +10,7 @@ import {createCatalog, filled, locate, narrowings} from './catalog.ts';
 const env = {} as NodeJS.ProcessEnv;
 const none = {type: 'object', properties: {}, required: [], additionalProperties: false};
 
-function catalogOf(options: {device?: FakeDevice; secrets?: SecretStore; capabilities?: string[]; tools?: Parameters<typeof createCatalog>[0]['tools']; uploads?: ReadonlyMap<string, string>} = {}) {
+function catalogOf(options: {device?: FakeDevice; secrets?: SecretStore; capabilities?: string[]; tools?: Parameters<typeof createCatalog>[0]['tools']; uploads?: ReadonlyMap<string, string>; recordings?: string} = {}) {
   const device = options.device ?? new FakeDevice();
   const host = hostOf(device, options.capabilities ? {capabilities: new Set(options.capabilities)} : {});
   const catalog = createCatalog({
@@ -19,6 +19,7 @@ function catalogOf(options: {device?: FakeDevice; secrets?: SecretStore; capabil
     signal: new AbortController().signal,
     ...(options.tools ? {tools: options.tools} : {}),
     ...(options.uploads ? {uploads: options.uploads} : {}),
+    ...(options.recordings ? {recordings: options.recordings} : {}),
   });
   return {catalog, device};
 }
@@ -76,6 +77,62 @@ describe("a session's catalog", () => {
     expect(said(await catalog.call('type_secret', {ref: '@e3', secret: 'ADA_PASSWORD'}))).toBe('ACTION_FAILED: the field refused <secret:ADA_PASSWORD>');
     expect(said(await catalog.call('screenshot', {}))).toBe('PIXEL_TAINTED: a secret was filled in this test, so no picture of the screen leaves it');
     expect(said(await catalog.call('tap_at', {x: 1, y: 1}))).toBe('PIXEL_TAINTED: a secret was filled in this test, so the pixel tools are off');
+  });
+
+  it('records where the platform records, keeping the video in the recordings folder at the stop, and answering where', async () => {
+    const device: FakeDevice = new FakeDevice({
+      video: (action, file) => {
+        device.calls.push(`video ${action}${file ? ` ${file}` : ''}`);
+        return Promise.resolve(action === 'stop' && file ? {...done(), value: file} : done());
+      },
+    });
+    const {catalog} = catalogOf({device, capabilities: ['press', 'video'], recordings: '/project/.harness/mcp/recordings'});
+    expect(catalog.list().map(tool => tool.name)).toEqual(expect.arrayContaining(['start_recording', 'stop_recording']));
+    expect(said(await catalog.call('stop_recording', {}))).toBe('NOT_RECORDING: nothing is being recorded; start_recording starts it');
+    expect(said(await catalog.call('start_recording', {}))).toBe('recording the screen; stop_recording keeps it');
+    expect(said(await catalog.call('start_recording', {}))).toBe('already recording; stop_recording keeps it');
+    const kept = await catalog.call('stop_recording', {});
+    expect(said(kept)).toMatch(/^kept the recording at .*recordings[\\/]\d{4}-\d{2}-\d{2}T[\d-]+Z\.webm$/);
+    expect(kept.structuredContent?.file).toMatch(/\.webm$/);
+    expect(device.calls).toEqual(['video start', expect.stringMatching(/^video stop .*\.webm$/)]);
+    expect(catalogOf({capabilities: ['press'], recordings: '/r'}).catalog.list().map(tool => tool.name)).not.toContain('start_recording');
+    expect(catalogOf({capabilities: ['press', 'video']}).catalog.list().map(tool => tool.name)).not.toContain('start_recording');
+  });
+
+  it('starts no recording after a secret was filled, and throws away one a secret was filled during', async () => {
+    const device: FakeDevice = new FakeDevice({
+      video: action => Promise.resolve((device.calls.push(`video ${action}`), done())),
+      fill: () => Promise.resolve(done()),
+    });
+    const {catalog} = catalogOf({device, capabilities: ['press', 'fill', 'video'], recordings: '/r'});
+    await catalog.call('start_recording', {});
+    await catalog.call('type_secret', {ref: '@e3', secret: 'ADA_PASSWORD'});
+    expect(said(await catalog.call('stop_recording', {}))).toBe('a secret was filled while it recorded, so the recording was thrown away');
+    expect(device.calls.filter(call => call.startsWith('video'))).toEqual(['video start', 'video stop']);
+    expect(said(await catalog.call('start_recording', {}))).toBe('PIXEL_TAINTED: a secret was filled in this session, so no recording of it leaves it');
+  });
+
+  it("answers a recording the driver could not start or keep with the driver's own failure", async () => {
+    const refusing = new FakeDevice({video: () => Promise.resolve({ok: false, code: 'ACTION_FAILED', message: 'no screen to record'})});
+    expect(said(await catalogOf({device: refusing, capabilities: ['video'], recordings: '/r'}).catalog.call('start_recording', {}))).toBe('ACTION_FAILED: no screen to record');
+    expect(said(await catalogOf({capabilities: ['video'], recordings: '/r'}).catalog.call('start_recording', {}))).toBe('TOOL_FAILED: the platform records nothing');
+    let calls = 0;
+    const losing = new FakeDevice({video: () => Promise.resolve(++calls === 1 ? done() : {ok: false, message: 'the file could not be written'})});
+    const {catalog} = catalogOf({device: losing, capabilities: ['video'], recordings: '/r'});
+    await catalog.call('start_recording', {});
+    expect(said(await catalog.call('stop_recording', {}))).toBe('TOOL_FAILED: the file could not be written');
+    const silent = new FakeDevice({video: () => Promise.resolve(done())});
+    const quiet = catalogOf({device: silent, capabilities: ['video'], recordings: '/r'}).catalog;
+    await quiet.call('start_recording', {});
+    expect(said(await quiet.call('stop_recording', {}))).toMatch(/^kept the recording at .*\.webm$/);
+  });
+
+  it("names a device's recording as agent-device writes one, an mp4", async () => {
+    const device = new FakeDevice({video: () => Promise.resolve(done())});
+    const host = {...hostOf(device, {capabilities: new Set(['video'])}), platform: 'android' as const};
+    const catalog = createCatalog({host, secrets: new SecretStore({}, env), signal: new AbortController().signal, recordings: '/r'});
+    await catalog.call('start_recording', {});
+    expect(said(await catalog.call('stop_recording', {}))).toMatch(/^kept the recording at .*[\\/]\d{4}-[\d-]+T[\d-]+Z\.mp4$/);
   });
 
   it("refuses a picture for a reason of the policy's own as POLICY_DENIED, naming the ref the session knows", async () => {
