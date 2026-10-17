@@ -122,7 +122,7 @@ export function toSnapshotNodes(nodes: AgentNode[], platform: 'android' | 'ios' 
 }
 
 /** The kinds a control drawn inside a node that takes its press lends that node. */
-const LENT = new Set<Kind>(['button', 'checkbox', 'switch', 'radio', 'tab', 'link', 'menuitem']);
+const LENT = new Set<Kind>(['button', 'checkbox', 'switch', 'radio', 'tab', 'link', 'menuitem', 'combobox']);
 
 /**
  * Android's tree as TalkBack reads it, where the tree splits one control in

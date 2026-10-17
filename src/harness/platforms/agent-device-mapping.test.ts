@@ -493,6 +493,18 @@ describe('real snapshots', () => {
     ]);
   });
 
+  it("reads the test app's theme as radios and its picker as a drop-down, each a row Compose presses through", () => {
+    const nodes = fixture('android-testapp-settings.json');
+    const radios = nodes.filter(node => node.kind === 'radio' && node.interactive);
+    expect(radios.map(radio => [radio.name, radio.checked])).toEqual([
+      ['System', true],
+      ['Light', false],
+      ['Dark', false],
+    ]);
+    // Read as the label and then the value, and disabled while the digest is off.
+    expect(nodes.filter(node => node.kind === 'combobox' && node.interactive)).toMatchObject([{name: 'Digest frequency Weekly', enabled: false}]);
+  });
+
   it('reads the emulator\'s switch as off, and no node as selected', () => {
     const nodes = fixture('android-display.json');
     expect(nodes.find(node => node.role === 'android.widget.Switch')).toMatchObject({name: 'Dark theme', checked: false});
