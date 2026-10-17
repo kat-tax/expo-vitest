@@ -36,8 +36,10 @@ on a simulator, and then on an iPhone:
 The test app launches on a simulator and its onboarding passes, but it
 cannot sign in. expo-interface's iOS `Button` in a form row reports the whole
 row as its frame and takes a press only on what it draws, and a press goes
-to the middle of the frame. The iOS job in `.github/workflows/testapp.yml`
-is off (`if: false`) until the kit is fixed, and goes back on then.
+to the middle of the frame
+([kat-tax/expo-interface#22](https://github.com/kat-tax/expo-interface/issues/22),
+item 8). The iOS job in `.github/workflows/testapp.yml` is off (`if: false`)
+until the kit is fixed, and goes back on then.
 
 ### Hosted devices
 
@@ -73,8 +75,10 @@ These wait on an API key, and the runs are billed.
   elsewhere; `installApp` of an `.msix`; `openLink`; a clipboard write; and
   whether a combo box opened through its pattern shows on the screen.
 - **Every platform:** three platforms in one run behind one Metro, which
-  needs a Windows development build; and the device suites of expo-windows
-  and expo-interface passing with no change to their tests.
+  needs a Windows development build that opens on the app's routes
+  ([kat-tax/expo-windows#2](https://github.com/kat-tax/expo-windows/issues/2));
+  and the device suites of expo-windows and expo-interface passing with no
+  change to their tests.
 - **CI recipes:** the EAS Workflows, Bitrise and Codemagic jobs on
   [CI](docs/ci.md) have not run, and the GitHub Actions jobs have run only
   as the test app's variants of them. Run each once on a sample app.
@@ -155,31 +159,6 @@ These wait on an API key, and the runs are billed.
 
 Filing an issue waits on the owner.
 
-- **expo-interface 0.32.** Most of these have a test marked failing in
-  `testapp/device/`, which fails the run once the kit is fixed, so its mark
-  comes off then. The marks stand at 2 of 31 tests on web, 9 on Android and
-  1 on Windows.
-  - Web: a row with a menu of its own and a press is no button: it has no
-    role and takes no focus.
-  - Web: choosing an item in a row's menu presses the row as well.
-  - Android: a `List` throws "The specified child already has a parent" as
-    its rows change.
-  - Android: a `TextField` is named by its placeholder alone, which goes
-    once the field holds text.
-  - Android: a `Switch`, `Checkbox` and `Slider` draw their label beside the
-    control, so nothing names them, and a checkbox's label cannot be
-    pressed.
-  - Android: a `Picker` draws nothing to press.
-  - Android: a `Chip` in React Native layout throws "must be rendered inside
-    a Host". The test app wraps it in `NativeHost`, and no test is marked.
-  - Windows: a `Switch` has no name.
-  - iOS: a `TextField` is named by its placeholder alone, which iOS does not
-    count as a name.
-  - iOS: a `Button` in a form row reports the whole row as its frame, so a
-    press at its middle misses Sign in, Create an account and a checkbox's
-    row. The test app's iOS job is off for it.
-  - iOS: a `Checkbox` is a button that reads as selected while it is on,
-    with no checkbox role. The test app's helpers allow for it.
 - **React Native 0.86.3.** An Android development build, on Expo SDK 57's
   development client, dies about one launch in thirty as it first draws:
   SIGSEGV, "trying to execute non-executable memory", on `mqt_v_js`, in
@@ -191,9 +170,6 @@ Filing an issue waits on the owner.
   selected. On an ordinary view, Toggle, Select and SetValue do nothing
   while UI Automation reports success. There is no release for React Native
   0.86 yet, so the test app's Windows build is on 0.84.
-- **expo-windows.** Its debug build asks Metro for the bundle without
-  `transform.routerRoot`, so an app whose routes are in `src/app` shows
-  Expo Router's empty screen.
 - **.NET's managed UI Automation client.** `CacheHelper.ParseTreeDescription`
   throws `IndexOutOfRangeException` reading a cached tree on some
   react-native-windows screens.

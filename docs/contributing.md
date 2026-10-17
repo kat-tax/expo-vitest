@@ -158,8 +158,9 @@ Each first launch opens the build through its `exp+testapp` link to that
 server, so a dev server someone has on 8081 is never used, and
 `HARNESS_METRO` keeps the React tree's reads on it too. A whole run needs an
 emulator with 4 GB (`emulator -avd <name> -memory 4096`). The tests that
-show expo-interface's Android bugs are marked failing there, as two are on
-web.
+show expo-interface's Android bugs
+([kat-tax/expo-interface#22](https://github.com/kat-tax/expo-interface/issues/22))
+are marked failing there, as two are on web.
 
 On Windows the suite drives the Release build that expo-windows' own build
 script makes from the app, with its JavaScript bundled in:

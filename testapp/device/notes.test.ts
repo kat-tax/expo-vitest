@@ -6,21 +6,23 @@ import {field, rowAction, searchField, signedIn} from './helpers';
 
 // A row by its title, pressed there as a finger would. On web a row with a
 // menu of its own has no role to find it by: expo-interface draws it as a
-// plain element, which is a finding of this app's, not the test's.
+// plain element (kat-tax/expo-interface#22, item 1).
 const row = (title: string) => screen.getByText(title);
 const search = searchField;
 
 // On web, choosing an item in a row's menu opens the row as well: in
 // expo-interface 0.32 the menu sits inside the row's clickable wrapper, and
-// the item's click bubbles up to it. Marked as failing there until that is
-// fixed, when the mark fails the run and comes off.
+// the item's click bubbles up to it (kat-tax/expo-interface#22, item 2).
+// Marked as failing there until that is fixed, when the mark fails the run
+// and comes off.
 // On Windows the row's menu is a WinUI flyout, in a window of its own, which
 // the tree reads after the app's main window.
 const rowMenu = device.platform === 'web' ? it.fails : it;
 
 // On Android the search, once it holds text, is named by that text rather
-// than "Search notes": expo-interface names a field by its placeholder alone.
-// Marked failing there until the kit names its fields.
+// than "Search notes": expo-interface names a field by its placeholder alone
+// (kat-tax/expo-interface#22, item 3). Marked failing there until the kit
+// names its fields.
 const searchName = device.platform === 'android' ? it.fails : it;
 
 // A filter by its name, which every platform draws as a control that can be

@@ -14,9 +14,9 @@ beforeEach(async () => {
 });
 
 // A field keeps its name once it holds text. expo-interface names a field
-// by its placeholder alone, which Android takes away with the placeholder and
-// iOS does not count as a name, so this is marked failing on both until the
-// kit names its fields.
+// by its placeholder alone, which goes once the field holds text
+// (kat-tax/expo-interface#22, item 3), so this is marked failing on Android
+// and iOS until the kit names its fields.
 (device.platform === 'android' || device.platform === 'ios' ? it.fails : it)('keeps the name of a field that holds text', async () => {
   await email().fill(DEMO.email);
   await expect(screen.getByRole('textbox', {name: 'Email'})).toHaveValue(DEMO.email);
@@ -40,9 +40,9 @@ it('says the password is wrong once the server answers', async () => {
   await expect(searchField()).toBeHidden();
 });
 
-// expo-interface on Android draws a checkbox's label beside it, and only the
-// box takes a press, so the checkbox that the label names cannot be pressed.
-// Marked failing there until the kit puts the label on the control.
+// On Android the password field, once shown, still says it is a password
+// field, so it reports no value (kat-tax/expo-interface#22, item 9). Marked
+// failing there until that is fixed.
 (device.platform === 'android' ? it.fails : it)('shows the password when asked', async () => {
   await password().fill('hunter22');
   await setCheckbox('Show password', true);

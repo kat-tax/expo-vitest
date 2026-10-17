@@ -109,8 +109,8 @@ export async function relaunch(first: Locator): Promise<void> {
 
 /**
  * A text field by the name a person hears for it. expo-interface names a
- * field by its placeholder alone, which Android takes away once the field
- * holds text and iOS does not count as a name at all, so on both the field
+ * field by its placeholder alone, which goes once the field holds text on
+ * Android and iOS (kat-tax/expo-interface#22, item 3), so on both the field
  * is found by its testID. sign-in.test.ts shows the gap, marked failing on
  * both until the kit names its fields.
  */
@@ -120,9 +120,9 @@ export function field(name: string, testId: string): Locator {
 
 /**
  * A checkbox by its name. expo-interface draws one on iOS as a button that
- * reads as selected while it is on, where the other platforms have a
- * checkbox that reads as checked, so the two helpers after this set and read
- * it either way.
+ * reads as selected while it is on (kat-tax/expo-interface#22, item 10),
+ * where the other platforms have a checkbox that reads as checked, so the
+ * two helpers after this set and read it either way.
  */
 export function checkbox(name: string): Locator {
   return screen.getByRole(device.platform === 'ios' ? 'button' : 'checkbox', {name});
