@@ -83,7 +83,7 @@ async function step(driver: Driver, options: Options, [name, ...args]: string[],
       if (iterations === null) return failed(`bench takes a whole number of iterations, at least ${FEWEST}: of fewer, the p95 is only the slowest`, 'INVALID_ARGUMENT');
       const folder = path.resolve(ROOT, options.out, 'bench');
       fs.mkdirSync(folder, {recursive: true});
-      const result = await bench(raw, {iterations, press: options.press, field: options.field, directory: folder});
+      const result = await bench(raw, {iterations, press: options.press, field: options.field, directory: folder, timing: timingFor(DEFAULT_TIMING, {settle: options.settle, transition: options.transition})});
       const file = path.join(folder, `${result.platform}-${result.at.replace(/:/g, '-')}.json`);
       fs.writeFileSync(file, `${JSON.stringify(result, null, 1)}\n`);
       const filled = result.samples.some(sample => sample.operation === 'fill' && sample.cold !== null);

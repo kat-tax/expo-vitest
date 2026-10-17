@@ -88,8 +88,9 @@ These wait on an API key, and the runs are billed.
 - **Windows presses.** Time a press through a pattern, with no `raise`, on
   an idle desk or with `--force`, and put the numbers on
   [Performance](docs/performance.md).
-- **The bench.** Add a `settle` operation, time `fill` on every platform,
-  and run the bench again on every platform after a change to a driver.
+- **The bench.** Time `fill` and `settle` on Windows, Android and iOS,
+  which have been timed on web alone, and run the bench again on every
+  platform after a change to a driver.
 
 ## Not built yet
 

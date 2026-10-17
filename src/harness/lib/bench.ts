@@ -9,6 +9,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import type {Timing} from './settle.ts';
+import {DEFAULT_TIMING, settled} from './settle.ts';
 import type {Target} from './snapshot.ts';
 import type {Driver, StepResult} from './types.ts';
 
@@ -53,6 +55,8 @@ export interface BenchOptions {
   field?: Target;
   /** Where screenshots go while they are taken. Each is removed afterwards. */
   directory: string;
+  /** The wait `settle` times, the run's own; DEFAULT_TIMING unless given. */
+  timing?: Timing;
 }
 
 /**
@@ -116,10 +120,13 @@ async function input(operation: 'press' | 'fill', target: Target | undefined, fl
 }
 
 /**
- * Snapshot, snapshot of what can be acted on, press, fill and screenshot, each
- * `iterations` times after a first call. `press` presses what it is told to
- * and `fill` types `bench` into the field it is told of, which keeps it; the
- * screenshots are deleted once they are all taken.
+ * Snapshot, snapshot of what can be acted on, press, fill, settle and
+ * screenshot, each `iterations` times after a first call. `press` presses
+ * what it is told to and `fill` types `bench` into the field it is told of,
+ * which keeps it. `settle` is the wait every step pays after it acts, on a
+ * screen that holds still: the reads until they agree, with the run's settle
+ * between them, where the driver does not wait by itself inside each step.
+ * The screenshots are deleted once they are all taken.
  */
 export async function bench(driver: Driver, options: BenchOptions): Promise<BenchResult> {
   const {iterations} = options;
@@ -138,6 +145,15 @@ export async function bench(driver: Driver, options: BenchOptions): Promise<Benc
   );
   samples.push(await input('press', options.press, '--press', options, target => driver.press(target)));
   samples.push(await input('fill', options.field, '--field', options, target => driver.fill(target, 'bench')));
+  const timing = options.timing ?? DEFAULT_TIMING;
+  if (driver.settles) samples.push(skipped('settle', 'the driver waits for the screen inside each step, so press and fill include it'));
+  else if (timing.settle <= 0) samples.push(skipped('settle', 'a settle of 0 makes the steps wait for nothing'));
+  else
+    samples.push(
+      await measure('settle', iterations, async () => {
+        await settled(() => driver.snapshot(), timing);
+      }),
+    );
 
   const shots: string[] = [];
   samples.push(

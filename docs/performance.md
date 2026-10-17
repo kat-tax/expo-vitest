@@ -16,7 +16,9 @@ to a driver against, not a promise about any machine but the one named.
   percentiles, which are by nearest rank.
 - `press` presses something a press does nothing to, named with `--press`,
   and finds it afresh each time, as `element(…).press()` does in a test.
-  `fill` was not timed.
+  `fill` types into a field named with `--field`, and `settle` is the wait
+  each step makes after it acts, on a screen that holds still. Both were
+  timed on web alone.
 - One machine for web, Windows and Android: an Intel Core i9-14900K with
   96 GB, Windows 11 Pro 10.0.22631, Node 24.20.0. iOS on GitHub's `macos-26`
   runner, in this repository's CI, Node 24.20.0.
@@ -34,16 +36,19 @@ compared beyond what the table shows.
 
 An Expo Router app on Expo SDK 56 (the example in
 [expo-interface](https://github.com/kat-tax/expo-interface)), served by
-`expo start` in development, at its home screen of 17 nodes. Chromium's
+`expo start` in development, at its Settings screen of 13 nodes. Chromium's
 headless shell 1248, through `playwright-core` 1.63.0. `--press` named an
-image in the header, which a press does nothing to.
+image in the header, which a press does nothing to, and `--field` the Name
+field.
 
 ```
   operation         cold      p50      p95      min      max
-  snapshot           2.2      0.6      1.0      0.6      2.0
-  snapshot -i        0.9      0.7      0.8      0.6      0.8
-  press              4.6      3.5      4.2      2.9      4.4
-  screenshot        33.4     32.9     35.2     30.4     36.0
+  snapshot           1.4      0.8      2.1      0.6      2.2
+  snapshot -i        0.9      0.7      0.9      0.6      1.0
+  press              4.4      3.1      3.8      2.7      3.9
+  fill              29.8     16.6     24.3     14.7     24.7
+  settle           169.6    154.6    167.0    152.5    168.1
+  screenshot        23.1     32.8     36.7     27.8     36.8
 ```
 
 One browser stays open for the run, and a snapshot is one evaluation in the
@@ -57,7 +62,11 @@ WebKit and over CDP: a wait that asks an unchanged page for its tree every
 100 ms for a second and a half reads it whole once. A press scrolls its node
 into view where it is below the fold and asks the page what the press would
 land on in the one evaluation that finds the node's middle, which saves a
-round trip to the page of about half a millisecond.
+round trip to the page of about half a millisecond. A fill is a press, the
+browser's select-all and a delete, then a key for each character. The wait
+after a step is the run's settle of 150 ms between two reads that agree, and
+the reads are under a millisecond each here, so on web the settle is nearly
+all of it.
 
 ## Windows
 

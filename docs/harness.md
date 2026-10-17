@@ -221,14 +221,15 @@ expo-harness -p android --scheme myapp open /settings bench --field 'testID=sear
 ```
 
 ```
-bench on web (http://localhost:8083), 20 iterations, node 24.20.0, 2026-10-15T02:34:35Z
+bench on web (http://localhost:8083), 20 iterations, node 24.20.0, 2026-10-17T04:00:03Z
 
   operation         cold      p50      p95      min      max
-  snapshot           6.6      2.1      5.3      1.6      7.0
-  snapshot -i        1.9      1.8      2.2      1.6      2.2
-  press              6.9      3.1      4.9      2.6      5.4
+  snapshot           2.7      0.7      1.3      0.7      2.5
+  snapshot -i        0.9      0.8      0.9      0.7      1.1
+  press              4.7      3.6      4.1      3.0      4.4
   fill         skipped: pass --field <target> to measure it
-  screenshot        19.0     16.8     17.5     15.6     33.3
+  settle           161.0    154.9    166.8    152.7    167.8
+  screenshot        22.6     33.2     34.4     28.6     39.9
 ```
 
 Each operation runs once and then `n` more times, and the times are in
@@ -243,6 +244,7 @@ needed, since the p95 of fewer is only the slowest.
 | `snapshot -i` | Only what can be acted on. |
 | `press` | A press on what `--press` names, found afresh each time as `element(…).press()` does in a test. Skipped without `--press`. |
 | `fill` | Types `bench` into the field `--field` names, found afresh each time. The field keeps the text. Skipped without `--field`. |
+| `settle` | The wait each step makes after it acts, on a screen that holds still: the tree read until two reads agree, with the run's settle between them, `--settle` or 150 ms. Skipped with `--settle 0`, which makes the steps wait for nothing, and where the driver waits inside each step by itself, as agent-device does, so its `press` and `fill` include it. |
 | `screenshot` | A PNG, deleted afterwards. |
 
 `--press` has to name something a press does nothing to, since it is pressed
@@ -251,11 +253,11 @@ tree says what is safe to press. A container that responds to a press can
 carry no role at all, so `bench` leaves the choice to you.
 
 `bench` times the driver's own work, without the wait for the screen that the
-steps make. On Windows, a synthetic `press` or `fill` is refused while someone
-is using the machine, as it is for the steps, and the check runs before every
-call. Once refused, the operation stops there with the refusal as the reason,
-and the rest is still timed. A press through a control's pattern needs no
-quiet desk.
+steps make, which `settle` times apart. On Windows, a synthetic `press` or
+`fill` is refused while someone is using the machine, as it is for the steps,
+and the check runs before every call. Once refused, the operation stops there
+with the refusal as the reason, and the rest is still timed. A press through
+a control's pattern needs no quiet desk.
 
 Every run writes its result, every sample included, to
 `.harness/bench/<platform>-<time>.json`, so a before and an after can be

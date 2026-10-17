@@ -4,6 +4,7 @@ import path from 'node:path';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {BenchResult} from './bench.ts';
 import {FEWEST, ITERATIONS, bench, iterationsFrom, percentile, renderBench, summarise} from './bench.ts';
+import {DEFAULT_TIMING} from './settle.ts';
 import type {Driver} from './types.ts';
 import {elsewhere, failed, ok} from './types.ts';
 
@@ -76,10 +77,10 @@ describe('bench', () => {
     const directory = folder();
     const press = vi.fn(async () => ok('pressed'));
     const fill = vi.fn(async () => ok('filled'));
-    const result = await bench(stub({press, fill}), {iterations: 5, press: 'label="Settings"', field: 'testID=name', directory});
+    const result = await bench(stub({press, fill}), {iterations: 5, press: 'label="Settings"', field: 'testID=name', directory, timing: {...DEFAULT_TIMING, settle: 1}});
     expect(result).toMatchObject({platform: 'web', source: 'http://localhost:8081', iterations: 5, node: process.versions.node});
     expect(result.at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
-    expect(result.samples.map(sample => sample.operation)).toEqual(['snapshot', 'snapshot -i', 'press', 'fill', 'screenshot']);
+    expect(result.samples.map(sample => sample.operation)).toEqual(['snapshot', 'snapshot -i', 'press', 'fill', 'settle', 'screenshot']);
     for (const sample of result.samples) {
       expect(sample.ms, sample.operation).toHaveLength(5);
       expect(sample.cold, sample.operation).toBeTypeOf('number');
@@ -92,9 +93,23 @@ describe('bench', () => {
     expect(fs.readdirSync(directory)).toEqual([]);
   });
 
+  it("times the wait after a step as the run waits, the reads with the run's settle between, where the driver does not wait by itself", async () => {
+    const snapshot = vi.fn(async () => ({platform: 'web' as const, nodes: []}));
+    const result = await bench(stub({snapshot}), {iterations: 5, directory: folder(), timing: {...DEFAULT_TIMING, settle: 30, samples: 2}});
+    const waited = result.samples.find(sample => sample.operation === 'settle');
+    expect(waited?.ms).toHaveLength(5);
+    expect(Math.min(...(waited?.ms ?? []))).toBeGreaterThanOrEqual(25);
+    // Two snapshots, then two reads a wait, six waits.
+    expect(snapshot).toHaveBeenCalledTimes(2 * 6 + 12);
+    const own = await bench(stub({settles: true}), {iterations: 5, directory: folder()});
+    expect(own.samples.find(sample => sample.operation === 'settle')).toEqual({operation: 'settle', ms: [], cold: null, skipped: 'the driver waits for the screen inside each step, so press and fill include it'});
+    const none = await bench(stub(), {iterations: 5, directory: folder(), timing: {...DEFAULT_TIMING, settle: 0}});
+    expect(none.samples.find(sample => sample.operation === 'settle')).toEqual({operation: 'settle', ms: [], cold: null, skipped: 'a settle of 0 makes the steps wait for nothing'});
+  });
+
   it('presses and fills nothing it was not told to', async () => {
     const press = vi.fn(async () => ok('pressed'));
-    const result = await bench(stub({press, snapshot: async () => ({platform: 'web', nodes: []})}), {iterations: 5, directory: folder()});
+    const result = await bench(stub({press, snapshot: async () => ({platform: 'web', nodes: []})}), {iterations: 5, directory: folder(), timing: {...DEFAULT_TIMING, settle: 1}});
     expect('source' in result).toBe(false);
     expect(result.samples[2]).toEqual({operation: 'press', ms: [], cold: null, skipped: 'pass --press <target> to measure it'});
     expect(result.samples[3]).toEqual({operation: 'fill', ms: [], cold: null, skipped: 'pass --field <target> to measure it'});
@@ -104,7 +119,7 @@ describe('bench', () => {
   it('stops pressing the moment the driver refuses, as when someone comes back, and keeps what it timed', async () => {
     let presses = 0;
     const press = vi.fn(async () => (++presses > 3 ? failed('refusing a press: someone used this machine 1 seconds ago') : ok('pressed')));
-    const result = await bench(stub({press}), {iterations: 5, press: '@e1', directory: folder()});
+    const result = await bench(stub({press}), {iterations: 5, press: '@e1', directory: folder(), timing: {...DEFAULT_TIMING, settle: 1}});
     expect(press).toHaveBeenCalledTimes(4);
     expect(result.samples[2]).toEqual({
       operation: 'press',
@@ -125,12 +140,12 @@ describe('bench', () => {
         press: async () => (++presses === 3 ? failed('press failed: no window') : ok('pressed')),
         screenshot: async () => elsewhere('a screenshot', 'web'),
       }),
-      {iterations: 5, press: 'label="Settings"', directory: folder()},
+      {iterations: 5, press: 'label="Settings"', directory: folder(), timing: {...DEFAULT_TIMING, settle: 1}},
     );
     expect(result.samples[1]).toEqual({operation: 'snapshot -i', ms: [], cold: null, failed: 'could not read the tree of MyApp: access is denied'});
     expect(result.samples[2]).toMatchObject({operation: 'press', failed: 'press failed: no window'});
     expect(result.samples[2]?.ms).toHaveLength(1);
-    expect(result.samples[4]).toEqual({operation: 'screenshot', ms: [], cold: null, skipped: 'a screenshot is not something the web harness can do'});
+    expect(result.samples[5]).toEqual({operation: 'screenshot', ms: [], cold: null, skipped: 'a screenshot is not something the web harness can do'});
   });
 });
 
