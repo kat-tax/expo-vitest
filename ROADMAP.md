@@ -184,7 +184,6 @@ Filing an issue waits on the owner.
   react-native-windows screens.
 - **agent-device**, candidates the drivers work around:
   - `apps.open({url})` alone opens nothing and fails nothing;
-  - every Android node reports `selected: false`;
   - `fold` is listed for a phone that does not fold;
   - its daemon keeps the folder it was started in for minutes, so the
     folder cannot be deleted;

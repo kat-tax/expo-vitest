@@ -259,7 +259,7 @@ installs agent-device's runner on it gets the same. Every other step has
   a whole text or label has agent-device look for it as it scrolls, down and
   then up.
 - **`selected` is on a selected node only**, since agent-device reports
-  `false` on every Android node.
+  `false` on every other Android node, whether or not it can be selected.
 - **A long press on a row with no long press of its own** is taken as a press
   when the finger comes up.
 - **Network** is Wi-Fi on or off, which leaves mobile data alone, and

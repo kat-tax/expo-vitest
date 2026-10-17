@@ -84,9 +84,9 @@ export function toSnapshotNode(node: AgentNode, index: number): SnapshotNode {
         ? {x: Math.round(rect.x), y: Math.round(rect.y ?? 0), width: Math.round(rect.width), height: Math.round(rect.height ?? 0)}
         : null,
     ...(typeof node.checked === 'boolean' ? {checked: node.checked} : null),
-    // agent-device reports `selected: false` on every Android node, which
-    // says nothing about whether the node can be selected at all, so only a
-    // selected node carries it.
+    // agent-device reports `selected: false` on every Android node that is
+    // not selected, which says nothing about whether it can be selected at
+    // all, so only a selected node carries it.
     ...(node.selected === true ? {selected: true} : null),
     ...(node.placeholder ? {placeholder: node.placeholder} : null),
     // What a field holds: never a secure field's, and nothing while Android
