@@ -1,13 +1,14 @@
 /**
  * What `init` will do to a project, worked out before it does any of it:
  * the files to create, the edits to make, and what it leaves alone and why.
- * A file that is there is never overwritten; the three it edits,
- * `package.json`, `.gitignore` and a `tsconfig.json` that is plain JSON, only
- * gain what they lack, and each edit carries the diff it is shown as.
+ * A file that is there is never overwritten; the ones it edits,
+ * `package.json`, `.gitignore`, a `tsconfig.json` that is plain JSON, and
+ * under `init --agent` the harness config, only gain what they lack, and
+ * each edit carries the diff it is shown as.
  */
 import type {Detection, Manifest} from './detect.ts';
-import type {Choices} from './templates.ts';
-import {deviceExampleTest, deviceVitestConfig, harnessConfig, IGNORED, MCP_FILES, MCP_SERVER, platformTest, scripts, TYPES, vitestConfig} from './templates.ts';
+import type {AgentChoice, Choices} from './templates.ts';
+import {agentEntry, ANTHROPIC_IMPORT, deviceExampleTest, deviceVitestConfig, harnessConfig, IGNORED, MCP_FILES, MCP_SERVER, OWN_MODEL, platformTest, scripts, TYPES, vitestConfig} from './templates.ts';
 
 export type Step =
   /** A file that is not there, written whole. */
@@ -170,6 +171,35 @@ function mcpStep(read: Reader, file: string): Step {
   return {kind: 'edit', path: file, content, diff: unifiedDiff(file, text, content)};
 }
 
+/** A model of the project's own, which init prints for a person to add. */
+function ownModelStep(file: string): Step {
+  return {kind: 'print', path: file, why: `a model of your own is code init cannot write; add the agent to ${file} by hand`, content: OWN_MODEL};
+}
+
+/**
+ * The harness config a project has, with the agent in it: the Claude
+ * adapter's import after the file's last import, and the entry first in
+ * `defineHarness`, at the indent of the key after it. Left where it has
+ * agents already, and printed where it does not open `defineHarness({` on a
+ * line of its own, which is where init knows the entry goes.
+ */
+function agentStep(read: Reader, choice: AgentChoice, file: string): Step {
+  if (choice.provider === 'other') return ownModelStep(file);
+  const text = read(file) as string;
+  if (/\bagents\s*:/.test(text)) return {kind: 'keep', path: file, why: `${file} has agents already, so init leaves them as they are`};
+  const lines = text.split('\n');
+  const opens = lines.findIndex(line => /defineHarness\(\s*\{\s*$/.test(line));
+  if (opens < 0) return {kind: 'print', path: file, why: `${file} does not open defineHarness({ on a line of its own, so init cannot place the agent; add it by hand, with ${ANTHROPIC_IMPORT}`, content: agentEntry(choice, '  ').replace(/\n$/, '')};
+  const indent = lines[opens + 1]?.match(/^[ \t]+/)?.[0] ?? '  ';
+  lines.splice(opens + 1, 0, agentEntry(choice, indent).replace(/\n$/, ''));
+  if (!text.includes("from 'expo-vitest/agent/anthropic'")) {
+    const lastImport = lines.reduce((last, line, at) => (/^import\s/.test(line) ? at : last), -1);
+    lines.splice(lastImport + 1, 0, ANTHROPIC_IMPORT);
+  }
+  const content = lines.join('\n');
+  return {kind: 'edit', path: file, content, diff: unifiedDiff(file, text, content)};
+}
+
 /** The version a copy of a skill file says it came from. */
 export function versionIn(text: string): string | null {
   return text.match(/^\s*version:\s*["']?([^"'\s]+)/m)?.[1] ?? null;
@@ -191,7 +221,10 @@ export function planInit(detection: Detection, choices: Choices, read: Reader, s
   const steps: Step[] = [created(read, 'vitest.config.mts', vitestConfig(choices), ['vitest.config.ts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cts'])];
   if (choices.device) {
     steps.push(created(read, 'vitest.config.device.mts', deviceVitestConfig(choices)));
-    steps.push(created(read, 'harness.config.ts', harnessConfig(detection, choices), ['harness.config.mts', 'harness.config.js', 'harness.config.mjs']));
+    // A new harness config is written with a Claude agent in it; one that is there gains the agent.
+    const harness = created(read, 'harness.config.ts', harnessConfig(detection, choices), ['harness.config.mts', 'harness.config.js', 'harness.config.mjs']);
+    steps.push(choices.model && harness.kind === 'keep' ? agentStep(read, choices.model, harness.path) : harness);
+    if (choices.model?.provider === 'other' && harness.kind === 'create') steps.push(ownModelStep(harness.path));
   }
   if (!detection.hasTests) steps.push(created(read, 'src/platform.test.ts', platformTest()));
   if (choices.device) steps.push(created(read, 'device/example.test.ts', deviceExampleTest()));

@@ -93,7 +93,9 @@ with, since it takes no build but its own.
 
 Last, it takes the copy's configs and tests away, runs `init --yes` from the
 packed package's command, and runs the unit tests on what `init` wrote,
-which proves that a project set up that way runs.
+which proves that a project set up that way runs. Then `init --yes --agent`
+gives the harness config the agent, and the config is loaded to read its
+model back.
 
 It is how the package is known to work installed, which its source cannot
 say. Three things differ for an installed package:

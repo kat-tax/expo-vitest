@@ -1,8 +1,9 @@
 /**
  * `expo-vitest init`: sets a project up to test with this package. It finds
  * what the project has, asks four questions, shows every file before it
- * writes it, never overwrites one, and installs only when told to. What it
- * decides is in `plan.ts` and `templates.ts`; this asks and writes.
+ * writes it, never overwrites one, and installs only when told to. With
+ * `--agent` it sets the agent up too, asking for its model. What it decides
+ * is in `plan.ts` and `templates.ts`; this asks and writes.
  */
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -16,8 +17,8 @@ import {detect} from './detect.ts';
 import type {Step} from './plan.ts';
 import {planInit} from './plan.ts';
 import {skillFiles} from './skill.ts';
-import type {Choices, Command} from './templates.ts';
-import {AGENT_LINE, installCommands, MCP_ADD, MCP_FILES, shown} from './templates.ts';
+import type {AgentChoice, Choices, Command} from './templates.ts';
+import {AGENT_EXAMPLE, AGENT_LINE, AGENT_MODEL, installCommands, MCP_ADD, MCP_FILES, shown} from './templates.ts';
 
 /** The folders a project keeps its tests in, walked to see whether it has any. */
 const WALKED = ['src', 'app', 'components', 'lib', 'device', 'test', 'tests', '__tests__'];
@@ -81,6 +82,15 @@ async function yesNo(rl: readline.Interface, question: string): Promise<boolean>
   return /^y/i.test(await ask(rl, `${question} [Y/n] `, 'y'));
 }
 
+/** The agent's model, and what the app is for its context, where Claude is the provider. */
+async function askModel(rl: readline.Interface): Promise<AgentChoice> {
+  const other = /^o/i.test(await ask(rl, "The agent's model: [c]laude, through the adapter here, or [o]ther, a model of your own? [c] ", 'c'));
+  if (other) return {provider: 'other'};
+  const model = await ask(rl, `Which Claude model? [${AGENT_MODEL}] `, AGENT_MODEL);
+  const context = await ask(rl, 'What is the app, in a sentence, for the agent to know? Enter leaves it out: ', '');
+  return {provider: 'claude', ...(model === AGENT_MODEL ? {} : {model}), ...(context ? {context} : {})};
+}
+
 /** The platforms named in an answer, or the ones offered where it names none of them. */
 function platformsIn(answer: string, offered: Platform[]): Platform[] {
   const named = answer
@@ -101,13 +111,11 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
   const yes = argv.includes('--yes') || argv.includes('-y');
   // The MCP server's files are offered to a person, and written under --yes only where --mcp asks for them.
   const mcp = argv.includes('--mcp');
-  if (argv.includes('--agent')) {
-    console.error('init --agent sets up the agent, which this version does not have yet');
-    return 2;
-  }
-  const unknown = argv.filter(argument => argument !== '--yes' && argument !== '-y' && argument !== '--mcp');
+  // The agent runs in a device project, so setting it up sets device tests up with it.
+  const withAgent = argv.includes('--agent');
+  const unknown = argv.filter(argument => !['--yes', '-y', '--mcp', '--agent'].includes(argument));
   if (unknown.length) {
-    console.error(`init takes --yes and --mcp, and not ${unknown.join(' ')}`);
+    console.error(`init takes --yes, --mcp and --agent, and not ${unknown.join(' ')}`);
     return 2;
   }
   const manifestFile = path.join(root, 'package.json');
@@ -125,11 +133,12 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
     const choices: Choices = rl
       ? {
           platforms: platformsIn(await ask(rl, `Platforms [${detection.platforms.join(' ')}]: Enter keeps them, or type the ones you want: `, ''), detection.platforms),
-          device: await yesNo(rl, 'Set up device tests?'),
+          device: withAgent || (await yesNo(rl, 'Set up device tests?')),
           agent: await yesNo(rl, 'Add the skill for coding agents?'),
           mcp: mcp || (await yesNo(rl, `Register the MCP server for Claude Code and Cursor, in ${MCP_FILES.join(' and ')}?`)),
+          ...(withAgent ? {model: await askModel(rl)} : {}),
         }
-      : {platforms: detection.platforms, device: true, agent: true, mcp};
+      : {platforms: detection.platforms, device: true, agent: true, mcp, ...(withAgent ? {model: {provider: 'claude' as const}} : {})};
     const install = rl ? await yesNo(rl, 'Install the packages now?') : false;
 
     const read = (file: string) => {
@@ -174,6 +183,11 @@ export async function init(argv: string[], root: string = process.cwd()): Promis
     if (choices.device) console.log(`  ${script(detection, 'test:device').padEnd(26)}the device tests, which start the app through harness.config.ts`);
     if (choices.agent) console.log(`\nFor a coding agent, add this line to AGENTS.md or CLAUDE.md, which init leaves to you:\n  ${AGENT_LINE}`);
     if (choices.mcp) console.log(`\nClaude Code asks before it first starts a server a project names. For Claude Code alone, this writes the same entry:\n  ${MCP_ADD}`);
+    if (choices.model?.provider === 'claude') {
+      console.log(`\nThe agent's Claude adapter takes its credentials from ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN or an \`ant auth login\` profile; none goes in harness.config.ts. A step in words, in a device test:\n  ${AGENT_EXAMPLE}`);
+    } else if (choices.model) {
+      console.log(`\nnpx expo-vitest guide agent shows a model of your own.`);
+    }
     return 0;
   } finally {
     rl?.close();

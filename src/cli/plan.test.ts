@@ -3,6 +3,7 @@ import type {Detection} from './detect.ts';
 import type {Reader, Shipped, Step} from './plan.ts';
 import {indentOf, planInit, unifiedDiff, versionIn} from './plan.ts';
 import type {Choices} from './templates.ts';
+import {ANTHROPIC_IMPORT, OWN_MODEL} from './templates.ts';
 
 const found = (extra: Partial<Detection> = {}): Detection => ({
   manager: 'npm',
@@ -112,6 +113,55 @@ describe('a project that has some of it', () => {
     for (const has of ['.harness/\n', 'dist\r\n.harness\r\n']) {
       expect(planInit(found(), chose(), project({'package.json': manifest, '.gitignore': has})).find(step => step.path === '.gitignore')?.kind).toBe('keep');
     }
+  });
+});
+
+describe("the agent's setup", () => {
+  const harness = "import {defineHarness} from 'expo-vitest/config';\n\nexport default defineHarness({\n    app: {web: {url: 'http://localhost:8081'}},\n});\n";
+  const agentFile = (steps: Step[]) => steps.find(step => step.path.startsWith('harness.config'));
+
+  it('writes a new harness config with the agent in it', () => {
+    const created = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest})));
+    expect(created?.kind === 'create' && created.content).toContain(`${ANTHROPIC_IMPORT}\n`);
+    expect(created?.kind === 'create' && created.content).toContain('  agents: {\n    default: {model: anthropic()},\n  },\n});');
+  });
+
+  it('adds the agent first in one that is there, at its indent, with the import after the last', () => {
+    const edit = agentFile(planInit(found(), chose({model: {provider: 'claude', context: 'A shop'}}), project({'package.json': manifest, 'harness.config.ts': harness})));
+    expect(edit?.kind).toBe('edit');
+    expect(edit?.kind === 'edit' && edit.content).toBe(
+      `import {defineHarness} from 'expo-vitest/config';\n${ANTHROPIC_IMPORT}\n\nexport default defineHarness({\n    agents: {\n        default: {model: anthropic(), context: 'A shop'},\n    },\n    app: {web: {url: 'http://localhost:8081'}},\n});\n`,
+    );
+    expect(edit?.kind === 'edit' && edit.diff).toContain(`+${ANTHROPIC_IMPORT}\n`);
+  });
+
+  it('imports the adapter once, at the top of a file with no imports, and in a config of another name', () => {
+    const bare = 'export default defineHarness({\n  app: {},\n});\n';
+    const top = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest, 'harness.config.mts': bare})));
+    expect(top?.path).toBe('harness.config.mts');
+    expect(top?.kind === 'edit' && top.content.startsWith(`${ANTHROPIC_IMPORT}\nexport default defineHarness({\n  agents: {`)).toBe(true);
+    const imported = `${ANTHROPIC_IMPORT}\n${bare}`;
+    const once = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest, 'harness.config.ts': imported})));
+    expect(once?.kind === 'edit' && once.content.split(ANTHROPIC_IMPORT).length).toBe(2);
+    // A key with no indent of its own to follow is given two spaces.
+    const flat = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest, 'harness.config.ts': 'export default defineHarness({\napp: {},\n});\n'})));
+    expect(flat?.kind === 'edit' && flat.content).toContain('defineHarness({\n  agents: {\n    default: {model: anthropic()},\n  },\napp: {},');
+  });
+
+  it('keeps one with agents, and prints the entry for one it cannot place', () => {
+    const kept = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest, 'harness.config.ts': harness.replace('app:', 'agents: {},\n    app:')})));
+    expect(kept).toEqual({kind: 'keep', path: 'harness.config.ts', why: 'harness.config.ts has agents already, so init leaves them as they are'});
+    const elsewhere = agentFile(planInit(found(), chose({model: {provider: 'claude'}}), project({'package.json': manifest, 'harness.config.ts': 'export default defineHarness(config);\n'})));
+    expect(elsewhere?.kind).toBe('print');
+    expect(elsewhere?.kind === 'print' && elsewhere.why).toBe(`harness.config.ts does not open defineHarness({ on a line of its own, so init cannot place the agent; add it by hand, with ${ANTHROPIC_IMPORT}`);
+    expect(elsewhere?.kind === 'print' && elsewhere.content).toBe('  agents: {\n    default: {model: anthropic()},\n  },');
+  });
+
+  it('prints the entry for a model of its own, beside a new harness config and in place of one that is there', () => {
+    const fresh = planInit(found(), chose({model: {provider: 'other'}}), project({'package.json': manifest})).filter(step => step.path === 'harness.config.ts');
+    expect(fresh.map(step => step.kind)).toEqual(['create', 'print']);
+    const there = agentFile(planInit(found(), chose({model: {provider: 'other'}}), project({'package.json': manifest, 'harness.config.ts': harness})));
+    expect(there).toEqual({kind: 'print', path: 'harness.config.ts', why: 'a model of your own is code init cannot write; add the agent to harness.config.ts by hand', content: OWN_MODEL});
   });
 });
 

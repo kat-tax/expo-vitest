@@ -13,7 +13,7 @@ export const USAGE = `the harness: run an app on a platform and look at what it 
 
   expo-harness doctor                    what this machine can drive
   expo-harness install [browser]         a browser for the web tests, Chromium's headless shell unless named
-  expo-harness init [--yes]              set a project up to test with expo-vitest
+  expo-harness init [--yes] [--mcp] [--agent] set a project up to test with expo-vitest, and the agent with --agent
   expo-harness guide [topic | --list]    how to write and run the tests, for a person or an agent
   expo-harness cache [ls | stats | clear] the agent's replay cache: list it, count it, or empty it
   expo-harness mcp [options]             an MCP server a coding agent drives the app through (mcp --help)

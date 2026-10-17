@@ -3,6 +3,9 @@ import type {Detection} from './detect.ts';
 import type {Choices} from './templates.ts';
 import {
   AGENT_LINE,
+  AGENT_MODEL,
+  agentEntry,
+  ANTHROPIC_IMPORT,
   deviceExampleTest,
   devicePlatforms,
   deviceVitestConfig,
@@ -78,6 +81,32 @@ export default defineHarness({
   });
 });
 
+describe("the agent's entry", () => {
+  it("is Claude through the adapter, named only where it is not the adapter's own model, with what the app is", () => {
+    expect(AGENT_MODEL).toBe('claude-opus-5-5');
+    expect(agentEntry({provider: 'claude'})).toBe('  agents: {\n    default: {model: anthropic()},\n  },\n');
+    expect(agentEntry({provider: 'claude', model: AGENT_MODEL, context: "Ada's shop"}, '\t')).toBe("\tagents: {\n\t\tdefault: {model: anthropic(), context: 'Ada\\'s shop'},\n\t},\n");
+    expect(agentEntry({provider: 'claude', model: 'claude-sonnet-5-5', context: 'a\\b\nc'})).toContain("default: {model: anthropic({model: 'claude-sonnet-5-5'}), context: 'a\\\\b\\nc'}");
+  });
+
+  it('comes into a new harness config with the adapter imported, and not for a model of its own', () => {
+    expect(harnessConfig(found(), chose({platforms: ['android'], model: {provider: 'claude', context: 'A shop'}}))).toBe(`import {defineHarness} from 'expo-vitest/config';
+${ANTHROPIC_IMPORT}
+
+export default defineHarness({
+  app: {
+    // The app id is a placeholder: put your own here.
+    android: {bundleId: 'com.example.app'},
+  },
+  agents: {
+    default: {model: anthropic(), context: 'A shop'},
+  },
+});
+`);
+    expect(harnessConfig(found(), chose({platforms: ['android'], model: {provider: 'other'}}))).not.toContain('agents');
+  });
+});
+
 describe('the example tests', () => {
   it('check the platform on every project, and open the app on a device', () => {
     expect(platformTest()).toContain("expect(['ios', 'android', 'web', 'windows']).toContain(Platform.OS);");
@@ -125,6 +154,15 @@ describe('what is installed', () => {
   it('runs nothing where everything is there', () => {
     const all = Object.fromEntries(packagesFor({}).map(name => [name, '1']));
     expect(installCommands(found(), chose({platforms: ['ios'], device: false}), {devDependencies: all})).toEqual([]);
+  });
+
+  it("adds the Claude SDK through the manager's own add, where the agent is Claude and the project lacks it", () => {
+    const all = Object.fromEntries(packagesFor({}).map(name => [name, '1']));
+    const claude = chose({platforms: ['ios'], device: false, model: {provider: 'claude'}});
+    expect(installCommands(found(), claude, {devDependencies: all}).map(shown)).toEqual(['npm install --save-dev @anthropic-ai/sdk']);
+    expect(installCommands(found({manager: 'bun'}), claude, {devDependencies: all}).map(shown)).toEqual(['bun add --dev @anthropic-ai/sdk']);
+    expect(installCommands(found(), claude, {devDependencies: {...all, '@anthropic-ai/sdk': '1'}})).toEqual([]);
+    expect(installCommands(found(), chose({platforms: ['ios'], device: false, model: {provider: 'other'}}), {devDependencies: all})).toEqual([]);
   });
 
   it("is run through the manager's runner, and shown as typed", () => {

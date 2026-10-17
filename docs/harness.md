@@ -18,7 +18,7 @@ It changes nothing. [Platforms](platforms.md) has what each platform needs.
 
 ```sh
 expo-harness doctor
-expo-harness init [--yes] [--mcp]
+expo-harness init [--yes] [--mcp] [--agent]
 expo-harness guide [topic | --list]
 expo-harness cache [ls | stats | clear]
 expo-harness mcp [options]
@@ -49,7 +49,7 @@ packages now.
 | File | What init does with it |
 | --- | --- |
 | `vitest.config.mts` | A project per platform. |
-| `vitest.config.device.mts`, `harness.config.ts` | With device tests: the device projects, and the app each platform drives, from what it found. |
+| `vitest.config.device.mts`, `harness.config.ts` | With device tests: the device projects, and the app each platform drives, from what it found. With `--agent`, the agent too. |
 | `device/example.test.ts` | With device tests: one that opens the app and reads what it drew. |
 | `src/platform.test.ts` | Where the project has no tests yet: one that runs in each platform's project. |
 | `package.json` | `test`, `test:watch`, and `test:device` with device tests, among its scripts. |
@@ -68,6 +68,15 @@ commands that would, and it ends with the commands that run the tests.
 `--yes` takes every default: the platforms it found, device tests and the
 skill. It writes without asking and installs nothing, and leaves the MCP
 server out unless `--mcp` is passed too.
+
+`--agent` sets the [agent](agent.md) up as well, and device tests with it,
+since the agent runs in a device project. It asks for the model: Claude,
+through the adapter here, by name, and a sentence of what the app is for the
+agent's context; or a model of your own, whose entry it prints for you to
+write. A new `harness.config.ts` is written with the agent in it. One that
+is there gains the adapter's import and the agent's entry, its diff shown,
+unless it has agents already. Installing adds `@anthropic-ai/sdk`. With
+`--yes`, the agent is Claude Opus 5.5, with no context.
 
 ## The guide
 

@@ -46,7 +46,8 @@ web video test once more with `HARNESS_VIDEO=retain-on-failure`, and checks
 that only the test that fails on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
 own version names, so the copy's playwright-core fetches its own first.
 Last, it takes the copy's configs and tests away, runs `init --yes` from the
-packed command, and runs the component tests on the config it wrote. It is
+packed command, and runs the component tests on the config it wrote, then
+`init --yes --agent`, and loads the harness config it gave the agent. It is
 the only thing that can catch what differs when installed:
 
 - Node will not strip types under `node_modules`.

@@ -114,8 +114,6 @@ These wait on an API key, and the runs are billed.
 
 ### The agent and the MCP server
 
-- `init --agent`, which would ask for the model provider and write the
-  agent's entry in `harness.config.ts`. Today it says it is not there yet.
 - More tools: `hover_at`, `type_at`, `press_at` and `select_at` on a
   screenshot's points, `drag`, whose second node the replay cache would need
   to record as it records the first, `upload`, which would let a model

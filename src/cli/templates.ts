@@ -2,6 +2,7 @@
  * Every file `init` writes, and every command it runs, as functions of what
  * it found and what it was told, so each is tested by its text.
  */
+import {DEFAULT_MODEL} from '../agent/anthropic.ts';
 import type {Platform} from '../harness/lib/types.ts';
 import type {Detection, Manifest, PackageManager} from './detect.ts';
 
@@ -12,7 +13,45 @@ export interface Choices {
   agent: boolean;
   /** The MCP server, registered where Claude Code and Cursor read a project's servers. */
   mcp?: boolean;
+  /** The agent's model, where `init --agent` sets the agent up. */
+  model?: AgentChoice;
 }
+
+/**
+ * The agent `init --agent` sets up: Claude through the adapter here, named
+ * where it is not the adapter's own model, with a sentence of what the app
+ * is for its context; or a model of the project's own, which is code init
+ * cannot write.
+ */
+export interface AgentChoice {
+  provider: 'claude' | 'other';
+  model?: string;
+  context?: string;
+}
+
+/** The model init offers: the Claude adapter's own. */
+export const AGENT_MODEL = DEFAULT_MODEL;
+
+/** The line that brings the Claude adapter into `harness.config.ts`. */
+export const ANTHROPIC_IMPORT = "import {anthropic} from 'expo-vitest/agent/anthropic';";
+
+/** A string as the configs init writes spell one: in single quotes. */
+function literal(text: string): string {
+  return `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+}
+
+/** The agent's entry in `harness.config.ts`, each line at `indent` deeper than the one around it: Claude, and what the app is where it was said. */
+export function agentEntry(choice: AgentChoice, indent = '  '): string {
+  const model = choice.model && choice.model !== AGENT_MODEL ? `anthropic({model: ${literal(choice.model)}})` : 'anthropic()';
+  const context = choice.context ? `, context: ${literal(choice.context)}` : '';
+  return `${indent}agents: {\n${indent}${indent}default: {model: ${model}${context}},\n${indent}},\n`;
+}
+
+/** What init prints for a model of the project's own, to add to `harness.config.ts` by hand. */
+export const OWN_MODEL = `agents: {
+  // A Model is {id, complete(request)}: npx expo-vitest guide agent shows one.
+  default: {model: myModel},
+},`;
 
 /** The order a config names platforms in. */
 const ORDER: Platform[] = ['ios', 'android', 'web', 'windows'];
@@ -65,13 +104,14 @@ export function harnessConfig(detection: Detection, choices: Choices): string {
   if (choices.platforms.includes('ios')) entries.push(`${identity.bundleId ? '' : placeholder}    ios: {bundleId: '${identity.bundleId ?? 'com.example.app'}'${scheme}},`);
   // A Windows app is found as the exe under windows/x64, so only a scheme is worth saying.
   if (choices.platforms.includes('windows') && identity.scheme) entries.push(`    windows: {scheme: '${identity.scheme}'},`);
+  const claude = choices.model?.provider === 'claude' ? choices.model : null;
   return `import {defineHarness} from 'expo-vitest/config';
-
+${claude ? `${ANTHROPIC_IMPORT}\n` : ''}
 export default defineHarness({
   app: {
 ${entries.join('\n')}
   },
-});
+${claude ? agentEntry(claude) : ''}});
 `;
 }
 
@@ -116,8 +156,12 @@ export const IGNORED = ['.harness/'];
  * the drivers, comes with this one, whatever the project's platforms.
  */
 export function packagesFor(manifest: Manifest): string[] {
-  const has = (name: string) => manifest.dependencies?.[name] !== undefined || manifest.devDependencies?.[name] !== undefined;
-  return ['expo-vitest', 'vitest'].filter(name => !has(name));
+  return ['expo-vitest', 'vitest'].filter(name => !hasPackage(manifest, name));
+}
+
+/** Whether the manifest names a package, as a dependency of either kind. */
+function hasPackage(manifest: Manifest, name: string): boolean {
+  return manifest.dependencies?.[name] !== undefined || manifest.devDependencies?.[name] !== undefined;
 }
 
 /** A command `init` runs, as it is shown before it runs. */
@@ -131,9 +175,9 @@ export interface Command {
 export function installCommands(detection: Detection, choices: Choices, manifest: Manifest): Command[] {
   const packages = packagesFor(manifest);
   const [command, ...through] = runner(detection.manager);
+  const add = {npm: ['npm', 'install', '--save-dev'], bun: ['bun', 'add', '--dev'], pnpm: ['pnpm', 'add', '--save-dev'], yarn: ['yarn', 'add', '--dev']}[detection.manager];
   const commands: Command[] = [];
   if (packages.length) {
-    const add = {npm: ['npm', 'install', '--save-dev'], bun: ['bun', 'add', '--dev'], pnpm: ['pnpm', 'add', '--save-dev'], yarn: ['yarn', 'add', '--dev']}[detection.manager];
     commands.push(
       detection.expoSdk === null
         ? {command: add[0] as string, args: [...add.slice(1), ...packages], why: 'the test packages'}
@@ -142,6 +186,10 @@ export function installCommands(detection: Detection, choices: Choices, manifest
   }
   if (choices.device && devicePlatforms(choices).includes('web')) {
     commands.push({command, args: [...through, 'expo-harness', 'install'], why: 'the Chromium the web device tests drive'});
+  }
+  // The SDK is a Node package with no native code, so it comes through the manager's own add, not expo install.
+  if (choices.model?.provider === 'claude' && !hasPackage(manifest, '@anthropic-ai/sdk')) {
+    commands.push({command: add[0] as string, args: [...add.slice(1), '@anthropic-ai/sdk'], why: "the SDK the agent's Claude adapter calls"});
   }
   return commands;
 }
@@ -162,3 +210,6 @@ export const MCP_ADD = 'claude mcp add --transport stdio --scope project expo-ha
 
 /** The line `init` asks a person to add to their agent instructions, which it does not write itself. */
 export const AGENT_LINE = 'Tests use expo-vitest. Run `npx expo-vitest guide` for how to write them, run them and read a failure.';
+
+/** A step in words, as init shows one once it has set the agent up. */
+export const AGENT_EXAMPLE = "await agent.act('open the settings and turn on dark mode'); // import {agent} from 'expo-vitest/agent'";

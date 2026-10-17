@@ -47,6 +47,9 @@ export default defineHarness({
 });
 ```
 
+`npx expo-vitest init --agent` writes that entry, with the model and the
+sentence of context it asks for, and installs the SDK when told to.
+
 The Claude adapter needs the SDK, which this package does not install:
 
 ```sh

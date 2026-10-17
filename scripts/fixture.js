@@ -198,6 +198,14 @@ try {
   const unnamed = ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'device/example.test.ts', 'package.json', '.gitignore', '.claude/skills/expo-vitest/SKILL.md'].filter(file => !again.includes(file));
   if (unnamed.length) throw new Error(`init --yes a second time did not say it kept ${unnamed.join(', ')}:\n${again}`);
   console.log('it wrote nothing, and said why for each file');
+  console.log('==== init --yes --agent, on what it set up');
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes', '--agent']);
+  // The config it edited loads as the device projects load it, the adapter imported from the package without the SDK, which is loaded at the first call.
+  const model = execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '-e', "const {default: config} = await import('./harness.config.ts'); console.log(config.agents.default.model.id);"], {cwd: scratch, encoding: 'utf8'}).trim();
+  if (model !== 'claude-opus-5-5') throw new Error(`the harness config init --agent wrote names the agent's model as ${model}`);
+  const thrice = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes', '--agent'], {cwd: scratch, encoding: 'utf8'});
+  if (/^ {2}wrote /m.test(thrice) || !thrice.includes('harness.config.ts has agents already')) throw new Error(`init --yes --agent a second time did not keep the agent:\n${thrice}`);
+  console.log('it gave harness.config.ts the agent, which loads, and kept it the second time');
 } finally {
   try {
     fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});
