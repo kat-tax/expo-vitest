@@ -1,0 +1,2003 @@
+{
+ "platform": "windows",
+ "source": "an app",
+ "nodes": [
+  {
+   "ref": "@e1",
+   "role": "Window",
+   "name": "name",
+   "depth": 0,
+   "interactive": false,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 1000,
+    "height": 1000
+   }
+  },
+  {
+   "ref": "@e2",
+   "parent": "@e1",
+   "role": "Custom",
+   "name": "",
+   "testId": "id",
+   "depth": 4,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 8,
+    "y": 31,
+    "width": 984,
+    "height": 49
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e3",
+   "parent": "@e2",
+   "role": "Button",
+   "name": "name",
+   "testId": "id",
+   "depth": 5,
+   "interactive": true,
+   "focused": false,
+   "focusable": false,
+   "enabled": false,
+   "offscreen": false,
+   "bounds": {
+    "x": 12,
+    "y": 37,
+    "width": 40,
+    "height": 36
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e4",
+   "parent": "@e2",
+   "role": "Group",
+   "name": "",
+   "testId": "id",
+   "depth": 6,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 56,
+    "y": 33,
+    "width": 292,
+    "height": 44
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e5",
+   "parent": "@e4",
+   "role": "TabItem",
+   "name": "name",
+   "depth": 7,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "inSet": "1 of 3",
+   "selected": true,
+   "bounds": {
+    "x": 56,
+    "y": 33,
+    "width": 119,
+    "height": 44
+   },
+   "patterns": [
+    "SelectionItem",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e6",
+   "parent": "@e4",
+   "role": "TabItem",
+   "name": "name",
+   "depth": 7,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "inSet": "2 of 3",
+   "selected": false,
+   "bounds": {
+    "x": 183,
+    "y": 33,
+    "width": 59,
+    "height": 44
+   },
+   "patterns": [
+    "SelectionItem",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e7",
+   "parent": "@e4",
+   "role": "TabItem",
+   "name": "name",
+   "depth": 7,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "inSet": "3 of 3",
+   "selected": false,
+   "bounds": {
+    "x": 250,
+    "y": 33,
+    "width": 98,
+    "height": 44
+   },
+   "patterns": [
+    "SelectionItem",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e8",
+   "parent": "@e2",
+   "role": "Group",
+   "name": "",
+   "testId": "id",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": true,
+   "bounds": null,
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e9",
+   "parent": "@e1",
+   "role": "Edit",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "value": "",
+   "bounds": {
+    "x": 116,
+    "y": 144,
+    "width": 114,
+    "height": 27
+   },
+   "patterns": [
+    "Value",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e10",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "pressed": false,
+   "bounds": {
+    "x": 323,
+    "y": 183,
+    "width": 34,
+    "height": 34
+   },
+   "patterns": [
+    "Toggle",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e11",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 329,
+    "y": 402,
+    "width": 28,
+    "height": 24
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e12",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "pressed": false,
+   "bounds": {
+    "x": 584,
+    "y": 183,
+    "width": 34,
+    "height": 34
+   },
+   "patterns": [
+    "Toggle",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e13",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 590,
+    "y": 402,
+    "width": 28,
+    "height": 24
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e14",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "pressed": false,
+   "bounds": {
+    "x": 845,
+    "y": 183,
+    "width": 34,
+    "height": 34
+   },
+   "patterns": [
+    "Toggle",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e15",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 851,
+    "y": 402,
+    "width": 28,
+    "height": 24
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e16",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "pressed": false,
+   "bounds": {
+    "x": 323,
+    "y": 478,
+    "width": 34,
+    "height": 34
+   },
+   "patterns": [
+    "Toggle",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e17",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 329,
+    "y": 697,
+    "width": 28,
+    "height": 24
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e18",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "pressed": false,
+   "bounds": {
+    "x": 584,
+    "y": 478,
+    "width": 34,
+    "height": 34
+   },
+   "patterns": [
+    "Toggle",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e19",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 590,
+    "y": 697,
+    "width": 28,
+    "height": 24
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e20",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 800,
+    "y": 80,
+    "width": 84,
+    "height": 37
+   },
+   "patterns": [
+    "Invoke",
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e21",
+   "parent": "@e20",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 844,
+    "y": 89,
+    "width": 28,
+    "height": 19
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e22",
+   "parent": "@e1",
+   "role": "Text",
+   "name": "name",
+   "depth": 3,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 116,
+    "y": 90,
+    "width": 676,
+    "height": 28
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e23",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 116,
+    "y": 179,
+    "width": 245,
+    "height": 279
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e24",
+   "parent": "@e23",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 196,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e25",
+   "parent": "@e23",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 411,
+    "width": 183,
+    "height": 20
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e26",
+   "parent": "@e23",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 432,
+    "width": 183,
+    "height": 16
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e27",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 377,
+    "y": 179,
+    "width": 245,
+    "height": 279
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e28",
+   "parent": "@e27",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 196,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e29",
+   "parent": "@e27",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 213,
+    "width": 211,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e30",
+   "parent": "@e27",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 234,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e31",
+   "parent": "@e27",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 411,
+    "width": 183,
+    "height": 20
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e32",
+   "parent": "@e27",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 432,
+    "width": 183,
+    "height": 16
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e33",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 638,
+    "y": 179,
+    "width": 245,
+    "height": 279
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e34",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 196,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e35",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 213,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e36",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 242,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e37",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 257,
+    "width": 211,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e38",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 278,
+    "width": 8,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e39",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 666,
+    "y": 278,
+    "width": 200,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e40",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 299,
+    "width": 8,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e41",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 666,
+    "y": 299,
+    "width": 200,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e42",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 320,
+    "width": 8,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e43",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 666,
+    "y": 320,
+    "width": 200,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e44",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 659,
+    "y": 344,
+    "width": 203,
+    "height": 24
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e45",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 375,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e46",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 389,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e47",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 419,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e48",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 448,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e49",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 463,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e50",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 492,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e51",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 411,
+    "width": 183,
+    "height": 20
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e52",
+   "parent": "@e33",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 655,
+    "y": 432,
+    "width": 183,
+    "height": 16
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e53",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 116,
+    "y": 474,
+    "width": 245,
+    "height": 279
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e54",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 491,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e55",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 508,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e56",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 537,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e57",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 552,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e58",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 581,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e59",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 596,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e60",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 626,
+    "width": 8,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e61",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 626,
+    "width": 200,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e62",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 638,
+    "width": 8,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e63",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 638,
+    "width": 200,
+    "height": 17
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e64",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 659,
+    "width": 8,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e65",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 659,
+    "width": 200,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e66",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 672,
+    "width": 8,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e67",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 672,
+    "width": 200,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e68",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 684,
+    "width": 8,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e69",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 684,
+    "width": 200,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e70",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 697,
+    "width": 8,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e71",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 697,
+    "width": 200,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e72",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 709,
+    "width": 8,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e73",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 709,
+    "width": 200,
+    "height": 10
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e74",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 722,
+    "width": 8,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e75",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 144,
+    "y": 722,
+    "width": 200,
+    "height": 9
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e76",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 706,
+    "width": 183,
+    "height": 20
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e77",
+   "parent": "@e53",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 133,
+    "y": 727,
+    "width": 183,
+    "height": 16
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e78",
+   "parent": "@e1",
+   "role": "Button",
+   "name": "name",
+   "depth": 4,
+   "interactive": true,
+   "focused": false,
+   "focusable": true,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 377,
+    "y": 474,
+    "width": 245,
+    "height": 279
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e79",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 491,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e80",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 508,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e81",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 537,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e82",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 552,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e83",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 581,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e84",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 596,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e85",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 625,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e86",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 655,
+    "width": 211,
+    "height": 12
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e87",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 669,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e88",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 398,
+    "y": 702,
+    "width": 203,
+    "height": 24
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e89",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 733,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e90",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 762,
+    "width": 211,
+    "height": 11
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e91",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 777,
+    "width": 211,
+    "height": 27
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e92",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 806,
+    "width": 211,
+    "height": 26
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e93",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 706,
+    "width": 183,
+    "height": 20
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  },
+  {
+   "ref": "@e94",
+   "parent": "@e78",
+   "role": "Text",
+   "name": "name",
+   "depth": 5,
+   "interactive": false,
+   "focused": false,
+   "focusable": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 394,
+    "y": 727,
+    "width": 183,
+    "height": 16
+   },
+   "patterns": [
+    "ScrollItem"
+   ]
+  }
+ ]
+}

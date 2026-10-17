@@ -1,5 +1,5 @@
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 // By its name, not by a path: this is the package as an app installs it.
 export default defineConfig({

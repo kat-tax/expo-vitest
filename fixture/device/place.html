@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Place</title>
+  <style>body { font: 16px sans-serif; margin: 24px; }</style>
+</head>
+<body>
+  <h1>Place</h1>
+  <button data-testid="follow">Follow</button>
+  <p data-testid="place">Nowhere yet</p>
+  <p data-testid="seen">Seen 0 places</p>
+  <script>
+    // Where the page says it is, followed once asked, as a map follows a person.
+    let seen = 0;
+    document.querySelector('[data-testid=follow]').addEventListener('click', () => {
+      navigator.geolocation.watchPosition(
+        position => {
+          document.querySelector('[data-testid=place]').textContent = 'At ' + position.coords.latitude.toFixed(4) + ',' + position.coords.longitude.toFixed(4);
+          document.querySelector('[data-testid=seen]').textContent = 'Seen ' + ++seen + ' places';
+        },
+        error => (document.querySelector('[data-testid=place]').textContent = 'No place: ' + error.message),
+      );
+    });
+  </script>
+</body>
+</html>

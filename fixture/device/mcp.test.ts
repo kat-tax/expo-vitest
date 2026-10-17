@@ -1,0 +1,115 @@
+// The MCP server as a coding agent has it: the packed package's
+// expo-harness mcp, spoken to over its stdin and stdout, opening a session
+// on the page the harness config's command serves. Every line it writes to
+// stdout must be JSON, since one stray line ends a client's session.
+import {spawn} from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import {onlyOn} from 'expo-vitest';
+
+interface Message {
+  id?: number;
+  result?: {content?: {type: string; text: string}[]; isError?: true; structuredContent?: Record<string, unknown>} & Record<string, unknown>;
+  error?: {code: number; message: string};
+}
+
+/** A client over a server it starts, with `flags` beside the platform: each request answered by its id, every line it read kept. */
+function connect(flags: string[] = []) {
+  const bin = path.join(process.cwd(), 'node_modules', 'expo-vitest', 'dist', 'harness', 'index.js');
+  const child = spawn(process.execPath, [bin, 'mcp', '--platform', 'web', ...flags], {cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe']});
+  const lines: string[] = [];
+  const waiting = new Map<number, (message: Message) => void>();
+  let buffer = '';
+  let stderr = '';
+  child.stderr.on('data', (chunk: Buffer) => void (stderr += chunk.toString()));
+  child.stdout.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString();
+    for (let at = buffer.indexOf('\n'); at >= 0; at = buffer.indexOf('\n')) {
+      const line = buffer.slice(0, at);
+      buffer = buffer.slice(at + 1);
+      lines.push(line);
+      const message = JSON.parse(line) as Message;
+      if (message.id !== undefined) waiting.get(message.id)?.(message);
+    }
+  });
+  let id = 0;
+  /** A request sent, by its id, and its answer when it comes. */
+  const send = (method: string, params?: unknown) => {
+    id += 1;
+    const sent = id;
+    const answer = new Promise<Message>(resolve => waiting.set(sent, resolve));
+    child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', id: sent, method, ...(params === undefined ? {} : {params})})}\n`);
+    return {id: sent, answer};
+  };
+  const request = (method: string, params?: unknown) => send(method, params).answer;
+  const notify = (method: string, params?: unknown) => void child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', method, ...(params === undefined ? {} : {params})})}\n`);
+  const exited = new Promise<number | null>(resolve => child.once('exit', resolve));
+  return {send, request, notify, lines, exited, end: () => child.stdin.end(), stderr: () => stderr};
+}
+
+onlyOn(['web'], () => {
+  it('opens a session on the page, records it, observes, locates, taps, hands a page a file it may, keeps the video, and closes, every line it writes JSON', async () => {
+    const server = connect();
+    const hello = await server.request('initialize', {protocolVersion: '2025-06-18', capabilities: {}, clientInfo: {name: 'fixture', version: '1'}});
+    expect(hello.result).toMatchObject({protocolVersion: '2025-06-18', serverInfo: {name: 'expo-harness'}});
+    server.notify('notifications/initialized');
+    const listed = await server.request('tools/list');
+    const tools = (listed.result as {tools: {name: string}[]}).tools;
+    expect(tools.map(tool => tool.name)).toEqual(['open_session', 'tools', 'call', 'close_session']);
+
+    const opened = await server.request('tools/call', {name: 'open_session', arguments: {}});
+    const first = opened.result?.content?.[0]?.text ?? '';
+    expect(first, server.stderr()).toMatch(/^session s1 on web /);
+    expect(first).toContain('button  "Save"  #save');
+    const started = await server.request('tools/call', {name: 'call', arguments: {tool: 'start_recording'}});
+    expect(started.result?.content?.[0]?.text).toBe('recording the screen; stop_recording keeps it');
+
+    const located = await server.request('tools/call', {name: 'call', arguments: {tool: 'locate', args: {role: 'button', name: 'Save'}}});
+    const found = located.result?.structuredContent as {count: number; suggestion: string; matches: {ref: string}[]};
+    expect([found.count, found.suggestion]).toEqual([1, 'screen.getByRole("button", {name: "Save"})']);
+
+    const tapped = await server.request('tools/call', {name: 'call', arguments: {tool: 'tap', args: {ref: found.matches[0]?.ref}}});
+    expect(tapped.result?.isError).toBeUndefined();
+    const stale = await server.request('tools/call', {name: 'call', arguments: {tool: 'tap', args: {ref: '@e999'}}});
+    expect(stale.result).toMatchObject({isError: true, content: [{text: expect.stringMatching(/^NODE_STALE: /)}]});
+
+    const closed = await server.request('tools/call', {name: 'call', arguments: {tool: 'observe'}});
+    expect(closed.result?.content?.[0]?.text).toContain('button  "Save"');
+
+    // A file the harness config lets the agent hand a page, given to the page's file input.
+    await server.request('tools/call', {name: 'call', arguments: {tool: 'navigate', args: {url: '/web'}}});
+    const attachment = await server.request('tools/call', {name: 'call', arguments: {tool: 'locate', args: {testId: 'attachment'}}});
+    const input = (attachment.result?.structuredContent as {matches: {ref: string}[]} | undefined)?.matches[0]?.ref;
+    const handed = await server.request('tools/call', {name: 'call', arguments: {tool: 'upload', args: {ref: input, file: 'device/features.json'}}});
+    expect(handed.result?.content?.[0]?.text).toContain('"Attached features.json"');
+    const refused = await server.request('tools/call', {name: 'call', arguments: {tool: 'upload', args: {ref: input, file: 'harness.config.ts'}}});
+    expect(refused.result).toMatchObject({isError: true});
+
+    // A video of what the session did, kept in the project.
+    const stopped = await server.request('tools/call', {name: 'call', arguments: {tool: 'stop_recording'}});
+    const video = (stopped.result?.structuredContent as {file: string} | undefined)?.file ?? '';
+    expect(video, JSON.stringify(stopped.result)).toMatch(/\.webm$/);
+    expect(fs.statSync(video).size).toBeGreaterThan(0);
+    expect((await server.request('tools/call', {name: 'close_session', arguments: {}})).result?.content?.[0]?.text).toBe('closed s1');
+    server.end();
+    expect(await server.exited).toBe(0);
+    expect(server.lines.every(line => line.startsWith('{"jsonrpc":"2.0"'))).toBe(true);
+  });
+
+  it('stops an open the client cancels where it has got to, which frees its place for the next', async () => {
+    // One session at a time, so an open that went on would refuse the next with SESSION_OPEN until it ended.
+    const server = connect(['--max-sessions', '1']);
+    await server.request('initialize', {protocolVersion: '2025-06-18', capabilities: {}, clientInfo: {name: 'fixture', version: '1'}});
+    server.notify('notifications/initialized');
+    const cancelled = server.send('tools/call', {name: 'open_session', arguments: {}});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    server.notify('notifications/cancelled', {requestId: cancelled.id, reason: 'the fixture stopped it'});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const opened = await server.request('tools/call', {name: 'open_session', arguments: {}});
+    expect(opened.result?.content?.[0]?.text, server.stderr()).toMatch(/^session s1 on web /);
+    expect((await server.request('tools/call', {name: 'close_session', arguments: {}})).result?.content?.[0]?.text).toBe('closed s1');
+    server.end();
+    expect(await server.exited).toBe(0);
+    expect(server.lines.map(line => (JSON.parse(line) as Message).id)).not.toContain(cancelled.id);
+  });
+});

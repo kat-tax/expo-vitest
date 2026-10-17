@@ -1,50 +1,119 @@
 # The harness
 
-[Docs home](README.md)
+[Docs home](README.md) · [Platforms](platforms.md) · [Coding agents](coding-agents.md)
 
-Run an app on a platform, drive it, and look at what it drew. One command,
-four platforms, the same steps everywhere.
-
-Tests prove behaviour. The harness is how you see the thing itself, and it is
-the only way to catch what only appears in a real renderer.
+`expo-harness` runs the device tests' drivers as a command: open an app on a
+platform, drive it, and look at what it drew. One command, four platforms,
+the same steps everywhere. Tests prove behaviour; the harness is how you see
+the thing itself, by hand or from a script.
 
 ```sh
 npx expo-harness doctor
 ```
 
-```
-what this machine can drive:
-
-  yes  web      Chromium at chrome-headless-shell-win64
-  no   windows  no app to drive: build one (`expo-windows run`) and pass --target <exe or process name>
-  yes  android  1 device: 2B221FDH3S0HDK
-  no   ios      the iOS simulator only runs on macOS
-
-nothing here changes your machine; a "no" says what is missing.
-```
-
-## Setup
-
-`expo-harness` comes with `expo-vitest`. What it drives with is optional, and
-`doctor` says what is missing:
-
-| Platform | Needs |
-| --- | --- |
-| web | `playwright-core` in the project, and a Chromium: `npx playwright install chromium` |
-| windows | A Windows machine, and a built app |
-| android, ios | `agent-device`: `npm install --global agent-device` |
-
-Nothing is installed in the app itself.
+`doctor` says what this machine can drive, and what is missing for the rest.
+It changes nothing. [Platforms](platforms.md) has what each platform needs.
 
 ## Usage
 
 ```sh
 expo-harness doctor
+expo-harness init [--yes] [--mcp] [--agent]
+expo-harness guide [topic | --list]
+expo-harness cache [ls | stats | clear]
+expo-harness mcp [options]
+expo-harness explore [goal] [options]
+expo-harness bug-bash [options]
 expo-harness -p <platform> [options] <step>...
 ```
 
-Steps run in order in one session, so a sequence is a flow rather than four
-disconnected commands.
+The command answers to `expo-vitest` too, the package's own name, so
+`npx expo-vitest init` works in a project that has not installed it yet.
+
+## Setting a project up
+
+`init` sets a project up to test with this package:
+
+```sh
+npx expo-vitest init
+```
+
+It reads what the project has: the package manager, the Expo SDK, React
+Native Testing Library's version, the platforms the app builds for, the app's
+identity and scheme, TypeScript, and the tests already there. Then it asks
+five things: which platforms, whether to set up device tests, whether to add
+the [skill for coding agents](coding-agents.md), whether to register the
+[MCP server](coding-agents.md#the-mcp-server), and whether to install the
+packages now.
+
+| File | What init does with it |
+| --- | --- |
+| `vitest.config.mts` | A project per platform. |
+| `vitest.config.device.mts`, `harness.config.ts` | With device tests: the device projects, and the app each platform drives, from what it found. With `--agent`, the agent too. |
+| `device/example.test.ts` | With device tests: one that opens the app and reads what it drew. |
+| `src/platform.test.ts` | Where the project has no tests yet: one that runs in each platform's project. |
+| `package.json` | `test`, `test:watch`, and `test:device` with device tests, among its scripts. |
+| `tsconfig.json` | The types for the globals and the matchers. A file with comments is not plain JSON, so init prints what to add instead. |
+| `.gitignore` | `.harness/`. |
+| `.claude/skills/expo-vitest/` | With the skill: its files. |
+| `.mcp.json`, `.cursor/mcp.json` | With the MCP server: its entry, for Claude Code and for Cursor. A file that is there keeps every other server. |
+
+It shows each file before it writes it, a diff for a file it edits, and asks
+for each one: `y`, `n`, or `a` for the rest. A config or a test the project
+has already is kept, and init says so. `package.json`, `tsconfig.json` and
+`.gitignore` are edited, and a skill file older than the package's is
+refreshed, each with its diff shown. Without installing, it prints the
+commands that would, and it ends with the commands that run the tests.
+
+`--yes` takes every default: the platforms it found, device tests and the
+skill. It writes without asking and installs nothing, and leaves the MCP
+server out unless `--mcp` is passed too.
+
+`--agent` sets the [agent](agent.md) up as well, and device tests with it,
+since the agent runs in a device project. It asks for the model: Claude,
+through the adapter here, by name, and a sentence of what the app is for the
+agent's context; or a model of your own, whose entry it prints for you to
+write. A new `harness.config.ts` is written with the agent in it. One that
+is there gains the adapter's import and the agent's entry, its diff shown,
+unless it has agents already. Installing adds `@anthropic-ai/sdk`. With
+`--yes`, the agent is Claude Opus 5.5, with no context.
+
+## The guide
+
+`guide` prints the [skill](coding-agents.md) from the installed package: how
+to write the tests, run them and read a failure, for a person or an agent.
+`guide <topic>` prints one part, and `guide --list` the parts.
+
+## The agent's cache
+
+`cache` reads the [agent's](agent.md#the-cache) replay cache, in the folder
+the harness config's `cache.dir` names, else `.harness/cache`:
+
+| Command | What it does |
+| --- | --- |
+| `cache ls` | Each entry, newest first: the start of its key, how old it is, the platform, the test and the instruction. |
+| `cache stats` | How many entries there are, and their size. |
+| `cache clear` | Empties the folder, and says how many entries it held. |
+
+## For coding agents
+
+Three commands drive the app for an agent rather than a person. Each is on
+[Coding agents](coding-agents.md) in full, with its options.
+
+- `mcp` is an [MCP server](coding-agents.md#the-mcp-server) over stdio. A
+  coding agent opens a session on the app the harness config names, acts on
+  it by ref with the agent's tools, and asks `locate` for the `screen.*` call
+  a test finds a node with.
+- `explore` runs the [agent with a goal](coding-agents.md#explore) instead
+  of a test, and writes a report of what it found off, each finding citing
+  the tree and the screenshot of the step it came after. It exits 1 on an
+  issue.
+- `bug-bash` runs a [feature map's charters](coding-agents.md#bug-bash) at
+  once, merges what they found, writes a skeleton test for each issue in
+  `device/bug-bash/`, and runs them: an issue is a bug only where its
+  skeleton's check fails.
+
+## Steps
 
 ```sh
 # a web app, from its dev server
@@ -64,7 +133,10 @@ expo-harness -p android --scheme myapp \
   open /settings screenshot settings.png
 ```
 
-## Steps
+Steps run in order in one session, so a sequence is a flow rather than four
+separate commands. Each waits for the screen to hold still before the next,
+as a [device test](device-tests.md#waiting-for-the-screen) does, so `press`
+followed by `tree` shows what the press led to.
 
 | Step | What |
 | --- | --- |
@@ -73,12 +145,13 @@ expo-harness -p android --scheme myapp \
 | `snapshot [file]` | The same tree as JSON, to stdout or a file. |
 | `press <target>` | A press on what a ref or a selector names. |
 | `tap <x> <y>` | A press at a point, in the window's own pixels from its top left, when nothing names the thing. |
-| `fill <target> <text>` | Focus a field and put text in it. |
+| `fill <target> <text>` | Put text in a field, in place of what it held. |
 | `type <text>` | Into whatever has focus. |
 | `screenshot <file>` | A PNG, under `.harness/` unless the path says otherwise. |
 | `raise` | Bring the app to the front. Windows only. |
 | `wait <ms>` | Let something settle. |
 | `idle` | How long the machine has been quiet. |
+| `bench [n]` | Time each operation `n` times, 20 by default. See [timing a platform](#timing-a-platform). |
 
 ## Targets
 
@@ -99,15 +172,24 @@ quotes in it, as your shell requires.
 | --- | --- |
 | `-p`, `--platform <name>` | `web`, `windows`, `android` or `ios`. Required. |
 | `--url <url>` | Where the app is served, for web. `http://localhost:8081` by default. |
+| `--browser <name>` | On web, `chromium`, `firefox` or `webkit`. See [the browser](platforms.md#the-browser). |
+| `--cdp <endpoint>` | On web, a Chromium already running, reached at the endpoint of its remote debugging. |
 | `--scheme <scheme>` | The app's URI scheme, for deep links. |
 | `--target <what>` | The device, simulator, exe or process to drive. |
 | `--out <dir>` | Where screenshots go. `.harness` by default. |
 | `-i`, `--interactive` | Snapshot only what can be acted on. |
-| `--force` | Press even when someone is using the machine. |
+| `--force` | On Windows, use synthetic input even when someone is using the machine. See [the quiet desk](platforms.md#synthetic-input-waits-for-a-quiet-desk). |
+| `--settle <ms>` | How long the screen must hold still after a step. 150 by default; 0 for no wait. |
+| `--transition <ms>` | How long a control the last step brought in or moved is given before a press. 500 by default. |
+| `--iterations <n>` | How many times `bench` runs each operation. The same as `bench <n>`. |
+| `--press <target>` | Something a press does nothing to, for `bench` to time `press` on. |
+| `--field <target>` | A field for `bench` to time `fill` on. |
+| `--json` | `bench` prints its result as JSON instead of a table. |
 | `-h`, `--help` | The usage. |
 
 Everything is relative to the project the command is run in, or to
-`HARNESS_ROOT` when that is set.
+`HARNESS_ROOT` when that is set. On web, `HARNESS_HEADED=1` opens the browser
+in a window, and `HARNESS_SLOWMO=<ms>` slows each operation.
 
 ## What each platform can do
 
@@ -117,61 +199,75 @@ Everything is relative to the project the command is run in, or to
 | `tree`, `snapshot` | yes | yes | yes | yes |
 | `press`, `tap`, `fill`, `type` | yes | yes | yes | yes |
 | `raise` | | yes | | |
+| `bench` | yes | yes | yes | yes |
 | Named keys, in [device tests](device-tests.md) | yes | yes | skipped | skipped |
+| `mcp` sessions at once | `--max-sessions` | 1 | 1 | 1 |
+| `explore` | yes | yes | yes | yes |
+| `bug-bash` charters at once | `--parallel` | 1 | 1 | 1 |
 
-A step a platform cannot do says so and is skipped rather than failed. The
-same script then runs on all four and tells you what it could not do.
+A step a platform cannot do says so and is skipped rather than failed, so the
+same script runs on all four and tells you what it could not do.
 
-Windows fills the most of the tree: the help text, the position in a set, the
-heading rank, live regions and status all come from UI Automation.
+## Timing a platform
 
-## Two things worth knowing
+`bench` measures what each thing a driver does costs, so a change meant to
+make one faster can be shown to. It is a step like the others, and times
+whatever the steps before it left on screen:
 
-**Synthetic input goes to whatever is in front.** On Windows, if someone is
-using the machine, a press meant for the app lands in their window instead and
-nothing says so. So `press`, `tap`, `fill` and `type` check first how long the
-machine has been quiet, and refuse if it has been less than three minutes.
-Pass `--force` when you know the desk is free. A headless browser and a device
-are not the desktop, so the check does not apply to them.
+```sh
+expo-harness -p web --url http://localhost:8081 open / bench --press 'label="Home"'
+expo-harness -p windows --target MyApp bench 50
+expo-harness -p android --scheme myapp open /settings bench --field 'testID=search'
+```
 
-**A screenshot does not raise the window.** Raising it would hide the flyout
-or share sheet that is usually the thing being looked at. Use the `raise` step
-when the app really does need to be in front, which is what synthetic input
-needs.
+```
+bench on web (http://localhost:8083), 20 iterations, node 24.20.0, 2026-10-17T04:00:03Z
 
-## Getting an app to drive
+  operation         cold      p50      p95      min      max
+  snapshot           2.7      0.7      1.3      0.7      2.5
+  snapshot -i        0.9      0.8      0.9      0.7      1.1
+  press              4.7      3.6      4.1      3.0      4.4
+  fill         skipped: pass --field <target> to measure it
+  settle           161.0    154.9    166.8    152.7    167.8
+  screenshot        22.6     33.2     34.4     28.6     39.9
+```
 
-| Platform | How |
+Each operation runs once and then `n` more times, and the times are in
+milliseconds. The first call is `cold`, kept out of the rest because it pays
+for whatever starts on first use, which is a different fact from the steady
+state. p50 and p95 are by nearest rank over the other `n`. At least 5 are
+needed, since the p95 of fewer is only the slowest.
+
+| Operation | What runs |
 | --- | --- |
-| web | `npx expo start --web`, and pass its URL as `--url`. |
-| windows | [`expo-windows run`](https://github.com/kat-tax/expo-windows) builds one. Point `--target` at the exe it leaves, or at a running process by name. |
-| android | `npx expo run:android` onto a device or an emulator. |
-| ios | `npx expo run:ios` into a simulator, on a Mac. |
+| `snapshot` | The whole tree. |
+| `snapshot -i` | Only what can be acted on. |
+| `press` | A press on what `--press` names, found afresh each time as `element(…).press()` does in a test. Skipped without `--press`. |
+| `fill` | Types `bench` into the field `--field` names, found afresh each time. The field keeps the text. Skipped without `--field`. |
+| `settle` | The wait each step makes after it acts, on a screen that holds still: the tree read until two reads agree, with the run's settle between them, `--settle` or 150 ms. Skipped with `--settle 0`, which makes the steps wait for nothing, and where the driver waits inside each step by itself, as agent-device does, so its `press` and `fill` include it. |
+| `screenshot` | A PNG, deleted afterwards. |
 
-Screenshots land in `.harness/`. Add it to `.gitignore`.
+`--press` has to name something a press does nothing to, since it is pressed
+every time: a heading, or the tab that is already selected. Nothing in the
+tree says what is safe to press. A container that responds to a press can
+carry no role at all, so `bench` leaves the choice to you.
 
-## Where each platform is driven from
+`bench` times the driver's own work, without the wait for the screen that the
+steps make, which `settle` times apart. On Windows, a synthetic `press` or
+`fill` is refused while someone is using the machine, as it is for the steps,
+and the check runs before every call. Once refused, the operation stops there
+with the refusal as the reason, and the rest is still timed. A press through
+a control's pattern needs no quiet desk.
 
-| Platform | Driven by | Why |
-| --- | --- | --- |
-| windows | This package: the window manager, UI Automation and synthetic input, through PowerShell | `agent-device` has no Windows backend, and a react-native-windows app has no remote protocol. |
-| web | A headless Chromium through `playwright-core` | A browser is already how the web build is tested. |
-| ios, android | `agent-device` | It drives both, and installs its own runners without touching the app. |
+Every run writes its result, every sample included, to
+`.harness/bench/<platform>-<time>.json`, so a before and an after can be
+compared. [Performance](performance.md) has the numbers for each platform on
+real apps.
 
-## On Windows, a flyout is not in the tree
-
-The tree walks the descendants of the app's main window. A WinUI `MenuFlyout`
-opens in a separate top-level window, so a menu plainly open on screen leaves
-no trace in the tree. Look at menus with a screenshot on Windows. A tree that
-says nothing happened is not evidence that nothing did.
-
-## In Git Bash
-
-Git Bash rewrites an argument that looks like an absolute POSIX path, so
-`open /detail` would arrive as `C:/Program Files/Git/detail`. The harness
-undoes that, so routes work as written.
+Screenshots and results land in `.harness/`. Add it to `.gitignore`, which
+`init` does.
 
 ## From Vitest
 
-The same drivers back a test API, so a flow is a test rather than a shell
+The same drivers back the test API, so a flow is a test rather than a shell
 invocation. See [Device tests](device-tests.md).

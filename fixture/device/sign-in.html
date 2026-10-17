@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in</title>
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    label { display: block; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+    <label>Email <input data-testid="email"></label>
+    <label>Recovery code <input data-testid="recovery"></label>
+    <label>Password <input type="password" data-testid="password"></label>
+    <button data-testid="sign-in">Sign in</button>
+  </main>
+  <script>
+    // Signs in once every field holds something, and says who in a heading.
+    document.querySelector('[data-testid=sign-in]').addEventListener('click', () => {
+      const value = id => document.querySelector(`[data-testid=${id}]`).value;
+      if (!value('email') || !value('recovery') || !value('password')) return;
+      const welcome = document.createElement('h1');
+      welcome.textContent = `Welcome, ${value('email')}`;
+      document.querySelector('main').replaceChildren(welcome);
+    });
+  </script>
+</body>
+</html>

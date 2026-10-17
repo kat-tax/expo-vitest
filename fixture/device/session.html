@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Session</title>
+  <style>body { font: 16px sans-serif; margin: 24px; }</style>
+</head>
+<body>
+  <h1>Session</h1>
+  <p data-testid="who">Signed out</p>
+  <button data-testid="sign-in">Sign in</button>
+  <script>
+    // Who is signed in is kept in the page's storage and a cookie, as an app keeps a session.
+    const show = () => {
+      const user = localStorage.getItem('user');
+      document.querySelector('[data-testid=who]').textContent = user && document.cookie.includes('session=') ? 'Signed in as ' + user : 'Signed out';
+    };
+    document.querySelector('[data-testid=sign-in]').addEventListener('click', () => {
+      localStorage.setItem('user', 'Ada');
+      document.cookie = 'session=1; path=/; max-age=3600';
+      show();
+    });
+    show();
+  </script>
+</body>
+</html>

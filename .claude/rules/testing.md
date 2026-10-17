@@ -12,14 +12,15 @@ Two runs, and they prove different things.
 
 ```sh
 bun run test:coverage   # the logic, in Node
-bun run test:fixture    # the packed package, installed, on all four projects
+bun run test:fixture    # the packed package, installed, on all four projects and a device suite on web
 ```
 
 ## The unit tests
 
 One Node project (`nodeProject({name: 'expo-vitest', include: ['src/**/*.test.ts']})`).
-The gate is 100% on all four metrics over the files that are logic:
-`projects.ts`, `forbid-modules.ts`, `windows-resolution.ts` and `timeout.ts`.
+The gate is 100% on all four metrics over the files that are logic, which
+`coverage.include` in `vitest.config.mts` names: the projects and their
+plugins, and the harness's own logic, such as its command line.
 Everything else is covered by the fixture, deliberately: a setup file, a require
 hook or a driver proves nothing when called from Node.
 
@@ -32,7 +33,22 @@ that tests with this package has installed.
 `scripts/fixture.js` copies it outside the package, installs it there from
 `bun.lock`, packs this package as `npm publish` would, unpacks that into the
 copy's `node_modules`, names it in the copy's manifest, and runs the tests by
-name. It is the only thing that can catch what differs when installed:
+name, then `fixture/device/`: on web, against the pages its harness
+config's command serves, one of them for `device.web` with a frame in it,
+which needs a Chromium (`bunx playwright-core install chromium
+--only-shell`), and on a platform the machine cannot drive, whose tests are
+skipped. The agent's tests act with a model of rules from the fixture's
+harness config, which needs no key: the first run records the sign-in, a
+second run of `device/agent` with `FIXTURE_AGENT_REPLAY` replays it, the
+model refusing to act, and `scripts/secret-grep.js` then checks that neither
+of the fixture's made-up secrets is anywhere under `.harness/`. It runs the
+web video test once more with `HARNESS_VIDEO=retain-on-failure`, and checks
+that only the test that fails on purpose kept a `video.webm`. Playwright records with the ffmpeg build its
+own version names, so the copy's playwright-core fetches its own first.
+Last, it takes the copy's configs and tests away, runs `init --yes` from the
+packed command, and runs the component tests on the config it wrote, then
+`init --yes --agent`, and loads the harness config it gave the agent. It is
+the only thing that can catch what differs when installed:
 
 - Node will not strip types under `node_modules`.
 - Vitest leaves what is there out of its module graph unless told otherwise.
@@ -54,6 +70,10 @@ node scripts/fixture.js --update-lockfile
 ## Writing a test here
 
 - `vi.*` only; jest compatibility is off.
+- `src/device/contract.test.ts` is the public surface, and
+  `src/agent/contract.test.ts` the agent's. A change that fails one
+  breaks a consumer; edit it only on purpose, in the commit that makes the
+  change.
 - A test that asserts on a config asserts on what a consumer would see: the
   project's name, its `include` and `exclude`, the plugins it carries. Reaching
   into a plugin's closure proves nothing about the run.

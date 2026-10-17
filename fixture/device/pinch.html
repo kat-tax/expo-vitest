@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pinch</title>
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    #photo { height: 240px; background: #cde; touch-action: none; }
+  </style>
+</head>
+<body>
+  <h1>Pinch</h1>
+  <div id="photo" role="img" aria-label="Photo"></div>
+  <p data-testid="scale">Scale 1.0</p>
+  <p data-testid="fingers">Fingers 0</p>
+  <script>
+    // How far apart the fingers on the photo are against how far apart they
+    // started, as a viewer zooms, read from the pointer events a touch makes.
+    const photo = document.getElementById('photo');
+    const down = new Map();
+    let start = 0;
+    const apart = () => {
+      const [a, b] = [...down.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    photo.addEventListener('pointerdown', event => {
+      down.set(event.pointerId, {x: event.clientX, y: event.clientY});
+      document.querySelector('[data-testid=fingers]').textContent = 'Fingers ' + down.size;
+      if (down.size === 2) start = apart();
+    });
+    photo.addEventListener('pointermove', event => {
+      if (!down.has(event.pointerId)) return;
+      down.set(event.pointerId, {x: event.clientX, y: event.clientY});
+      if (down.size === 2 && start > 0) document.querySelector('[data-testid=scale]').textContent = 'Scale ' + (apart() / start).toFixed(1);
+    });
+    const lift = event => down.delete(event.pointerId);
+    photo.addEventListener('pointerup', lift);
+    photo.addEventListener('pointercancel', lift);
+  </script>
+</body>
+</html>

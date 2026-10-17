@@ -1,4 +1,7 @@
-// Runs the fixture's tests against the package as an app would have it.
+// Runs the fixture's tests against the package as an app would have it: the
+// component projects, then the device tests, on web and on a platform this
+// machine cannot drive. Web needs a Chromium, which
+// `playwright-core install chromium-headless-shell` puts in place.
 //
 //   node scripts/fixture.js
 //   node scripts/fixture.js --update-lockfile
@@ -46,11 +49,27 @@ function run(command, args, options = {}) {
 try {
   fs.cpSync(fixture, scratch, {recursive: true, filter: source => path.basename(source) !== 'node_modules'});
 
+  // An app installs expo-vitest and vitest, and expo-vitest brings the rest:
+  // its dependencies, which npm, bun and yarn put beside the app's own.
+  // Named in the copy's manifest, they are installed so from the lockfile, and
+  // the package is unpacked over them below, which is the layout an install of
+  // it leaves. The app's own manifest, fixture/package.json, names none of them.
+  const brought = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies;
+  const app = JSON.parse(fs.readFileSync(path.join(scratch, 'package.json'), 'utf8'));
+  app.devDependencies = {...brought, ...app.devDependencies};
+  fs.writeFileSync(path.join(scratch, 'package.json'), `${JSON.stringify(app, null, 2)}\n`);
+
   console.log(`==== What an app has installed, in ${scratch}`);
   run('bun', ['install', ...(update ? [] : ['--frozen-lockfile'])], {shell});
   if (update) {
     fs.copyFileSync(path.join(scratch, 'bun.lock'), path.join(fixture, 'bun.lock'));
     console.log('fixture/bun.lock updated');
+  }
+
+  // The live smoke is billed, and runs by hand; it needs the SDK, which nothing else here does.
+  if (process.env.HARNESS_AGENT_SMOKE) {
+    console.log('==== The SDK, for the live smoke');
+    run('bun', ['add', '--dev', '@anthropic-ai/sdk'], {shell});
   }
 
   console.log('==== The package, as published');
@@ -74,8 +93,126 @@ try {
   fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`${tarball}: ${packed.length} files`);
 
+  // The skill ships, and the command an app has prints it.
+  console.log('==== The guide, from the package');
+  const listed = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'guide', '--list'], {cwd: scratch, encoding: 'utf8'});
+  process.stdout.write(listed);
+  if (!listed.includes('device ')) throw new Error('the packed package does not ship the skill guide prints');
+
   console.log('==== The fixture, on it');
   run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
+
+  // A real Chromium over a page the harness config's command serves, with a
+  // trace kept for every test, so the last test can read the ones before it.
+  // Beside it, a platform this machine cannot drive: its tests are skipped
+  // with the driver's reason, and fail where the run requires the platform.
+  const absent = process.platform === 'darwin' ? 'windows' : 'ios';
+  const device = [path.join(modules, 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.config.device.mts'];
+  // Playwright records video with the build of ffmpeg its own version names,
+  // and looks for no other, and Firefox and WebKit are builds that work with
+  // the version that installed them alone. So the copy's playwright-core
+  // fetches its own: ffmpeg, and the browser HARNESS_BROWSER names, once, and
+  // nothing where they are already there.
+  const own = ['ffmpeg', ...(['firefox', 'webkit'].includes(process.env.HARNESS_BROWSER) ? [process.env.HARNESS_BROWSER] : [])];
+  console.log(`==== The fixture's playwright-core, with its ${own.join(' and ')}`);
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'install', ...own]);
+  // Every call the agent makes is kept, so the grep after the runs reads them too.
+  const environment = {...process.env, FIXTURE_ABSENT: absent, HARNESS_TRACE: 'on', HARNESS_AI_TRACE: '1'};
+  console.log(`==== The device tests, on web and on ${absent}, which this machine cannot drive`);
+  const skipped = execFileSync(process.execPath, device, {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '0'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
+  process.stdout.write(skipped);
+  if (!skipped.includes(`no ${absent} device to drive here`)) throw new Error(`the ${absent} tests were not skipped with the driver's reason`);
+  if (!skipped.includes('web cannot home, since a browser has no home screen')) throw new Error('the test that needs a home screen was not skipped on web with the reason');
+  const summarised = fs.readFileSync(path.join(scratch, '.harness', 'summary.md'), 'utf8');
+  if (!/^## expo-vitest · \d+ passed · \d+ skipped/.test(summarised)) throw new Error(`the summary reporter wrote no summary of the run: ${summarised.slice(0, 200)}`);
+  // Vitest's copy of each test's evidence is kept with it, under the folder init has an app ignore.
+  if (fs.existsSync(path.join(scratch, '.vitest-attachments'))) throw new Error('Vitest kept its copies of the evidence in .vitest-attachments, outside .harness/');
+  if (!fs.existsSync(path.join(scratch, '.harness', 'attachments'))) throw new Error('Vitest kept no copies of the evidence in .harness/attachments');
+  // The agent's sign-in was recorded once the assertion after it held, with
+  // each secret by its name; a second run replays it, and the model of rules
+  // refuses to act there, so a pass is the replay's.
+  console.log("==== The agent's sign-in, replayed from the cache it recorded");
+  const cache = path.join(scratch, '.harness', 'cache');
+  // The live smoke, where it ran, records an entry of its own, under its own agent.
+  const recordedEntries = (fs.existsSync(cache) ? fs.readdirSync(cache) : []).map(name => JSON.parse(fs.readFileSync(path.join(cache, name), 'utf8'))).filter(entry => entry.agent.name === 'default');
+  if (recordedEntries.length !== 1) throw new Error(`the agent's run left ${recordedEntries.length} cache entries, not the one sign-in`);
+  const [recordedEntry] = recordedEntries;
+  const filled = recordedEntry.actions.filter(action => action.tool === 'type_secret').map(action => action.input.secret);
+  if (filled.join() !== 'FIXTURE_RECOVERY,FIXTURE_PASSWORD' || recordedEntry.params.password?.secret !== 'FIXTURE_PASSWORD') throw new Error('the cache entry does not keep the secrets by their names');
+  const replayed = execFileSync(process.execPath, [...device, '--project', 'device:web', '--reporter', 'verbose', 'device/agent'], {cwd: scratch, env: {...environment, FIXTURE_AGENT_REPLAY: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']});
+  process.stdout.write(replayed);
+  const typed = path.join(scratch, '.harness', 'results', 'web', 'device', 'agent');
+  const keeps = fs.readdirSync(typed).find(test => test.startsWith('keeps-a-secret'));
+  if (!keeps || !fs.readFileSync(path.join(typed, keeps, 'tree.json'), 'utf8').includes('<secret:FIXTURE_RECOVERY>')) throw new Error('the tree of the test that typed a secret does not hide it');
+  if (fs.existsSync(path.join(typed, keeps, 'screenshot.png'))) throw new Error('the test that typed a secret kept a screenshot');
+  console.log('==== The cache, from the packed command');
+  const cached = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'cache', 'ls'], {cwd: scratch, encoding: 'utf8'});
+  process.stdout.write(cached);
+  if (!cached.includes('device/agent.test.ts > signs in') || !cached.includes('"sign in as {user} with {code} and {password}"')) throw new Error('cache ls does not list the sign-in the agent recorded');
+  const counted = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'cache', 'stats'], {cwd: scratch, encoding: 'utf8'});
+  if (!counted.startsWith(process.env.HARNESS_AGENT_SMOKE ? '2 entries, ' : '1 entry, ')) throw new Error(`cache stats says ${counted}`);
+  console.log("==== No secret's value anywhere under .harness/");
+  run(process.execPath, [path.join(root, 'scripts', 'secret-grep.js'), path.join(scratch, '.harness'), 'fixture-horse-battery', 'rc-4417-fixture-code']);
+  // The reporter named on the command line replaces the config's, so a run
+  // that fails on purpose writes no summary and posts no comment.
+  console.log('==== Video kept for the test that fails, and for no other');
+  let videoRun = '';
+  try {
+    execFileSync(process.execPath, [...device, '--project', 'device:web', '--reporter', 'verbose', 'device/video'], {cwd: scratch, env: {...environment, FIXTURE_VIDEO: '1', HARNESS_VIDEO: 'retain-on-failure'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+    throw new Error('the test that fails on purpose passed');
+  } catch (error) {
+    videoRun = `${error.stdout}${error.stderr}`;
+    if (!`${error.stdout}`.includes('fails on purpose, and keeps its recording')) throw error;
+  }
+  const recorded = path.join(scratch, '.harness', 'results', 'web', 'device', 'video');
+  const kept = fs.readdirSync(recorded).filter(test => fs.existsSync(path.join(recorded, test, 'video.webm')));
+  if (kept.length !== 1 || !kept[0].startsWith('fails-on-purpose')) throw new Error(`video.webm was kept for ${kept.join(', ') || 'no test'}, not for the one test that failed:\n${videoRun}`);
+  if (fs.readFileSync(path.join(recorded, kept[0], 'video.webm')).readUInt32BE(0) !== 0x1a45dfa3) throw new Error('the video.webm kept is not a WebM file');
+  console.log(`video.webm is in ${kept[0]} alone`);
+  console.log(`==== ${absent} required, so its tests fail`);
+  try {
+    execFileSync(process.execPath, [...device, '--project', `device:${absent}`, '--reporter', 'verbose'], {cwd: scratch, env: {...environment, HARNESS_REQUIRE: '1'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+    throw new Error(`the ${absent} tests passed under HARNESS_REQUIRE`);
+  } catch (error) {
+    if (!`${error.stdout}${error.stderr}`.includes('DRIVER_UNAVAILABLE')) throw error;
+    console.log('they failed with DRIVER_UNAVAILABLE');
+  }
+
+  // Last, since it takes the app's own tests and configs away: init on what
+  // a project starting out has, from the packed package's command, and then
+  // the component tests on the config it wrote. The device config it writes
+  // is not run: its command serves the app on the port of an app's own.
+  console.log('==== init --yes, on the app with its tests and configs taken away');
+  for (const name of ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'src', 'device', '.harness']) {
+    fs.rmSync(path.join(scratch, name), {recursive: true, force: true});
+  }
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes']);
+  for (const file of ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'src/platform.test.ts', 'device/example.test.ts', '.claude/skills/expo-vitest/SKILL.md', '.gitignore']) {
+    if (!fs.existsSync(path.join(scratch, file))) throw new Error(`init --yes did not write ${file}`);
+  }
+  console.log('==== The component tests init wrote, on the config it wrote');
+  run(process.execPath, [path.join(modules, 'vitest', 'vitest.mjs'), 'run']);
+  console.log('==== init --yes again, on what it set up');
+  const again = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes'], {cwd: scratch, encoding: 'utf8'});
+  if (/^ {2}wrote /m.test(again)) throw new Error(`init --yes wrote files a second time:\n${again}`);
+  const unnamed = ['vitest.config.mts', 'vitest.config.device.mts', 'harness.config.ts', 'device/example.test.ts', 'package.json', '.gitignore', '.claude/skills/expo-vitest/SKILL.md'].filter(file => !again.includes(file));
+  if (unnamed.length) throw new Error(`init --yes a second time did not say it kept ${unnamed.join(', ')}:\n${again}`);
+  console.log('it wrote nothing, and said why for each file');
+  console.log('==== init --yes --agent, on what it set up');
+  run(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes', '--agent']);
+  // The config it edited loads as the device projects load it, the adapter imported from the package without the SDK, which is loaded at the first call.
+  const model = execFileSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', '--input-type=module', '-e', "const {default: config} = await import('./harness.config.ts'); console.log(config.agents.default.model.id);"], {cwd: scratch, encoding: 'utf8'}).trim();
+  if (model !== 'claude-opus-5-5') throw new Error(`the harness config init --agent wrote names the agent's model as ${model}`);
+  const thrice = execFileSync(process.execPath, [path.join(installed, 'dist', 'harness', 'index.js'), 'init', '--yes', '--agent'], {cwd: scratch, encoding: 'utf8'});
+  if (/^ {2}wrote /m.test(thrice) || !thrice.includes('harness.config.ts has agents already')) throw new Error(`init --yes --agent a second time did not keep the agent:\n${thrice}`);
+  console.log('it gave harness.config.ts the agent, which loads, and kept it the second time');
 } finally {
-  fs.rmSync(scratch, {recursive: true, force: true});
+  try {
+    fs.rmSync(scratch, {recursive: true, force: true, maxRetries: 4, retryDelay: 500});
+  } catch (error) {
+    // A process the run started may hold the copy as its own folder for a
+    // while: agent-device's daemon, started there to say what it can drive,
+    // keeps it until it has been idle some minutes. The tests have answered.
+    console.warn(`left ${scratch} behind: ${error.message}`);
+  }
 }

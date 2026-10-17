@@ -11,11 +11,18 @@
 | `src/setup/` | Each project's setup file. |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | The helpers. |
 | `src/device/` | The device test API and its matchers. |
+| `src/render/` | A unit test's device: the tree a render left, read as a device's, and acted on through React Native Testing Library or user-event. |
+| `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter. |
 | `src/harness/` | The drivers and the `expo-harness` command. |
+| `src/cli/` | `init`, `guide` and `cache`. |
+| `src/reporter/` | The summary and GitHub reporters. |
+| `skills/expo-vitest/` | The skill for coding agents, which `guide` prints and `init` copies. |
 | `fixture/` | A library the size of one constant, tested against the packed package. |
-| `scripts/` | The build and the fixture run. |
+| `testapp/` | An Expo app of the usual kind, with a device suite, run against the packed package. |
+| `scripts/` | The build, and the fixture and test app runs. |
 
-`AGENTS.md` at the root has the conventions.
+`AGENTS.md` at the root has the conventions, and `ROADMAP.md` what is left
+to build.
 
 ## Checks
 
@@ -26,6 +33,19 @@ bun run typecheck
 bun run test:coverage   # 100% on the files the gate names
 bun run test:fixture    # the package, packed and installed
 ```
+
+## The public surface
+
+`src/device/contract.test.ts` pins what a consumer depends on: the members of
+`device` and `element` and what each takes, the selector and tree shapes, the
+four matchers, what `deviceConfig()` returns, the environment variables, the
+`expo-harness` steps and options, and the messages a person reads most. An
+addition passes it. A rename, a removal, a changed default or a changed
+message fails it, and a changed type fails `bun run typecheck`, which checks
+the tests too.
+
+A failure there means the change would break someone. Edit the test only on
+purpose, in the commit that makes the change, and say why in the message.
 
 ## It runs from source here, and from `dist` installed
 
@@ -40,8 +60,12 @@ which answers the `.ts` from source and the `.js` when compiled.
 ## The fixture
 
 `fixture/` is a library the size of one constant, with a file per platform and
-one test for each rule a test file's name follows. Its manifest is what an app
-that tests with `expo-vitest` has installed.
+one test for each rule a test file's name follows. One of them renders a
+component on all four platforms and asserts the same tree on each, and keeps
+a snapshot in each platform's folder, which is committed, so CI fails where a
+platform's snapshot is not where it should be. Its manifest is what an app
+that tests with `expo-vitest` has installed: the app's own packages and
+vitest.
 
 ```sh
 bun run test:fixture
@@ -50,7 +74,28 @@ bun run test:fixture
 This copies the fixture to a folder outside the package, installs it there
 from `bun.lock`, packs the package as `npm publish` would, unpacks that into
 the copy's `node_modules`, names it in the copy's manifest, and runs the tests
-against it by name.
+against it by name. Then it runs `fixture/device/`, device tests on web as an
+app's device tests run: a project per platform, with the page they drive
+served by the command `fixture/harness.config.ts` names. They touch the
+queries, the actions, the matchers, the evidence, a screenshot and the
+`expo-harness` command. Beside web is a platform the machine cannot drive,
+whose tests are skipped with the driver's reason, and fail when the run
+requires it. Web needs a Chromium in place:
+
+```sh
+bunx expo-harness install
+```
+
+`HARNESS_BROWSER=webkit` or `firefox` runs the device tests in that browser
+instead, and `HARNESS_CDP` in a Chromium already running. The copy's own
+`playwright-core` fetches the browser named, and the ffmpeg it records video
+with, since it takes no build but its own.
+
+Last, it takes the copy's configs and tests away, runs `init --yes` from the
+packed package's command, and runs the unit tests on what `init` wrote,
+which proves that a project set up that way runs. Then `init --yes --agent`
+gives the harness config the agent, and the config is loaded to read its
+model back.
 
 It is how the package is known to work installed, which its source cannot
 say. Three things differ for an installed package:
@@ -71,11 +116,100 @@ After changing `fixture/package.json`:
 node scripts/fixture.js --update-lockfile
 ```
 
+## The test app
+
+`testapp/` is an app of the kind this package is for, on Expo Router and
+expo-interface: onboarding, sign-in, sign-up and a forgotten password, notes
+with a search, filters and each row's own menu, a note's editor that asks
+before it throws an edit away, and settings with one of each kind of
+control, a field checked as it changes, and actions behind a confirmation.
+Its data stays on the device, seeded on the first launch, and it signs in
+with a demo account written in the app: `ada@example.com`, password
+`testapp-demo-pass`. `testapp/device/` is the suite an app would write
+for it.
+
+```sh
+bun run test:testapp                                  # on web
+TESTAPP_PLATFORMS=android,web bun run test:testapp    # and on a device
+bun run test:testapp device/sign-in                   # the files whose paths match
+```
+
+As with the fixture, the app is copied outside the package and installed
+there from its own lockfile, with the packed package unpacked into its
+`node_modules`. The lockfile is the one an install of expo-vitest leaves,
+with what expo-vitest brings beside the app's own packages, so the app is
+installed in place, as to build it, with `bun install --no-save`, which
+leaves the lockfile as it is. Web is served by Expo's dev server, which the
+run starts on a port of its own.
+
+On Android the suite drives the app's development build, which loads its
+JavaScript from the dev server the run starts on port 41752, reached
+through `adb reverse`:
+
+```sh
+cd testapp && bun install --no-save && npx expo prebuild --platform android --no-install
+cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64
+adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 reverse tcp:41752 tcp:41752
+cd ../.. && TESTAPP_PLATFORMS=android HARNESS_TARGET=emulator-5554 HARNESS_METRO=http://localhost:41752 bun run test:testapp
+```
+
+Each first launch opens the build through its `exp+testapp` link to that
+server, so a dev server someone has on 8081 is never used, and
+`HARNESS_METRO` keeps the React tree's reads on it too. A whole run needs an
+emulator with 4 GB (`emulator -avd <name> -memory 4096`). The tests that
+show expo-interface's Android bugs
+([kat-tax/expo-interface#22](https://github.com/kat-tax/expo-interface/issues/22))
+are marked failing there, as two are on web.
+
+On Windows the suite drives the Release build that expo-windows' own build
+script makes from the app, with its JavaScript bundled in:
+
+```sh
+APP_SOURCE="$PWD/testapp" \
+EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.32.0" \
+EXPECT_LINKED=ExpoInterface \
+  bash path/to/expo-windows/ci/build.sh .harness/win
+TESTAPP_PLATFORMS=windows HARNESS_TARGET="$(cygpath -aw .harness/win/WinCi/windows/x64/Release/TestApp.exe)" bun run test:testapp
+```
+
+The build needs what react-native-windows needs: Visual Studio with the C++
+workload and the Windows 11 SDK, and PowerShell 7 and a .NET SDK on the PATH.
+The app keeps its storage in `%LOCALAPPDATA%/TestApp`, which `clearState`
+deletes. A step that needs synthetic input waits for a quiet desk, or goes
+ahead with `HARNESS_FORCE=1`.
+
+On iOS the suite drives a simulator build of the same development build,
+whose dev server the run starts on port 41754. The suite cannot sign in there
+yet: expo-interface's iOS form buttons take a press only on what they draw,
+and a press goes to the middle of a button's frame, which is the whole row.
+
+```sh
+cd testapp && bun install --no-save && npx expo prebuild --platform ios
+WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+xcodebuild -workspace "$WORKSPACE" -scheme "$(basename "$WORKSPACE" .xcworkspace)" -configuration Debug \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/*.app
+cd .. && TESTAPP_PLATFORMS=ios HARNESS_TARGET=<udid> HARNESS_METRO=http://localhost:41754 bun run test:testapp
+```
+
+Its harness config gives the agent a model of rules, `testapp/device/rules.mts`,
+which explores a sign-in with a wrong password, so `expo-harness explore`
+runs against the app with no key, as `expo-harness mcp` serves it to a
+coding agent.
+
+After changing `testapp/package.json`:
+
+```sh
+node scripts/testapp.js --update-lockfile
+```
+
 ## CI
 
 | Workflow | When | What |
 | --- | --- | --- |
-| `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture. |
+| `ci.yml` | Pushes to `master` and pull requests | Lint, typecheck, the tests with coverage, the fixture with its device tests on web. A second job runs the tests with coverage on Windows and compiles the Windows host there. |
+| `testapp.yml` | Pull requests that change the package's source, the test app, or how it runs | The test app's suite from the packed package: on web, on an Android emulator from its development build, and on Windows from the Release build expo-windows makes. Each build is cached by what it is made of, since none of the package is in it, and is saved as soon as it is built. Each job uploads what its run saw. Its iOS job, on a simulator, is off until the suite can sign in there. |
 | `release.yml` | A `v*` tag matching `package.json` | Re-runs the checks, publishes to npm with provenance, creates a GitHub release. |
 
 ## Commits and writing

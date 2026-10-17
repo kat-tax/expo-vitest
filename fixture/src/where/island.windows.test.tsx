@@ -1,5 +1,5 @@
-import {render} from '@testing-library/react-native';
 import {Platform, Pressable} from 'react-native';
+import {render} from 'expo-vitest';
 import {fireIsland, island, islands} from 'expo-vitest/windows';
 
 // A `.windows.test.tsx` runs on Windows only.

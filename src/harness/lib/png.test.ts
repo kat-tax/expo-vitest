@@ -1,6 +1,7 @@
 import zlib from 'node:zlib';
 import {describe, expect, it} from 'vitest';
-import {comparePng, decodePng, encodePng} from './png.ts';
+import {clampRect, cropImage, MASK, maskImage, resizeImage, scaleRect} from './image.ts';
+import {compareImages, comparePng, decodePng, encodePng} from './png.ts';
 import type {Image} from './png.ts';
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -129,5 +130,82 @@ describe('comparePng', () => {
     expect(result.comparable).toBe(false);
     expect(result.ratio).toBe(1);
     expect(result.reason).toMatch(/2x2 and this is 3x2/);
+  });
+});
+
+/** An 8 by 8 grey picture with one pixel changed, where asked. */
+function grey(changed?: {x: number; y: number}): Image {
+  const picture = image(8, 8, [128, 128, 128, 255]);
+  if (changed) picture.pixels.set([0, 0, 0, 255], (changed.y * 8 + changed.x) * 4);
+  return picture;
+}
+
+describe('the geometry a screenshot is compared over', () => {
+  it('hides a changed pixel under a mask painted in both pictures', () => {
+    const baseline = grey();
+    const now = grey({x: 2, y: 3});
+    expect(compareImages(baseline, now).different).toBe(1);
+    const masked = (picture: Image) => maskImage(picture, [{x: 1, y: 2, width: 3, height: 3}]);
+    expect(compareImages(masked(baseline), masked(now)).different).toBe(0);
+    expect([...masked(now).pixels.subarray((3 * 8 + 2) * 4, (3 * 8 + 2) * 4 + 4)]).toEqual([...MASK]);
+    expect(now.pixels[(3 * 8 + 2) * 4]).toBe(0);
+  });
+
+  it('compares only what a crop keeps', () => {
+    const crop = {x: 4, y: 4, width: 4, height: 4};
+    const kept = cropImage(grey({x: 1, y: 1}), crop) as Image;
+    expect([kept.width, kept.height]).toEqual([4, 4]);
+    expect(compareImages(cropImage(grey(), crop) as Image, kept).different).toBe(0);
+    const changedInside = cropImage(grey({x: 5, y: 6}), crop) as Image;
+    expect(compareImages(cropImage(grey(), crop) as Image, changedInside).different).toBe(1);
+    expect([...changedInside.pixels.subarray(((6 - 4) * 4 + (5 - 4)) * 4, ((6 - 4) * 4 + (5 - 4)) * 4 + 4)]).toEqual([0, 0, 0, 255]);
+  });
+
+  it('scales a rectangle in tree units into pixels, rounded outward', () => {
+    expect(scaleRect({x: 10, y: 20, width: 30, height: 40}, 2)).toEqual({x: 20, y: 40, width: 60, height: 80});
+    expect(scaleRect({x: 10.5, y: 0, width: 10, height: 1.2}, 1.5)).toEqual({x: 15, y: 0, width: 16, height: 2});
+    expect(scaleRect({x: 1, y: 1, width: 1, height: 1}, 1)).toEqual({x: 1, y: 1, width: 1, height: 1});
+  });
+
+  it('clamps a rectangle to the picture, and drops one wholly outside', () => {
+    expect(clampRect({x: -2, y: 6, width: 4, height: 10}, 8, 8)).toEqual({x: 0, y: 6, width: 2, height: 2});
+    expect(clampRect({x: 8, y: 0, width: 2, height: 2}, 8, 8)).toBeNull();
+    expect(clampRect({x: 1, y: 1, width: 0, height: 3}, 8, 8)).toBeNull();
+    const outside = maskImage(grey(), [{x: 20, y: 20, width: 2, height: 2}]);
+    expect(compareImages(outside, grey()).different).toBe(0);
+    expect(cropImage(grey(), {x: 20, y: 20, width: 2, height: 2})).toBeNull();
+    expect(cropImage(grey(), {x: 6, y: 6, width: 10, height: 10})).toMatchObject({width: 2, height: 2});
+  });
+
+  it('paints a mask the colour asked', () => {
+    const painted = maskImage(grey(), [{x: 0, y: 0, width: 1, height: 1}], [1, 2, 3, 4]);
+    expect([...painted.pixels.subarray(0, 4)]).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('a picture made smaller', () => {
+  it('keeps its shape, its long side at most the size asked', () => {
+    const big = resizeImage(image(2000, 1000, [10, 20, 30, 255]), 768);
+    expect([big.width, big.height, big.pixels.length]).toEqual([768, 384, 768 * 384 * 4]);
+    expect([...big.pixels.subarray(0, 4)]).toEqual([10, 20, 30, 255]);
+    const tall = resizeImage(image(300, 2000, [0, 0, 0, 255]), 768);
+    expect([tall.width, tall.height]).toEqual([115, 768]);
+    expect(resizeImage(image(4000, 2, [0, 0, 0, 255]), 768).height).toBe(1);
+  });
+
+  it('averages what each new pixel covers, weighted by how much of each', () => {
+    const halves = image(4, 2, [0, 0, 0, 255]);
+    for (const at of [2, 3, 6, 7]) halves.pixels.set([255, 255, 255, 255], at * 4);
+    expect([...resizeImage(halves, 2).pixels]).toEqual([0, 0, 0, 255, 255, 255, 255, 255]);
+    const ramp = image(3, 1, [0, 0, 0, 0]);
+    ramp.pixels.set([90, 90, 90, 90], 4);
+    ramp.pixels.set([180, 180, 180, 180], 8);
+    // Each new pixel covers one and a half old ones: (0 + 90 / 2) / 1.5, then (90 / 2 + 180) / 1.5.
+    expect([...resizeImage(ramp, 2).pixels]).toEqual([30, 30, 30, 30, 150, 150, 150, 150]);
+  });
+
+  it('leaves a picture that is small enough as it is', () => {
+    const small = image(768, 400, [1, 2, 3, 4]);
+    expect(resizeImage(small, 768)).toBe(small);
   });
 });

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import os from 'node:os';
-import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, nodeProject, SELF, selfAliases, SUBPATHS} from './projects.ts';
+import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, SELF, selfAliases, snapshotsFor, SUBPATHS} from './projects.ts';
 
 const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE, 'package.json'), 'utf8'));
@@ -18,6 +18,8 @@ describe('the subpaths', () => {
       .filter(key => !['.', './types', './package.json'].includes(key))
       .map(key => key.slice(2));
     expect(Object.keys(SUBPATHS).sort()).toEqual(exported.sort());
+    expect(fs.existsSync(path.join(PACKAGE, 'src', MAIN))).toBe(true);
+    expect(manifest.exports['.'].default).toBe(`./dist/${MAIN.replace(/\.ts$/, '.js')}`);
     for (const [subpath, source] of Object.entries(SUBPATHS)) {
       expect(fs.existsSync(path.join(PACKAGE, 'src', source)), subpath).toBe(true);
       // The compiled file the export names is the source's, under `dist`.
@@ -30,11 +32,14 @@ describe('the subpaths', () => {
     // Compiled, the file beside this one is JavaScript, whatever it was.
     expect(file('router.tsx', true)).toBe(path.join(PACKAGE, 'src', 'router.js'));
     const aliases = selfAliases();
-    expect(aliases).toHaveLength(Object.keys(SUBPATHS).length);
+    expect(aliases).toHaveLength(Object.keys(SUBPATHS).length + 1);
     const router = aliases.find(alias => (alias.find as RegExp).test('expo-vitest/router'));
     expect(router?.replacement).toBe(path.join(PACKAGE, 'src', 'router.tsx'));
-    // A subpath is matched whole: `device` is not `device/matchers`.
-    expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/device/matchers'))).toHaveLength(1);
+    // The entry is the package's own name, and nothing under it.
+    const main = aliases.filter(alias => (alias.find as RegExp).test('expo-vitest'));
+    expect(main.map(alias => alias.replacement)).toEqual([path.join(PACKAGE, 'src', 'index.ts')]);
+    // A subpath is matched whole: `agent` is not `agent/anthropic`.
+    expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/agent/anthropic'))).toHaveLength(1);
     expect(aliases.filter(alias => (alias.find as RegExp).test('expo-vitest/windows/more'))).toHaveLength(0);
   });
 });
@@ -90,8 +95,9 @@ describe('expoProjects', () => {
     expect(ios.exclude).toEqual(expect.arrayContaining(['**/*.web.test.*', '**/*.android.test.*', '**/*.windows.test.*']));
     expect(android.exclude).toEqual(expect.arrayContaining(['**/*.ios.test.*']));
     expect(android.exclude).not.toContain('**/*.android.test.*');
-    expect(windows.include).toEqual(['src/**/*.windows.test.{ts,tsx}', 'src/**/*.test.ts']);
-    expect(windows.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.web.test.*']));
+    // Every platform takes a test that renders, Windows as well, unless the name picks others.
+    expect(windows.include).toEqual(['src/**/*.test.{ts,tsx}']);
+    expect(windows.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.web.test.*', '**/*.ios.test.*', '**/*.android.test.*']));
     expect(web.exclude).toEqual(expect.arrayContaining(['**/*.native.test.*', '**/*.windows.test.*']));
     // Vite's root as well as Vitest's: the engine's plugins read the first.
     expect(projects.map(project => project.root)).toEqual([PACKAGE, PACKAGE, PACKAGE, PACKAGE]);
@@ -157,10 +163,106 @@ describe('nodeProject and deviceConfig', () => {
     expect(testOf(nodeProject({name: 'cli', include: []}))).toMatchObject({root: process.cwd(), testTimeout: 15_000});
   });
 
+  it("keeps each platform's snapshots apart, through a snapshot environment that knows the platform", () => {
+    const environment = path.join(PACKAGE, 'src', 'setup', 'snapshots.ts');
+    expect(snapshotsFor('android')).toEqual({snapshotEnvironment: environment, env: {EXPO_VITEST_PLATFORM: 'android'}});
+    const projects = expoProjects({root: PACKAGE}).map(testOf);
+    expect(projects.map(project => [project.snapshotEnvironment, project.env.EXPO_VITEST_PLATFORM])).toEqual(['ios', 'android', 'windows', 'web'].map(platform => [environment, platform]));
+    // A device project's platform is its HARNESS_PLATFORM, which the environment reads too.
+    const [android] = (deviceConfig({platforms: ['android'], root: PACKAGE}).test?.projects ?? []) as {test: Record<string, any>}[];
+    expect(android!.test).toMatchObject({snapshotEnvironment: environment, env: {HARNESS_PLATFORM: 'android'}});
+    expect(testOf(deviceConfig()).snapshotEnvironment).toBe(environment);
+  });
+
   it('runs device tests one at a time, with the matchers registered', () => {
     const device = testOf(deviceConfig());
-    expect(device).toMatchObject({name: 'device', include: ['device/**/*.test.ts'], fileParallelism: false, maxWorkers: 1, testTimeout: 120_000, hookTimeout: 120_000});
+    expect(device).toMatchObject({name: 'device', include: ['device/**/*.test.ts'], fileParallelism: false, maxWorkers: 1, testTimeout: 120_000, hookTimeout: 120_000, attachmentsDir: '.harness/attachments'});
     expect(device.setupFiles).toEqual([path.join(PACKAGE, 'src', 'device', 'matchers.ts')]);
     expect(testOf(deviceConfig({include: ['e2e/**/*.test.ts'], timeout: 10}))).toMatchObject({include: ['e2e/**/*.test.ts'], testTimeout: 10});
+  });
+
+  it('hands the waits after a step to the tests through their environment, and nothing when none was given', () => {
+    expect(testOf(deviceConfig({settle: 0, transition: 300})).env).toEqual({HARNESS_SETTLE: '0', HARNESS_TRANSITION: '300'});
+    expect(testOf(deviceConfig({settle: false})).env).toEqual({HARNESS_SETTLE: '0'});
+    expect(testOf(deviceConfig({transition: false})).env).toEqual({HARNESS_TRANSITION: '0'});
+    expect(testOf(deviceConfig())).not.toHaveProperty('env');
+  });
+
+  it('hands how long a wait looks, and how long an absence must hold, to the tests the same way', () => {
+    expect(testOf(deviceConfig({assertionTimeout: 8000, stable: 500})).env).toEqual({HARNESS_ASSERTION_TIMEOUT: '8000', HARNESS_STABLE: '500'});
+  });
+});
+
+describe('deviceConfig with platforms', () => {
+  const projectsOf = (config: {test?: {projects?: unknown}}) => (config.test?.projects ?? []) as {root: string; test: Record<string, any>}[];
+  const folder = () => fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'expo-vitest-harness-'));
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is a project per platform, in the order given, each once', () => {
+    const names = projectsOf(deviceConfig({platforms: ['android', 'web', 'android']})).map(project => project.test.name);
+    expect(names).toEqual(['device:android', 'device:web']);
+  });
+
+  it("takes each project's platform over the shell's, and the waits as the single form does", () => {
+    vi.stubEnv('HARNESS_PLATFORM', 'ios');
+    const [web] = projectsOf(deviceConfig({platforms: ['web'], settle: false, assertionTimeout: 8000, include: ['e2e/**/*.test.ts'], timeout: 10}));
+    expect(web!.test).toMatchObject({
+      env: {HARNESS_PLATFORM: 'web', HARNESS_SETTLE: '0', HARNESS_ASSERTION_TIMEOUT: '8000'},
+      include: ['e2e/**/*.test.ts'],
+      testTimeout: 10,
+      hookTimeout: 10,
+      provide: {'harness.platform': 'web'},
+      attachmentsDir: '.harness/attachments',
+    });
+  });
+
+  it('finds the harness config at the root, or takes the one named, or the environment\'s', () => {
+    const root = folder();
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBeNull();
+    fs.writeFileSync(path.join(root, 'harness.config.mts'), 'export default {};');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'harness.config.mts'));
+    fs.mkdirSync(path.join(root, 'e2e'));
+    fs.writeFileSync(path.join(root, 'e2e', 'harness.ts'), 'export default {};');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root, harness: 'e2e/harness.ts'}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'e2e', 'harness.ts'));
+    vi.stubEnv('HARNESS_CONFIG', 'e2e/harness.ts');
+    expect(projectsOf(deviceConfig({platforms: ['web'], root}))[0]!.test.provide['harness.file']).toBe(path.join(root, 'e2e', 'harness.ts'));
+    expect(() => deviceConfig({platforms: ['web'], root, harness: 'gone.ts'})).toThrow(expect.objectContaining({code: 'INVALID_CONFIG'}));
+  });
+
+  it("runs a pool's files side by side, each pooled platform in a group of its own", () => {
+    const root = folder();
+    fs.writeFileSync(path.join(root, 'harness.config.mjs'), "export default {app: {android: {devices: ['Pixel_8', 'Pixel_9']}, web: {workers: 3}}};");
+    const [web, android, ios] = projectsOf(deviceConfig({platforms: ['web', 'android', 'ios'], root}));
+    expect([web, android, ios].map(project => [project!.test.maxWorkers, project!.test.fileParallelism, project!.test.sequence])).toEqual([
+      [3, true, {setupFiles: 'list', groupOrder: 1}],
+      [2, true, {setupFiles: 'list', groupOrder: 2}],
+      [1, false, {setupFiles: 'list'}],
+    ]);
+    vi.stubEnv('HARNESS_TARGET', 'emulator-5554');
+    expect(projectsOf(deviceConfig({platforms: ['android'], root}))[0]!.test.maxWorkers).toBe(1);
+  });
+
+  it("takes the root from HARNESS_ROOT, else the working directory, for Vite and for Vitest", () => {
+    const root = folder();
+    vi.stubEnv('HARNESS_ROOT', root);
+    const [fromEnvironment] = projectsOf(deviceConfig({platforms: ['web']}));
+    expect([fromEnvironment!.root, fromEnvironment!.test.root, fromEnvironment!.test.provide['harness.root']]).toEqual([root, root, root]);
+    vi.unstubAllEnvs();
+    expect(projectsOf(deviceConfig({platforms: ['web']}))[0]!.root).toBe(process.cwd());
+  });
+
+  it("keeps the reporters at the config's root, in either form, and adds none unless given", () => {
+    const reporters = ['default', {onTestRunEnd: () => {}}];
+    expect(deviceConfig({reporters}).test?.reporters).toBe(reporters);
+    expect(deviceConfig({platforms: ['web'], reporters}).test?.reporters).toBe(reporters);
+    expect(deviceConfig({platforms: ['web']}).test).not.toHaveProperty('reporters');
+  });
+
+  it('refuses a platform it does not know, none at all, and harness or root without platforms', () => {
+    expect(() => deviceConfig({platforms: ['macos' as 'web']})).toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'deviceConfig takes platforms from web, windows, android, ios, not "macos"'}));
+    expect(() => deviceConfig({platforms: []})).toThrow('deviceConfig takes platforms from web, windows, android, ios, at least one');
+    expect(() => deviceConfig({harness: 'harness.config.ts'})).toThrow(expect.objectContaining({code: 'INVALID_ARGUMENT', message: 'deviceConfig takes harness and root with platforms, which say what they are for'}));
+    expect(() => deviceConfig({root: '.'})).toThrow('deviceConfig takes harness and root with platforms');
   });
 });

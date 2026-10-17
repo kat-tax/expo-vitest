@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Profile</title>
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    [hidden] { display: none; }
+    li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <h1>Profile</h1>
+  <label>Name <input data-testid="name" placeholder="Your name"></label>
+  <label><input type="checkbox" data-testid="news"> Send me news</label>
+  <button data-testid="save">Save</button>
+  <button data-testid="reset">Reset</button>
+  <div role="progressbar" aria-label="Saving" data-testid="spinner" hidden>Saving</div>
+  <p role="status" data-testid="saved" hidden>Saved</p>
+  <p data-testid="scheme">Scheme: light</p>
+  <p data-testid="online">Online: true</p>
+  <a href="/drafts">All drafts</a>
+  <p data-testid="clock">Tick 0</p>
+  <button data-testid="clock-start">Start the clock</button>
+  <ul aria-label="Drafts">
+    <li>First draft</li>
+    <li>Second draft</li>
+    <li>Third draft</li>
+  </ul>
+  <script>
+    // A save that takes a moment, as a real one does: a spinner, then a note.
+    document.querySelector('[data-testid=save]').addEventListener('click', () => {
+      const spinner = document.querySelector('[data-testid=spinner]');
+      const saved = document.querySelector('[data-testid=saved]');
+      saved.hidden = true;
+      spinner.hidden = false;
+      setTimeout(() => {
+        spinner.hidden = true;
+        saved.hidden = false;
+      }, 400);
+    });
+    // What the device's settings look like from the page.
+    const dark = matchMedia('(prefers-color-scheme: dark)');
+    const scheme = () => (document.querySelector('[data-testid=scheme]').textContent = 'Scheme: ' + (dark.matches ? 'dark' : 'light'));
+    const online = () => (document.querySelector('[data-testid=online]').textContent = 'Online: ' + navigator.onLine);
+    dark.addEventListener('change', scheme);
+    addEventListener('online', online);
+    addEventListener('offline', online);
+    scheme();
+    online();
+    // A clock that ticks once it is started, so the screen holds still for every test but the one about it.
+    document.querySelector('[data-testid=clock-start]').addEventListener('click', () => {
+      let tick = 0;
+      setInterval(() => (document.querySelector('[data-testid=clock]').textContent = 'Tick ' + ++tick), 50);
+    });
+    document.querySelector('[data-testid=reset]').addEventListener('click', () => {
+      document.querySelector('[data-testid=name]').value = '';
+      document.querySelector('[data-testid=news]').checked = false;
+      document.querySelector('[data-testid=saved]').hidden = true;
+    });
+  </script>
+</body>
+</html>

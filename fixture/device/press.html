@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Press</title>
+  <style>body { font: 16px sans-serif; margin: 24px; }</style>
+</head>
+<body>
+  <h1>Press</h1>
+  <button data-testid="open">Open</button>
+  <p data-testid="clicks">Clicks: 0</p>
+  <p data-testid="opened" hidden>Opened by a double click</p>
+  <div style="position: relative; width: 240px; height: 48px;">
+    <button data-testid="behind" style="width: 100%; height: 100%;">Behind</button>
+    <div role="note" aria-label="Notice over it" style="position: absolute; inset: 0; background: #fe8;">A notice over the button</div>
+  </div>
+  <p data-testid="behind-pressed" hidden>Pressed behind</p>
+  <div style="height: 2000px;"></div>
+  <button data-testid="far">Far down</button>
+  <p data-testid="far-pressed" hidden>Pressed far down</p>
+  <script>
+    // Each click counts, and two the browser counts as one double click open.
+    let clicks = 0;
+    const open = document.querySelector('[data-testid=open]');
+    open.addEventListener('click', () => (document.querySelector('[data-testid=clicks]').textContent = 'Clicks: ' + ++clicks));
+    open.addEventListener('dblclick', () => (document.querySelector('[data-testid=opened]').hidden = false));
+    // A press on either shows that it landed: one is under a notice, the other below the fold.
+    for (const id of ['behind', 'far']) document.querySelector('[data-testid=' + id + ']').addEventListener('click', () => (document.querySelector('[data-testid=' + id + '-pressed]').hidden = false));
+  </script>
+</body>
+</html>

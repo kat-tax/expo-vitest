@@ -6,6 +6,10 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {configDefaults} from 'vitest/config';
 import {vitestExpo, vitestExpoProjects} from 'vitest-expo';
+import {findHarnessFile, loadHarnessSync, poolSize} from './device/config.ts';
+import './device/provided.ts';
+import {HarnessError} from './harness/lib/errors.ts';
+import {PLATFORMS} from './harness/lib/types.ts';
 import {forbidModules} from './forbid-modules.ts';
 import {EXPO_WEB_PACKAGES, metroCompat} from './metro-compat.ts';
 import {TEST_TIMEOUT} from './timeout.ts';
@@ -17,14 +21,20 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Whether this is the compiled package rather than its source: the files beside it are `.js` then. */
 const BUILT = !fileURLToPath(import.meta.url).endsWith('.ts');
 
+/** The package's own entry, the tests' API, by its source file. */
+export const MAIN = 'index.ts';
+
 /** The package's subpaths, by the source file each is. `package.json`'s `exports` say the same; a test keeps them in step. */
 export const SUBPATHS: Record<string, string> = {
+  config: 'config.ts',
+  matchers: 'device/matchers.ts',
   native: 'native.ts',
   windows: 'windows.ts',
   router: 'router.tsx',
-  device: 'device/index.ts',
-  'device/matchers': 'device/matchers.ts',
+  reporter: 'reporter/index.ts',
   'metro-compat': 'metro-compat.ts',
+  agent: 'agent/index.ts',
+  'agent/anthropic': 'agent/anthropic.ts',
 };
 
 /** A file of this package, as it is on disk here: source in the repository, compiled once installed. */
@@ -33,12 +43,16 @@ export function file(source: string, built = BUILT): string {
 }
 
 /**
- * The package's own subpaths as absolute files, so that a test's import of
- * `expo-vitest/windows` and the setup files land on one copy of each module
- * whether the package is a workspace or installed.
+ * The package's own entry and subpaths as absolute files, so that a test's
+ * import of `expo-vitest` or `expo-vitest/windows` and the setup files land
+ * on one copy of each module whether the package is a workspace or
+ * installed.
  */
 export function selfAliases(): Alias[] {
-  return Object.entries(SUBPATHS).map(([subpath, source]) => ({find: new RegExp(`^expo-vitest/${subpath}$`), replacement: file(source)}));
+  return [
+    {find: /^expo-vitest$/, replacement: file(MAIN)},
+    ...Object.entries(SUBPATHS).map(([subpath, source]) => ({find: new RegExp(`^expo-vitest/${subpath}$`), replacement: file(source)})),
+  ];
 }
 
 /**
@@ -141,6 +155,18 @@ export interface ExpoProjectsOptions {
   };
 }
 
+/**
+ * What keeps a platform's snapshots apart from the others': a snapshot
+ * environment that puts them in a folder named for the platform, which the
+ * project names. One test file runs on several platforms, and what each
+ * renders is its own to compare against, as a screenshot baseline is.
+ * Vitest takes `resolveSnapshotPath` at the root alone, and a snapshot
+ * environment in each project.
+ */
+export function snapshotsFor(platform: Platform): {snapshotEnvironment: string; env: {EXPO_VITEST_PLATFORM: Platform}} {
+  return {snapshotEnvironment: file('setup/snapshots.ts'), env: {EXPO_VITEST_PLATFORM: platform}};
+}
+
 /** The test files a platform leaves to the others. */
 const OTHERS: Record<Platform, string[]> = {
   ios: ['**/*.web.test.*', '**/*.android.test.*', '**/*.windows.test.*'],
@@ -154,15 +180,15 @@ const OTHERS: Record<Platform, string[]> = {
 /**
  * One Vitest project per platform, for code that resolves a different file on
  * each (`index.ios.tsx`, `index.android.tsx`, `index.web.tsx`,
- * `index.windows.tsx`). A test file picks its platforms by name:
+ * `index.windows.tsx`). A test file runs on every platform unless its name
+ * picks some:
  *
- * - `*.test.ts`             every platform, Windows included
- * - `*.test.tsx`            iOS, Android and web
- * - `*.native.test.tsx`     iOS and Android
- * - `*.ios.test.tsx`        iOS only
- * - `*.android.test.tsx`    Android only
- * - `*.web.test.tsx`        web only
- * - `*.windows.test.tsx`    Windows only
+ * - `*.test.ts`, `*.test.tsx`   every platform
+ * - `*.native.test.tsx`         iOS and Android
+ * - `*.ios.test.tsx`            iOS only
+ * - `*.android.test.tsx`        Android only
+ * - `*.web.test.tsx`            web only
+ * - `*.windows.test.tsx`        Windows only
  *
  * iOS and Android run on vitest-native's engines through `vitest-expo`. Web
  * is react-native-web in jsdom, with the dependency optimizer pre-bundling the
@@ -204,6 +230,7 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           ...common,
           include: everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS[platform]],
+          ...snapshotsFor(platform),
           setupFiles: [file('setup/native.ts')],
           server: {deps: {inline}},
         },
@@ -222,8 +249,9 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           ...preset.test,
           ...common,
           name: windows.name ?? 'windows',
-          include: windows.include ?? folders.flatMap(folder => [`${folder}/**/*.windows.test.{ts,tsx}`, `${folder}/**/*.test.ts`]),
+          include: windows.include ?? everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS.windows],
+          ...snapshotsFor('windows'),
           setupFiles: [file('setup/windows.ts')],
           server: {deps: {inline}},
         },
@@ -259,6 +287,7 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           name: 'web',
           include: everyTest,
           exclude: [...configDefaults.exclude, ...OTHERS.web],
+          ...snapshotsFor('web'),
           setupFiles: [file('setup/web.ts')],
           server: {deps: {inline: [SELF]}},
           deps: {
@@ -294,33 +323,139 @@ export function nodeProject(options: {name: string; include: string[]; root?: st
 }
 
 
+export interface DeviceConfigOptions {
+  /** The test files, from the root: every `.test.ts` under `device/` unless given. */
+  include?: string[];
+  /** How long a test or a hook may take, in ms. Two minutes unless given. */
+  timeout?: number;
+  settle?: number | false;
+  transition?: number | false;
+  assertionTimeout?: number;
+  stable?: number;
+  /** One project per platform, each named `device:<platform>`, with the harness config read. Without it, one project for the platform `HARNESS_PLATFORM` names. */
+  platforms?: Platform[];
+  /** With `platforms`: the harness config, from the root. `HARNESS_CONFIG`, else `harness.config.ts`, `.mts`, `.js` or `.mjs` at the root. */
+  harness?: string;
+  /** With `platforms`: the project's folder. `HARNESS_ROOT`, else the working directory. */
+  root?: string;
+  /** Vitest's reporters, kept at the config's root, where Vitest reads them: `summary()` and `github()` from `expo-vitest/reporter` beside its own. */
+  reporters?: NonNullable<ViteUserConfig['test']>['reporters'];
+}
+
 /**
  * The config for device tests: the ones that drive a real build of the app
- * and read what it actually rendered (`expo-vitest/device`). Its own config
+ * and read what it actually rendered (`expo-vitest`). Its own config
  * rather than a project, since it needs an app running somewhere and is run
  * on purpose:
  *
  *     export default defineConfig(deviceConfig());
  *
  *     HARNESS_PLATFORM=web HARNESS_URL=http://localhost:8081 vitest run --config vitest.config.device.mts
+ *
+ * With `platforms`, a project for each, which read `harness.config.ts` and
+ * start the command that serves each app:
+ *
+ *     export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
+ *
+ *     vitest run --config vitest.config.device.mts --project device:web
  */
-export function deviceConfig(options: {include?: string[]; timeout?: number} = {}): ViteUserConfig {
+/**
+ * Where a pooled project runs among the rest. Vitest runs the projects of one
+ * worker each in turn, after the others, and a project of more in a group of
+ * its own, which no other may share unless it has as many.
+ */
+function pooled(size: number, index: number): {groupOrder?: number} {
+  return size > 1 ? {groupOrder: index + 1} : {};
+}
+
+/**
+ * Where Vitest keeps its copy of each test's evidence, which it is handed as
+ * attachments for the reporters, from the project's root: under `.harness/`
+ * with the evidence itself, which `init` has an app ignore, rather than in a
+ * folder of Vitest's own beside it.
+ */
+const ATTACHMENTS = '.harness/attachments';
+
+export function deviceConfig(options: DeviceConfigOptions = {}): ViteUserConfig {
   const timeout = options.timeout ?? 120_000;
+  // How long a step waits for the screen, and how long a wait looks, reach
+  // the test process through its environment, which is what the device
+  // layer reads, so a run started without this config can set them too.
+  const ms = (value: number | false) => String(value === false ? 0 : value);
+  const env = {
+    ...(options.settle === undefined ? {} : {HARNESS_SETTLE: ms(options.settle)}),
+    ...(options.transition === undefined ? {} : {HARNESS_TRANSITION: ms(options.transition)}),
+    ...(options.assertionTimeout === undefined ? {} : {HARNESS_ASSERTION_TIMEOUT: ms(options.assertionTimeout)}),
+    ...(options.stable === undefined ? {} : {HARNESS_STABLE: ms(options.stable)}),
+  };
+  if (!options.platforms) {
+    if (options.harness !== undefined || options.root !== undefined) throw new HarnessError('INVALID_ARGUMENT', 'deviceConfig takes harness and root with platforms, which say what they are for');
+    return {
+      resolve: {alias: selfAliases()},
+      test: {
+        name: 'device',
+        globals: true,
+        environment: 'node',
+        include: options.include ?? ['device/**/*.test.ts'],
+        // The platform is HARNESS_PLATFORM's, which the snapshot environment reads in the test process.
+        snapshotEnvironment: file('setup/snapshots.ts'),
+        setupFiles: [file('device/matchers.ts')],
+        attachmentsDir: ATTACHMENTS,
+        // A real app, a real renderer: slower than a component test by a lot.
+        testTimeout: timeout,
+        hookTimeout: timeout,
+        // One app, one driver: two files must not press the same window at once.
+        fileParallelism: false,
+        pool: 'forks',
+        maxWorkers: 1,
+        ...(Object.keys(env).length > 0 ? {env} : {}),
+        ...(options.reporters ? {reporters: options.reporters} : {}),
+      },
+    };
+  }
+  const platforms = [...new Set(options.platforms)];
+  const unknown = platforms.find(platform => !PLATFORMS.includes(platform));
+  if (unknown !== undefined || platforms.length === 0) {
+    throw new HarnessError('INVALID_ARGUMENT', `deviceConfig takes platforms from ${PLATFORMS.join(', ')}${unknown === undefined ? ', at least one' : `, not ${JSON.stringify(unknown)}`}`);
+  }
+  const root = path.resolve(options.root ?? process.env.HARNESS_ROOT ?? process.cwd());
+  // Found now, and loaded by the global setup, since a config is synchronous and the file may be TypeScript.
+  const harness = findHarnessFile(root, options.harness ?? process.env.HARNESS_CONFIG);
+  // A pool's size is a project's workers, which Vitest takes from the config it is building now.
+  const loaded = loadHarnessSync(harness);
   return {
-    resolve: {alias: selfAliases()},
     test: {
-      name: 'device',
-      globals: true,
-      environment: 'node',
-      include: options.include ?? ['device/**/*.test.ts'],
-      setupFiles: [file('device/matchers.ts')],
-      // A real app, a real renderer: slower than a component test by a lot.
-      testTimeout: timeout,
-      hookTimeout: timeout,
-      // One app, one driver: two files must not press the same window at once.
-      fileParallelism: false,
-      pool: 'forks',
-      maxWorkers: 1,
+      ...(options.reporters ? {reporters: options.reporters} : {}),
+      projects: platforms.map((platform, index) => ({
+        root,
+        resolve: {alias: selfAliases()},
+        test: {
+          name: `device:${platform}`,
+          root,
+          globals: true,
+          environment: 'node',
+          include: options.include ?? ['device/**/*.test.ts'],
+          // The platform is the project's HARNESS_PLATFORM, below.
+          snapshotEnvironment: file('setup/snapshots.ts'),
+          // The run, resolved from the harness config, before anything uses the device: in turn, not side by side as Vitest would have them.
+          setupFiles: [file('device/setup.ts'), file('device/matchers.ts')],
+          sequence: {setupFiles: 'list', ...pooled(poolSize(platform, loaded, process.env), index)},
+          // Loads the harness config and starts what serves the app; then opens the app once.
+          globalSetup: [file('device/global-setup.ts'), file('device/warm-up.ts')],
+          provide: {'harness.platform': platform, 'harness.root': root, 'harness.file': harness},
+          attachmentsDir: ATTACHMENTS,
+          testTimeout: timeout,
+          hookTimeout: timeout,
+          // One app per platform, or a file to each device of a pool. The platforms take turns.
+          fileParallelism: poolSize(platform, loaded, process.env) > 1,
+          pool: 'forks',
+          maxWorkers: poolSize(platform, loaded, process.env),
+          // The setup files import the harness config by a path worked out at run time, which only the Vite graph transforms.
+          server: {deps: {inline: [SELF]}},
+          // The project's own platform and root, whatever the shell says.
+          env: {...env, HARNESS_PLATFORM: platform, HARNESS_ROOT: root},
+        },
+      })),
     },
   };
 }

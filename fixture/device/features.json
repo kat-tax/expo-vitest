@@ -1,0 +1,6 @@
+{
+  "areas": [
+    {"name": "sign-in", "goals": ["send the form empty"]},
+    {"name": "profile", "goals": ["sign in from the profile page"]}
+  ]
+}

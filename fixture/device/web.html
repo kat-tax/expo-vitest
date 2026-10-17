@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Web</title>
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    iframe { width: 360px; height: 140px; border: 2px solid #888; padding: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Web</h1>
+  <button data-testid="greet">Greet</button>
+  <p data-testid="greeting">No greeting yet</p>
+  <button data-testid="ask">Delete the draft</button>
+  <p data-testid="answer">Not asked</p>
+  <label>Colour <select data-testid="colour"><option value="r">Red</option><option value="b">Blue</option></select></label>
+  <p data-testid="chosen">Chose r</p>
+  <label>Attachment <input type="file" data-testid="attachment"></label>
+  <p data-testid="attached">No file</p>
+  <a href="/web/report.csv" download data-testid="report">Download the report</a>
+  <div data-testid="menu-target" role="button" tabindex="0">Options</div>
+  <p data-testid="menu">No menu</p>
+  <div role="listitem" data-testid="row">Groceries <span aria-hidden="true">star</span><div popover><div role="menuitem" tabindex="-1">Archive</div></div></div>
+  <iframe title="Card" src="/web/frame" id="card"></iframe>
+  <script>
+    const text = (id, value) => (document.querySelector(`[data-testid=${id}]`).textContent = value);
+    document.querySelector('[data-testid=greet]').onclick = async () => text('greeting', (await (await fetch('/api/greeting')).json()).greeting);
+    document.querySelector('[data-testid=ask]').onclick = () => text('answer', confirm('Delete the draft?') ? 'Deleted' : 'Kept');
+    document.querySelector('[data-testid=colour]').onchange = event => text('chosen', `Chose ${event.target.value}`);
+    document.querySelector('[data-testid=attachment]').onchange = event => text('attached', `Attached ${[...event.target.files].map(file => file.name).join(', ')}`);
+    document.querySelector('[data-testid=menu-target]').oncontextmenu = event => {
+      event.preventDefault();
+      text('menu', 'Menu open');
+    };
+  </script>
+</body>
+</html>

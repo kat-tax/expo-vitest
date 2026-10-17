@@ -1,0 +1,8 @@
+# What Expo writes while it serves and builds the app
+.expo/
+expo-env.d.ts
+web-build/
+
+# A development build is made from app.json by prebuild, never kept
+android/
+ios/

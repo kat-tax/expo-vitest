@@ -17,10 +17,11 @@ const tsc = createRequire(import.meta.url).resolve('typescript/bin/tsc');
 fs.rmSync(dist, {recursive: true, force: true});
 execFileSync(process.execPath, [tsc, '-p', path.join(root, 'tsconfig.build.json')], {cwd: root, stdio: 'inherit'});
 
-// What the compiler does not carry: the PowerShell the Windows driver runs.
+// What the compiler does not carry: the PowerShell the Windows driver runs, and
+// the C# its host compiles when it starts.
 let copied = 0;
 for (const entry of fs.readdirSync(path.join(root, 'src'), {recursive: true, withFileTypes: true})) {
-  if (!entry.isFile() || !entry.name.endsWith('.ps1')) continue;
+  if (!entry.isFile() || !(entry.name.endsWith('.ps1') || entry.name.endsWith('.cs'))) continue;
   const from = path.join(entry.parentPath, entry.name);
   const to = path.join(dist, path.relative(path.join(root, 'src'), from));
   fs.mkdirSync(path.dirname(to), {recursive: true});

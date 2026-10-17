@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import type {Snapshot} from './snapshot.ts';
-import {asSelector, by, centreOf, describeTarget, findNode, isPoint, parseTarget, renderSnapshot} from './snapshot.ts';
+import type {Snapshot, SnapshotNode} from './snapshot.ts';
+import {asSelector, by, centreOf, describeTarget, findNode, follow, isPoint, narrow, parseTarget, renderSnapshot, seenInstead} from './snapshot.ts';
 
 const tree: Snapshot = {
   platform: 'windows',
@@ -110,5 +110,144 @@ describe('renderSnapshot', () => {
     expect(text).toContain('@e4 Button "New drop" #new-drop [focused]');
     expect(text).toContain('@e1 TabItem "Drops"');
     expect(text).not.toContain('@e1 TabItem "Drops" #');
+  });
+
+  it('prints the component that drew a node, where the React tree was read alongside', () => {
+    const drawn: Snapshot = {platform: 'web', nodes: [{ref: '@e1', role: 'button', name: 'Save', component: 'SaveButton', testId: 'save', depth: 0, interactive: true}]};
+    expect(renderSnapshot(drawn)).toBe('@e1 button "Save" <SaveButton> #save');
+  });
+
+  it('prints what a screen reader says past the name, where the platform reported it', () => {
+    const said: Snapshot = {
+      platform: 'windows',
+      nodes: [
+        {ref: '@e1', role: 'ListItem', name: 'Inbox', depth: 0, interactive: true, inSet: '2 of 5', heading: 2, live: 'polite', status: 'Busy', dialog: true, help: 'Opens the inbox'},
+      ],
+    };
+    expect(renderSnapshot(said)).toBe('@e1 ListItem "Inbox" (2 of 5 h2 live:polite status:Busy dialog help:"Opens the inbox")');
+  });
+
+  it('prints the state a control is in, both ways, and what a field holds, where the platform reported them', () => {
+    const states: Snapshot = {
+      platform: 'web',
+      nodes: [
+        {ref: '@e1', role: 'checkbox', name: 'News', depth: 0, interactive: true, checked: false},
+        {ref: '@e2', role: 'checkbox', name: 'All', depth: 0, interactive: true, checked: 'mixed'},
+        {ref: '@e3', role: 'tab', name: 'Inbox', depth: 0, interactive: true, selected: true},
+        {ref: '@e4', role: 'combobox', name: 'Dialect', depth: 0, interactive: true, expanded: false},
+        {ref: '@e5', role: 'button', name: 'Bold', depth: 0, interactive: true, pressed: true},
+        {ref: '@e6', role: 'textbox', name: 'Search', depth: 0, interactive: true, value: '', placeholder: 'Search documents'},
+        {ref: '@e7', role: 'textbox', name: 'Password', depth: 0, interactive: true, secure: true},
+        {ref: '@e8', role: 'tab', name: 'Sent', depth: 0, interactive: true, selected: false, checked: true, expanded: true, pressed: false},
+      ],
+    };
+    expect(renderSnapshot(states).split('\n')).toEqual([
+      '@e1 checkbox "News" [unchecked]',
+      '@e2 checkbox "All" [checked:mixed]',
+      '@e3 tab "Inbox" [selected]',
+      '@e4 combobox "Dialect" [collapsed]',
+      '@e5 button "Bold" [pressed]',
+      '@e6 textbox "Search" (value:"" placeholder:"Search documents")',
+      '@e7 textbox "Password" (secure)',
+      '@e8 tab "Sent" [checked,unselected,expanded,unpressed]',
+    ]);
+  });
+});
+
+describe('follow', () => {
+  const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: true, ...extra});
+  const before: Snapshot = {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: false})]};
+
+  it('finds a node again by its ref where the ref still names it, else in the same place among those alike', () => {
+    const kept = {platform: 'web', nodes: [node('@e1', 'switch', 'Wi-Fi'), node('@e2', 'switch', 'Wi-Fi', {checked: true})]};
+    expect(follow(before.nodes[1] as SnapshotNode, before, kept)?.checked).toBe(true);
+    const renumbered = {platform: 'android', nodes: [node('@e5', 'text', 'Network'), node('@e6', 'switch', 'Wi-Fi'), node('@e2', 'text', 'Wi-Fi'), node('@e7', 'switch', 'Wi-Fi', {checked: true})]};
+    expect(follow(before.nodes[1] as SnapshotNode, before, renumbered)?.ref).toBe('@e7');
+  });
+
+  it('finds nothing for a node that was not in the first snapshot, or is not in the second', () => {
+    expect(follow(node('@e9', 'switch', 'Bluetooth'), before, before)).toBeUndefined();
+    expect(follow(before.nodes[1] as SnapshotNode, before, {platform: 'android', nodes: [node('@e1', 'switch', 'Wi-Fi')]})).toBeUndefined();
+  });
+});
+
+describe('narrow', () => {
+  const node = (ref: string, parent: string | undefined, interactive: boolean): SnapshotNode => ({ref, ...(parent ? {parent} : null), role: 'View', name: ref, depth: 0, interactive});
+  // A list (kept) inside a pane (not kept) inside a window (kept), and a button
+  // in the list, and one in a group that is not kept.
+  const nodes = [node('@e1', undefined, true), node('@e2', '@e1', false), node('@e3', '@e2', true), node('@e4', '@e3', true), node('@e5', '@e3', false), node('@e6', '@e5', true)];
+
+  it('keeps what it is asked to, each under its nearest ancestor that is kept', () => {
+    const kept = narrow(nodes, each => each.interactive);
+    expect(kept.map(each => [each.ref, each.parent])).toEqual([
+      ['@e1', undefined],
+      ['@e3', '@e1'],
+      ['@e4', '@e3'],
+      ['@e6', '@e3'],
+    ]);
+    expect('parent' in kept[0]!).toBe(false);
+  });
+
+  it('leaves a node with no kept ancestor at the top, and does not loop on a chain that goes round', () => {
+    expect(narrow(nodes, each => each.ref === '@e4')).toEqual([{ref: '@e4', role: 'View', name: '@e4', depth: 0, interactive: true}]);
+    const circle = [node('@e1', '@e2', false), node('@e2', '@e1', false), node('@e3', '@e1', true)];
+    expect(narrow(circle, each => each.interactive)).toEqual([{ref: '@e3', role: 'View', name: '@e3', depth: 0, interactive: true}]);
+    // A parent that names nothing in the list ends the chain.
+    expect(narrow([node('@e2', '@e9', true)], () => true)).toEqual([{ref: '@e2', role: 'View', name: '@e2', depth: 0, interactive: true}]);
+  });
+});
+
+describe('seenInstead', () => {
+  const node = (ref: string, role: string, name: string, extra: Partial<SnapshotNode> = {}): SnapshotNode => ({ref, role, name, depth: 1, interactive: role === 'button' || role === 'tab', ...extra});
+  const tree: Snapshot = {
+    platform: 'web',
+    nodes: [
+      node('@e1', 'heading', 'Settings'),
+      node('@e2', 'tab', 'Inbox', {testId: 'tab-inbox'}),
+      node('@e3', 'tab', 'Documents', {testId: 'tab-documents'}),
+      node('@e4', 'button', 'Save', {testId: 'save'}),
+      node('@e5', 'button', ''),
+    ],
+  };
+
+  it('names the nodes in the role asked for, or says there are none', () => {
+    expect(seenInstead(tree, {role: 'tab', label: 'Settings'})).toBe('2 nodes have role tab: "Inbox", "Documents"');
+    expect(seenInstead(tree, {role: 'heading'})).toBe('1 node has role heading: "Settings"');
+    expect(seenInstead(tree, {role: 'slider'})).toBe('no node has role slider');
+  });
+
+  it('lists the testIDs there were for a testID, or says there were none', () => {
+    expect(seenInstead(tree, {testId: 'search'})).toBe('the testIDs there: "tab-inbox", "tab-documents", "save"');
+    expect(seenInstead({platform: 'web', nodes: [node('@e1', 'heading', 'Settings')]}, {testId: 'search'})).toBe('no node has a testID');
+  });
+
+  it('names what can be acted on for a label, a few of them, and nothing for a ref', () => {
+    expect(seenInstead(tree, {label: 'Sent'})).toBe('what can be acted on: "Inbox", "Documents", "Save"');
+    const many: Snapshot = {platform: 'web', nodes: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((name, at) => node(`@e${at}`, 'button', name))};
+    expect(seenInstead(many, {contains: 'Z'})).toBe('what can be acted on: "A", "B", "C", "D", "E" and 2 more');
+    expect(seenInstead({platform: 'web', nodes: [node('@e1', 'heading', 'Settings')]}, {label: 'Save'})).toBe('nothing there can be acted on');
+    expect(seenInstead(tree, {ref: '@e9'})).toBe('');
+  });
+});
+
+describe('kind', () => {
+  const tree: Snapshot = {
+    platform: 'windows',
+    nodes: [
+      {ref: '@e1', role: 'Button', kind: 'switch', name: 'Wi-Fi', depth: 0, interactive: true, checked: true},
+      {ref: '@e2', role: 'button', kind: 'button', name: 'Save', depth: 0, interactive: true},
+      {ref: '@e3', role: 'Custom', name: 'Canvas', depth: 0, interactive: false},
+    ],
+  };
+
+  it('is a role a selector can name, as well as the platform\'s own word', () => {
+    expect(findNode(tree, by.role('switch'))?.ref).toBe('@e1');
+    expect(findNode(tree, by.role('Button'))?.ref).toBe('@e1');
+    expect(findNode(tree, {role: 'switch', label: 'Wi-Fi'})?.ref).toBe('@e1');
+    expect(seenInstead(tree, {role: 'switch', label: 'Bluetooth'})).toBe('1 node has role switch: "Wi-Fi"');
+  });
+
+  it('is printed beside the role where the two differ', () => {
+    expect(renderSnapshot(tree).split('\n')).toEqual(['@e1 Button/switch "Wi-Fi" [checked]', '@e2 button "Save"', '@e3 Custom "Canvas"']);
   });
 });

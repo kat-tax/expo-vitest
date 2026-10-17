@@ -1,0 +1,284 @@
+{
+ "platform": "web",
+ "source": "http://localhost:8085",
+ "nodes": [
+  {
+   "ref": "@e17",
+   "role": "div",
+   "name": "HIS-201 Midterm Essay 3 files · 1 GB",
+   "depth": 20,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 240,
+    "y": 80,
+    "width": 800,
+    "height": 62
+   }
+  },
+  {
+   "ref": "@e18",
+   "parent": "@e17",
+   "role": "span",
+   "name": "HIS-201 Midterm Essay",
+   "depth": 23,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 92,
+    "width": 143,
+    "height": 19
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e19",
+   "parent": "@e17",
+   "role": "div",
+   "name": "3 files · 1 GB",
+   "depth": 22,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 113,
+    "width": 698,
+    "height": 17
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e20",
+   "role": "div",
+   "name": "Demo Reel 3 files · 240 MB",
+   "depth": 20,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 240,
+    "y": 142,
+    "width": 800,
+    "height": 62
+   }
+  },
+  {
+   "ref": "@e21",
+   "parent": "@e20",
+   "role": "span",
+   "name": "Demo Reel",
+   "depth": 23,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 154,
+    "width": 67,
+    "height": 19
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e22",
+   "parent": "@e20",
+   "role": "div",
+   "name": "3 files · 240 MB",
+   "depth": 22,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 175,
+    "width": 698,
+    "height": 17
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e23",
+   "role": "div",
+   "name": "Project X Assets 3 files · 512 MB",
+   "depth": 20,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 240,
+    "y": 204,
+    "width": 800,
+    "height": 62
+   }
+  },
+  {
+   "ref": "@e24",
+   "parent": "@e23",
+   "role": "span",
+   "name": "Project X Assets",
+   "depth": 23,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 216,
+    "width": 98,
+    "height": 19
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e25",
+   "parent": "@e23",
+   "role": "div",
+   "name": "3 files · 512 MB",
+   "depth": 22,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 237,
+    "width": 698,
+    "height": 17
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e26",
+   "role": "div",
+   "name": "Summer Mixtape 3 files · 96 MB",
+   "depth": 20,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 240,
+    "y": 266,
+    "width": 800,
+    "height": 62
+   }
+  },
+  {
+   "ref": "@e27",
+   "parent": "@e26",
+   "role": "span",
+   "name": "Summer Mixtape",
+   "depth": 23,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 278,
+    "width": 105,
+    "height": 19
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e28",
+   "parent": "@e26",
+   "role": "div",
+   "name": "3 files · 96 MB",
+   "depth": 22,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 300,
+    "y": 299,
+    "width": 698,
+    "height": 17
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e29",
+   "role": "a",
+   "name": "Drops",
+   "depth": 11,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 851,
+    "y": 35,
+    "width": 64,
+    "height": 18
+   },
+   "kind": "link"
+  },
+  {
+   "ref": "@e30",
+   "parent": "@e29",
+   "role": "span",
+   "name": "Drops",
+   "depth": 13,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 877,
+    "y": 35,
+    "width": 38,
+    "height": 18
+   },
+   "kind": "text"
+  },
+  {
+   "ref": "@e31",
+   "role": "a",
+   "name": "Settings",
+   "depth": 11,
+   "interactive": true,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 931,
+    "y": 35,
+    "width": 77,
+    "height": 18
+   },
+   "kind": "link"
+  },
+  {
+   "ref": "@e32",
+   "parent": "@e31",
+   "role": "span",
+   "name": "Settings",
+   "depth": 13,
+   "interactive": false,
+   "focused": false,
+   "enabled": true,
+   "offscreen": false,
+   "bounds": {
+    "x": 957,
+    "y": 35,
+    "width": 51,
+    "height": 18
+   },
+   "kind": "text"
+  }
+ ]
+}

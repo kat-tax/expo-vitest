@@ -1,3 +1,7 @@
+/// <reference types="vitest-expo/types" />
+// The engine's types come with these: the globals, and React Native Testing
+// Library's matchers on `expect`, so a tsconfig names this alone.
+//
 // Vitest 4 only re-exports `Assertion`/`Matchers` from `@vitest/expect`, so
 // the `declare module 'vitest'` augmentation shipped by
 // `@testing-library/jest-dom/vitest` (see the tsconfig `types` entry) no

@@ -1,0 +1,311 @@
+name: Test app
+
+# The test app's device suite on each platform, from the packed package
+# (scripts/testapp.js): web in Chromium; Android on an emulator and iOS on a
+# simulator, each from the app's development build, loading its JavaScript
+# from the dev server the run starts; Windows from the Release build
+# expo-windows makes. A platform's job keeps what the run saw as an artifact,
+# and its test step has a limit inside the job's, since a job that runs out
+# of time is cancelled whole, its upload with it.
+
+# Only for a change the suite can see: the package's source, the app and its
+# suite, and how they are run. The docs, the fixture and the unit tests are
+# CI's.
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - '!src/**/*.test.ts'
+      - '!src/**/__fixtures__/**'
+      - 'testapp/**'
+      - 'scripts/testapp.js'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/testapp.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: testapp-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# The app's lockfile is the one an install of expo-vitest leaves: the app's
+# own packages, and what expo-vitest brings beside them, which
+# scripts/testapp.js adds to the app's manifest in its copy. A job that
+# installs the app in place, to build it or to fetch its browser, needs the
+# app's own alone, at their locked versions, so it saves no lockfile.
+#
+# An app build has none of expo-vitest in it: the suite drives the app from
+# Node. So each build is cached by what it is built from, and a change to
+# the package alone runs the suite on the build it already has.
+
+jobs:
+  web:
+    name: Test app on web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - uses: actions/cache@v6
+        with: {path: ~/.bun/install/cache, key: 'bun-${{ runner.os }}-${{ hashFiles(''bun.lock'', ''testapp/bun.lock'') }}', restore-keys: 'bun-${{ runner.os }}-'}
+      - run: bun install --frozen-lockfile
+      - name: Chromium, at the app's own playwright-core
+        working-directory: testapp
+        run: bun install --no-save && npx playwright-core install --with-deps --only-shell chromium
+      - run: bun run test:testapp
+        timeout-minutes: 20
+        env: {TESTAPP_RESULTS: '${{ runner.temp }}/harness'}
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-web, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  android:
+    name: Test app on Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - uses: actions/setup-java@v6
+        with: {distribution: temurin, java-version: 17}
+      - uses: actions/cache@v6
+        with: {path: ~/.bun/install/cache, key: 'bun-${{ runner.os }}-${{ hashFiles(''bun.lock'', ''testapp/bun.lock'') }}', restore-keys: 'bun-${{ runner.os }}-'}
+      - run: bun install --frozen-lockfile
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # A development build loads its JavaScript from the dev server, so it is
+      # made of the app's packages, its config and its icons alone.
+      - name: The development build, where what it is built from is unchanged
+        id: build
+        uses: actions/cache/restore@v6
+        with:
+          path: testapp/android/app/build/outputs/apk/debug/app-debug.apk
+          key: testapp-android-1-${{ hashFiles('testapp/package.json', 'testapp/bun.lock', 'testapp/app.json', 'testapp/assets/**') }}
+      - name: Build the development build
+        if: steps.build.outputs.cache-hit != 'true'
+        working-directory: testapp
+        run: |
+          bun install --no-save
+          npx expo prebuild --platform android --no-install
+          cd android && ./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Keep the development build for the next run, whatever the suite makes of it
+        if: steps.build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: testapp/android/app/build/outputs/apk/debug/app-debug.apk
+          key: ${{ steps.build.outputs.cache-primary-key }}
+      # An emulator drawn in software can leave its launcher not responding
+      # after boot, and Android's dialog for that sits over every app, so the
+      # job hides error dialogs and closes any that is up before the tests.
+      - name: Run on an emulator
+        timeout-minutes: 90
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          ram-size: 4096M
+          avd-name: ci
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: adb install -r testapp/android/app/build/outputs/apk/debug/app-debug.apk && adb reverse tcp:41752 tcp:41752 && adb shell settings put global hide_error_dialogs 1 && adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS && bun run test:testapp
+        env:
+          TESTAPP_PLATFORMS: android
+          HARNESS_TARGET: emulator-5554
+          HARNESS_METRO: http://localhost:41752
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-android, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  # Off for now. expo-interface's iOS form buttons report the whole row as
+  # their frame and take a tap only on what they draw, so a press at the
+  # frame's middle misses Sign in and the suite cannot get past it
+  # (kat-tax/expo-interface#22, item 8). It comes back on once the kit is
+  # fixed.
+  ios:
+    if: false
+    name: Test app on iOS
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - run: bun install --frozen-lockfile
+      - name: Build the development build for the simulator
+        working-directory: testapp
+        run: |
+          bun install --no-save
+          npx expo prebuild --platform ios
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -quiet -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build
+          ls -d build/Build/Products/Debug-iphonesimulator/*.app
+      - name: Boot a simulator on the newest runtime, and install the app
+        id: simulator
+        run: |
+          RUNTIMES=$(xcrun simctl list runtimes -j)
+          RUNTIME=$(echo "$RUNTIMES" | node -e 'const all = JSON.parse(require("fs").readFileSync(0, "utf8")).runtimes.filter(each => each.platform === "iOS" && each.isAvailable); all.sort((a, b) => a.version.localeCompare(b.version, undefined, {numeric: true})); console.log(all.at(-1).identifier)')
+          TYPE=$(echo "$RUNTIMES" | node -e 'const runtime = JSON.parse(require("fs").readFileSync(0, "utf8")).runtimes.find(each => each.identifier === process.argv[1]); console.log(runtime.supportedDeviceTypes.filter(each => /^iPhone \d+$/.test(each.name)).at(-1).identifier)' "$RUNTIME")
+          echo "runtime $RUNTIME, device type $TYPE"
+          UDID=$(xcrun simctl create ci "$TYPE" "$RUNTIME")
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$(ls -d testapp/build/Build/Products/Debug-iphonesimulator/*.app | head -1)"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - run: bun run test:testapp
+        timeout-minutes: 80
+        env:
+          TESTAPP_PLATFORMS: ios
+          HARNESS_TARGET: ${{ steps.simulator.outputs.udid }}
+          HARNESS_METRO: http://localhost:41754
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      # What each thing the driver does costs on this simulator, for
+      # docs/performance.md: at the Settings app's first screen, with a press
+      # on its title, which does nothing, as the Android table is taken.
+      - name: Time the driver on the simulator
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: node src/harness/index.ts -p ios --target "${{ steps.simulator.outputs.udid }}" open com.apple.Preferences bench 20 --press 'label="Settings"'
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-ios, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}
+
+  windows:
+    name: Test app on Windows
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      EXPO_WINDOWS_REF: 093dba6af54c023ba16fef11d1c858d658c8d6fa
+      EXTRA_DEPENDENCIES: '@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.32.0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with: {repository: kat-tax/expo-windows, ref: '${{ env.EXPO_WINDOWS_REF }}', path: expo-windows}
+      - uses: actions/setup-node@v7
+        with: {node-version: 24}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - uses: microsoft/setup-msbuild@v2
+      # A runner's screen is 1024x768, smaller than the app's window, 1000 by
+      # 1000, which Windows cuts to 788 high, so part of it is always off the
+      # screen.
+      - name: A screen the app's window fits on
+        shell: pwsh
+        # Set-DisplayResolution is Server Core's; where the image lacks it,
+        # or it fails, the display mode is changed the way it does it.
+        run: |
+          $set = $false
+          if (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue) {
+            try { Set-DisplayResolution -Width 1920 -Height 1080 -Force; $set = $true } catch { "Set-DisplayResolution failed: $_" }
+          }
+          if (-not $set) {
+            Add-Type -TypeDefinition @'
+          using System.Runtime.InteropServices;
+          public static class Display {
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct Mode {
+              [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+              public short SpecVersion, DriverVersion, Size, DriverExtra;
+              public int Fields, X, Y, Orientation, FixedOutput;
+              public short Color, Duplex, YResolution, TTOption, Collate;
+              [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string FormName;
+              public short LogPixels;
+              public int BitsPerPel, Width, Height, Flags, Frequency, ICMMethod, ICMIntent, MediaType, DitherType, Reserved1, Reserved2, PanningWidth, PanningHeight;
+            }
+            [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern bool EnumDisplaySettings(string device, int index, ref Mode mode);
+            [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int ChangeDisplaySettings(ref Mode mode, int flags);
+          }
+          '@
+            $mode = New-Object Display+Mode
+            $mode.Size = [System.Runtime.InteropServices.Marshal]::SizeOf($mode)
+            [void][Display]::EnumDisplaySettings($null, -1, [ref]$mode)
+            $mode.Width = 1920
+            $mode.Height = 1080
+            $mode.Fields = 0x180000
+            "ChangeDisplaySettings answered $([Display]::ChangeDisplaySettings([ref]$mode, 0))"
+          }
+          Add-Type -AssemblyName System.Windows.Forms
+          $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+          "screen $($screen.Bounds.Width)x$($screen.Bounds.Height), work area $($screen.WorkingArea.Width)x$($screen.WorkingArea.Height)"
+      - uses: actions/cache@v6
+        with: {path: ~/.bun/install/cache, key: 'bun-${{ runner.os }}-${{ hashFiles(''bun.lock'', ''testapp/bun.lock'') }}', restore-keys: 'bun-${{ runner.os }}-'}
+      - run: bun install --frozen-lockfile
+      # The Release build embeds the app's JavaScript, so it is made of the
+      # app's source, icons and config, expo-windows at its ref, and the
+      # packages expo-windows installs, which npm resolves within their ranges
+      # afresh: the week in the key has a newer release reach the build.
+      - name: What the app's build is made of
+        id: inputs
+        shell: bash
+        run: |
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "packages=$(printf '%s %s' "$EXPO_WINDOWS_REF" "$EXTRA_DEPENDENCIES" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: The app's build, where what it is made of is unchanged
+        id: build
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ runner.temp }}\win\WinCi\windows\x64\Release
+            ${{ runner.temp }}\win-runtime
+          key: testapp-windows-1-${{ steps.inputs.outputs.week }}-${{ steps.inputs.outputs.packages }}-${{ hashFiles('testapp/src/**', 'testapp/assets/**', 'testapp/app.json', 'testapp/tsconfig.json') }}
+      - name: Build the app through expo-windows
+        if: steps.build.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          APP_SOURCE="$PWD/testapp" \
+          EXPECT_LINKED=ExpoInterface \
+            bash expo-windows/ci/build.sh "$RUNNER_TEMP/win"
+          # The build installed the Windows App Runtime the Release exe runs on,
+          # from NuGet's store; its packages are kept with the build, for a job
+          # that has the build from the cache to install.
+          mkdir -p "$RUNNER_TEMP/win-runtime"
+          for store in "${NUGET_PACKAGES:-}" "$HOME/.nuget/packages" "$(cygpath -u "${USERPROFILE:-$HOME}")/.nuget/packages"; do
+            [ -n "$store" ] || continue
+            runtime="$(ls -d "$store"/microsoft.windowsappsdk.runtime/*/tools/MSIX/win10-x64 2>/dev/null | sort | tail -1)"
+            [ -n "$runtime" ] && { cp "$runtime"/*.msix "$RUNNER_TEMP/win-runtime/"; break; }
+          done
+          ls "$RUNNER_TEMP/win-runtime"
+      - name: Keep the build and its runtime for the next run, whatever the suite makes of it
+        if: steps.build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ runner.temp }}\win\WinCi\windows\x64\Release
+            ${{ runner.temp }}\win-runtime
+          key: ${{ steps.build.outputs.cache-primary-key }}
+      - name: The Windows App Runtime, for the build from the cache
+        if: steps.build.outputs.cache-hit == 'true'
+        shell: pwsh
+        # The framework package sorts first, and the rest depend on it.
+        run: |
+          Get-ChildItem "$env:RUNNER_TEMP\win-runtime\*.msix" | Sort-Object Name | ForEach-Object {
+            try { Add-AppxPackage -Path $_.FullName -ErrorAction Stop; "installed $($_.Name)" } catch { "skipped $($_.Name): $($_.Exception.Message)" }
+          }
+      - run: bun run test:testapp
+        timeout-minutes: 90
+        shell: bash
+        env:
+          TESTAPP_PLATFORMS: windows
+          HARNESS_TARGET: ${{ runner.temp }}\win\WinCi\windows\x64\Release\TestApp.exe
+          HARNESS_FORCE: '1'
+          TESTAPP_RESULTS: ${{ runner.temp }}/harness
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with: {name: testapp-windows, path: '${{ runner.temp }}/harness', include-hidden-files: true, if-no-files-found: ignore}

@@ -3,18 +3,26 @@
 Vitest for Expo code on iOS, Android, web and Windows: a project per platform
 picked by a test file's name, helpers for the tests, and a harness that drives
 a running app. Built on `vitest-expo` and `vitest-native`. The README is the front
-page: onboarding, then a summary of the features that links into `docs/`, one
-page per topic. A change to a feature changes its page.
+page: setup and the common scenarios, each linking into `docs/`, one page per
+topic. A change to a feature changes its page. What is left to build is in
+`ROADMAP.md`, and a change that finishes an item there takes it out.
 
 | Path | What |
 | --- | --- |
+| `src/index.ts`, `src/config.ts` | the two entries: `expo-vitest`, what a test imports, and `expo-vitest/config`, what a config imports |
 | `src/projects.ts` | `expoProjects`, `nodeProject`, `deviceConfig`: everything a consumer's config calls |
 | `src/windows-resolution.ts`, `src/forbid-modules.ts`, `src/metro-compat.ts` | the three Vite plugins |
 | `src/setup/` | the setup file of each project |
 | `src/native.ts`, `src/windows.ts`, `src/router.tsx` | the test helpers, one subpath each |
 | `src/device/` | the device object and its matchers, over the harness's drivers |
+| `src/render/` | a unit test's device: the tree a render left, read as a device's, and acted on through React Native Testing Library or user-event |
+| `src/agent/` | `expo-vitest/agent`: steps in words, run by a model through the device's driver, and the Claude adapter |
 | `src/harness/` | the drivers and the `expo-harness` command |
+| `src/cli/` | `init`, `guide` and `cache`, which the command runs by either name |
+| `src/reporter/` | the summary and GitHub reporters, as `expo-vitest/reporter` |
+| `skills/expo-vitest/` | the skill for coding agents, which `guide` prints and `init` copies |
 | `fixture/` | a one-constant library with a test per file-name rule, run against the packed package |
+| `testapp/` | an Expo app of the usual kind with its device suite, run against the packed package by `bun run test:testapp` |
 
 ## Before reporting anything done
 
@@ -22,7 +30,7 @@ page per topic. A change to a feature changes its page.
 bun run lint            # oxlint, zero warnings
 bun run typecheck       # tsc
 bun run test:coverage   # the logic, in Node, 100% on the files named in vitest.config.mts
-bun run test:fixture    # the packed package, installed, on all four projects
+bun run test:fixture    # the packed package, installed, on all four projects and a device suite on web
 ```
 
 The unit tests cover what is logic and nothing else. A setup file, a Node

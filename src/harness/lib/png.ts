@@ -175,9 +175,12 @@ export interface Comparison {
  * channel may drift before a pixel counts as different, which absorbs the
  * one-off rounding that text rendering produces between runs.
  */
-export function comparePng(before: Buffer, after: Buffer, {tolerance = 8}: {tolerance?: number} = {}): Comparison {
-  const a = decodePng(before);
-  const b = decodePng(after);
+export function comparePng(before: Buffer, after: Buffer, options: {tolerance?: number} = {}): Comparison {
+  return compareImages(decodePng(before), decodePng(after), options);
+}
+
+/** The same, of two pictures already read, as after a mask or a crop. */
+export function compareImages(a: Image, b: Image, {tolerance = 8}: {tolerance?: number} = {}): Comparison {
   if (a.width !== b.width || a.height !== b.height) {
     return {
       comparable: false,

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Drag</title>
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    .box { display: inline-block; padding: 16px; margin: 8px; border: 1px solid #888; }
+    #done { width: 160px; height: 80px; }
+  </style>
+</head>
+<body>
+  <h1>Drag</h1>
+  <div class="box" draggable="true" data-testid="card">Card</div>
+  <div class="box" id="done" role="region" aria-label="Done">Done</div>
+  <p data-testid="dropped">Nothing dropped</p>
+  <div class="box" data-testid="handle">Handle</div>
+  <div class="box" data-testid="end">End</div>
+  <p data-testid="moved">Moved 0 times</p>
+  <script>
+    // The browser's own drag and drop: the card dropped on the list says so.
+    const card = document.querySelector('[data-testid=card]');
+    const done = document.querySelector('#done');
+    card.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', 'Card'));
+    done.addEventListener('dragover', event => event.preventDefault());
+    done.addEventListener('drop', event => {
+      event.preventDefault();
+      document.querySelector('[data-testid=dropped]').textContent = 'Dropped ' + event.dataTransfer.getData('text/plain') + ' on Done';
+    });
+    // A handle that follows the pointer while it is held, as a slider does: it counts the moves it saw.
+    let held = false;
+    let moves = 0;
+    const handle = document.querySelector('[data-testid=handle]');
+    handle.addEventListener('mousedown', () => (held = true));
+    addEventListener('mousemove', () => {
+      if (held) document.querySelector('[data-testid=moved]').textContent = 'Moved ' + ++moves + ' times';
+    });
+    addEventListener('mouseup', () => (held = false));
+  </script>
+</body>
+</html>

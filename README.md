@@ -1,190 +1,368 @@
 # expo-vitest
 
-Test Expo code with [Vitest](https://vitest.dev) on every platform it runs on:
-iOS, Android, web and Windows.
+Test Expo apps and libraries with [Vitest](https://vitest.dev) on iOS,
+Android, web and Windows.
 
-An Expo library or app often has a file per platform: `index.ios.tsx`,
-`index.android.tsx`, `index.web.tsx`, `index.windows.tsx`. A single test run
-sees only one of them. `expo-vitest` makes one Vitest project per platform, so
-each file is tested as the platform that loads it.
+- **Unit tests** render a component in Node, with one Vitest project per
+  platform, and each platform loads its own files, such as `button.ios.tsx`
+  or `button.windows.tsx`.
+- **Device tests** drive the running app in a browser, a simulator, an
+  emulator, a phone or a Windows window.
+- Both read the screen the same way: React Native Testing Library's queries,
+  actions, matchers that wait for the screen to update, and the
+  accessibility tree a screen reader reads, the same on every platform.
+- **Agents** carry out steps written in words, and a coding agent can drive
+  the app through an MCP server.
 
-| You get | |
-| --- | --- |
-| A project per platform | One call, `expoProjects()`, makes the `ios`, `android`, `web` and `windows` projects. |
-| Tests routed by file name | `button.test.tsx` runs on three platforms, `button.windows.test.tsx` on one. No config per file. |
-| Helpers | Assert on the props handed to SwiftUI, Compose or a Windows native component. Mount an Expo Router app from memory. |
-| Device tests | Drive a running app from Vitest and assert on the accessibility tree a screen reader reads. |
-| A harness | `expo-harness`: open a route, press, type, screenshot and read the tree, on web, Windows, Android and iOS. |
+You install `expo-vitest` and `vitest`, and the rest comes with them.
+Nothing is added to your app.
 
-It is built on [`vitest-expo`](https://github.com/niondigital/vitest-expo) and
-[`vitest-native`](https://github.com/danfry1/vitest-native), which run React
-Native's real JavaScript for iOS and Android under Vitest. This package adds
-the Windows project, the web project, the file-name rule, the helpers and the
-device layer.
+## Setup
 
-## Quick start
-
-Requires Expo SDK 57 and Vitest 4.
-
-### 1. Install
+You need Node 22.18 or later, Expo SDK 57 and Vitest 4. In your project's
+folder:
 
 ```sh
-npx expo install --dev expo-vitest vitest vitest-expo vitest-native \
-  @testing-library/react-native test-renderer \
-  @testing-library/react @testing-library/jest-dom jsdom
+npx expo-vitest init
 ```
 
-The last three are for the web project. An app with a web target already has
-`react-dom` and `react-native-web`, which that project also needs.
+`init` reads what the project has, and asks which platforms to set up and
+whether to add device tests. It shows each file before it writes it, and
+installs the packages if you say yes. Then:
 
-### 2. Configure
+```sh
+npm test               # the unit tests
+npm run test:device    # the device tests, if you added them
+```
+
+### By hand
+
+Install the package and the runner. Everything else comes with
+`expo-vitest`: the engines, the testing libraries, jsdom, and what drives
+each platform. Web tests also need the `react-dom` and `react-native-web` an
+app with a web target already has.
+
+```sh
+npx expo install --dev expo-vitest vitest
+```
+
+Add a Vitest config:
 
 ```ts
 // vitest.config.mts
 import {defineConfig} from 'vitest/config';
-import {expoProjects} from 'expo-vitest';
+import {expoProjects} from 'expo-vitest/config';
 
 export default defineConfig({
   test: {projects: expoProjects()},
 });
 ```
 
-For the globals (`describe`, `it`, `expect`, `vi`) and the jest-dom matchers
-on `expect`, add the types:
+Add the types for the globals (`describe`, `it`, `expect`, `vi`) and the
+matchers:
 
 ```json
 // tsconfig.json
-{"compilerOptions": {"types": ["vitest-expo/types", "expo-vitest/types"]}}
+{"compilerOptions": {"types": ["expo-vitest/types"]}}
 ```
 
-Not every platform? Name the ones you have:
-`expoProjects({platforms: ['ios', 'android', 'web']})`.
-
-### 3. Write a test
-
-Name the file for the platforms it is about. This one runs twice, once as iOS
-and once as Android:
-
-```tsx
-// src/greeting.native.test.tsx
-import {render, screen} from '@testing-library/react-native';
-import {Text} from 'react-native';
-
-it('renders', async () => {
-  await render(<Text>Hello</Text>);
-  expect(screen.getByText('Hello')).toBeOnTheScreen();
-});
-```
-
-React Native Testing Library 14 is asynchronous: `await render(...)`,
-`await fireEvent(...)`.
-
-This one runs on web, against the DOM react-native-web renders:
-
-```tsx
-// src/greeting.web.test.tsx
-import {render, screen} from '@testing-library/react';
-import {Text} from 'react-native';
-
-it('renders', () => {
-  render(<Text>Hello</Text>);
-  expect(screen.getByText('Hello')).toBeInTheDocument();
-});
-```
-
-And logic with nothing rendered runs on all four:
-
-```ts
-// src/where.test.ts
-import {Platform} from 'react-native';
-import {where} from './where';   // where.ts, and a where.<platform>.ts for each platform
-
-it('is the file the platform resolves', () => {
-  expect(where).toBe(Platform.OS);
-});
-```
-
-### 4. Run
+Run the tests:
 
 ```sh
-npx vitest run                          # every project
-npx vitest run --project windows        # one platform
-npx vitest run src/greeting.test.tsx    # one file, on the platforms its name picks
-npx vitest                              # watch mode
+npx vitest run                     # every platform
+npx vitest run --project android   # one platform
+npx vitest                         # watch mode
 ```
+
+Tests are looked for under `src`. Name other folders with
+`expoProjects({include: ['app', 'components']})`, and only the platforms you
+build for with `expoProjects({platforms: ['ios', 'android', 'web']})`.
 
 ## Which tests run where
 
 | File name | Runs on |
 | --- | --- |
-| `*.test.ts` | iOS, Android, web and Windows |
-| `*.test.tsx` | iOS, Android and web |
+| `*.test.ts`, `*.test.tsx` | iOS, Android, web and Windows |
 | `*.native.test.tsx` | iOS and Android |
 | `*.ios.test.tsx` | iOS |
 | `*.android.test.tsx` | Android |
 | `*.web.test.tsx` | web |
 | `*.windows.test.tsx` | Windows |
 
-A `.test.ts` file holds logic with nothing rendered, which is the same
-everywhere, so it runs everywhere. A `.test.tsx` file renders, and what it
-renders on Windows is a different tree from the other three, so Windows takes
-only the files named for it. [Projects](docs/projects.md) explains each
-platform's project.
+A test runs on every platform unless its name picks some. Each platform
+loads its own files of the code under test, such as `button.windows.tsx`, so
+one test checks each platform's version.
 
-## Features
+## Common scenarios
 
-| Feature | What it does | Guide |
-| --- | --- | --- |
-| iOS and Android projects | React Native's own JavaScript with the native boundary mocked, `Platform.OS` set, and platform files resolved in Metro's order. | [Projects](docs/projects.md#ios-and-android) |
-| Web project | react-native-web in jsdom, with Expo's packages pre-bundled with the Metro behaviours they rely on. | [Projects](docs/projects.md#web) |
-| Windows project | The code under test is told it is Windows, and `.windows.*` files resolve first. A native component renders as a host view whose props are what C++ receives. | [Projects](docs/projects.md#windows) |
-| Forbidden modules | Name the modules with no Windows implementation. Importing one fails the test, instead of the app at launch. | [Configuration](docs/configuration.md#forbidden-modules) |
-| Options | Root, platforms, test folders, packages to transform, timeouts, web aliases. | [Configuration](docs/configuration.md) |
-| Node code beside it | `nodeProject()` adds a plain Node project for a CLI or a Metro config. | [Configuration](docs/configuration.md#node-code-beside-it) |
-| Native helpers | `host`, `nodes`, `modifier`, `byComposeTestID`, `stackHeaders`: assert on the payload handed to SwiftUI or Compose. | [Helpers](docs/helpers.md#expo-vitestnative) |
-| Windows helpers | `island`, `islands`, `fireIsland`: find a native component and fire its events as C++ would. | [Helpers](docs/helpers.md#expo-vitestwindows) |
-| Router helper | `renderApp` mounts an Expo Router app from an in-memory `app/` folder, on every platform. | [Helpers](docs/helpers.md#expo-vitestrouter) |
-| Device tests | `device`, `element`, `by` and four matchers, over a real app on web, Windows, Android or iOS. | [Device tests](docs/device-tests.md) |
-| The harness | `expo-harness`, the same drivers as a command, for looking at a screen by hand. | [The harness](docs/harness.md) |
-| The web pipeline | `metroCompat` for anything else that runs Expo code through Vite, such as a web Storybook. | [The web pipeline](docs/web-pipeline.md) |
+### Test a component
+
+```tsx
+// src/greeting.test.tsx
+import {render, screen} from 'expo-vitest';
+import {Greeting} from './greeting';
+
+it('greets by name', async () => {
+  await render(<Greeting name="Ada"/>);
+  await expect(screen.getByText('Hello, Ada')).toBeVisible();
+});
+```
+
+This runs four times, as iOS, Android, web and Windows. `screen` reads what
+was rendered as a screen reader would, the same way on each platform.
+
+### Press, type and wait
+
+```tsx
+// src/sign-in.test.tsx
+import {render, screen} from 'expo-vitest';
+import {SignIn} from './sign-in';
+
+it('signs in', async () => {
+  await render(<SignIn/>);
+  await screen.getByRole('textbox', {name: 'Email'}).fill('ada@example.com');
+  await screen.getByRole('button', {name: 'Sign in'}).press();
+  await expect(screen.getByText('Welcome, Ada')).toBeVisible();
+});
+```
+
+Each action finds its node first, and each matcher reads the tree until it
+agrees, so a state update or a request the component starts is waited for.
+
+### Snapshot the accessibility tree
+
+```tsx
+expect(await screen.tree()).toMatchSnapshot();
+```
+
+```
+textbox "Email" (value:"ada@example.com")
+button "Sign in"
+  text "Sign in"
+text "Welcome, Ada"
+```
+
+The tree reads the same on every platform, and each platform keeps its own
+snapshot, in `__snapshots__/<platform>/` beside the test.
+
+### Test that each platform loads its own file
+
+```ts
+// src/where.test.ts, beside where.ts and a where.<platform>.ts for each platform
+import {Platform} from 'react-native';
+import {where} from './where';
+
+it('is the file the platform resolves', () => {
+  expect(where).toBe(Platform.OS);
+});
+```
+
+### Check what a native control is given
+
+A SwiftUI, Compose or WinUI control is a native view, whose props are what
+React Native hands the native side. The helpers read those props, and fire
+its events.
+
+```tsx
+// src/wifi.windows.test.tsx
+import {render} from 'expo-vitest';
+import {fireIsland, island} from 'expo-vitest/windows';
+import {WifiSwitch} from './wifi';
+
+it('reports the value the switch was toggled to', async () => {
+  const onValueChange = vi.fn();
+  await render(<WifiSwitch value={false} onValueChange={onValueChange}/>);
+  await fireIsland(island('ExpoInterfaceToggleSwitch'), 'valueChange', {value: true});
+  expect(onValueChange).toHaveBeenCalledWith(true);
+});
+```
+
+On iOS and Android, `host`, `modifier` and `byComposeTestID` from
+`expo-vitest/native` do the same for `@expo/ui` controls.
+[Helpers](docs/helpers.md) has them all.
+
+### Test an Expo Router app
+
+```tsx
+// src/app.test.tsx
+import {Text} from 'react-native';
+import {device, screen} from 'expo-vitest';
+import {renderApp} from 'expo-vitest/router';
+
+it('opens the settings', async () => {
+  await renderApp({index: () => <Text>Home</Text>, settings: () => <Text>Settings</Text>});
+  await device.open('/settings');
+  await expect(screen.getByText('Settings')).toBeVisible();
+});
+```
+
+`renderApp` mounts the app from an in-memory `app/` folder, and
+`device.open` goes to a route of it, as it opens one on a device.
+
+### Drive the running app
+
+A device test drives a real build. It reads like a unit test, with
+`device.open` in place of `render`:
+
+```ts
+// device/sign-in.test.ts
+import {device, screen} from 'expo-vitest';
+
+it('signs in', async () => {
+  await device.open('/sign-in');
+  await screen.getByRole('textbox', {name: 'Email'}).fill('ada@example.com');
+  await screen.getByRole('button', {name: 'Sign in'}).press();
+  await expect(screen.getByText('Welcome, Ada')).toBeVisible();
+});
+```
+
+What drives each platform comes with `expo-vitest`, and each needs only what
+it runs on:
+
+| Platform | Needs |
+| --- | --- |
+| web | A browser: `npx expo-harness install` fetches Chromium |
+| iOS, Android | A simulator, an emulator or a phone, with the app installed |
+| Windows | A Windows machine and a built app |
+
+`npx expo-harness doctor` says what this machine can drive. Say where each
+app is, in `harness.config.ts`. The web dev server is started for the run
+and stopped after it:
+
+```ts
+// harness.config.ts
+import {defineHarness} from 'expo-vitest/config';
+
+export default defineHarness({
+  app: {
+    web: {url: 'http://localhost:8081', command: {executable: 'npx', args: ['expo', 'start', '--web', '--port', '{port}']}},
+    android: {bundleId: 'com.example.app', scheme: 'myapp'},
+  },
+});
+```
+
+Give the device tests a config of their own, and run them:
+
+```ts
+// vitest.config.device.mts
+import {defineConfig} from 'vitest/config';
+import {deviceConfig} from 'expo-vitest/config';
+
+export default defineConfig(deviceConfig({platforms: ['web', 'android']}));
+```
+
+```sh
+npx vitest run --config vitest.config.device.mts                        # every platform
+npx vitest run --config vitest.config.device.mts --project device:web   # one platform
+```
+
+Each step waits for the screen to hold still. A platform this machine
+cannot drive is skipped, with the reason. A failing test leaves its
+screenshot, its tree and a trace of its steps in `.harness/results/`.
+[Device tests](docs/device-tests.md) has the rest, and
+[Platforms](docs/platforms.md) how to get an app up on each one.
+
+### Run device tests in CI
+
+Give each platform a job: web on Linux, Android on Linux with an emulator,
+iOS on macOS with a simulator, and Windows on a Windows runner. The reporters
+write a summary of the run, and comment on the pull request with each
+failure and links to its evidence:
+
+```ts
+// vitest.config.device.mts
+import {defineConfig} from 'vitest/config';
+import {deviceConfig} from 'expo-vitest/config';
+import {github, summary} from 'expo-vitest/reporter';
+
+export default defineConfig(deviceConfig({platforms: ['web', 'android'], reporters: ['default', summary(), github()]}));
+```
+
+[CI](docs/ci.md) has whole jobs for GitHub Actions, EAS Workflows, Bitrise
+and Codemagic.
+
+### Write a step in words
+
+```ts
+// device/billing.test.ts
+import {device} from 'expo-vitest';
+import {agent} from 'expo-vitest/agent';
+
+it('upgrades the plan', async () => {
+  await device.open('/settings/billing');
+  await agent.act('upgrade the workspace to the Pro plan');
+  await agent.assert('the invoice preview shows a prorated amount');
+});
+```
+
+A model reads the screen and acts through the same driver as the rest of
+the test. A step that was seen to work is replayed on the next run with no
+model call. Claude is built in, and any other model is an object with a
+`complete` method. [The agent](docs/agent.md) has the setup.
+
+### Let a coding agent work on the app
+
+`init` can add a skill that tells a coding agent how to write, run and read
+these tests. It can also register `expo-harness mcp` for Claude Code and
+Cursor: an MCP server through which the agent drives the running app.
+`npx expo-vitest guide` prints the skill.
+[Coding agents](docs/coding-agents.md) has the details.
 
 ## Documentation
 
 | Page | What is in it |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | The quick start in full, a test for each platform, coverage, CI, troubleshooting. |
-| [Projects](docs/projects.md) | How each platform's project works, the file-name rule, the limits. |
-| [Configuration](docs/configuration.md) | Every option of `expoProjects`, `nodeProject` and `deviceConfig`. |
+| [Getting started](docs/getting-started.md) | Setup in full, a test for each kind, coverage, troubleshooting. |
+| [Unit tests](docs/unit-tests.md) | `render`, reading and acting on what it rendered, snapshots of the tree. |
+| [Projects](docs/projects.md) | How each platform's project works, and its limits. |
+| [Configuration](docs/configuration.md) | Every option of `expoProjects`, `nodeProject`, `deviceConfig` and `harness.config.ts`. |
 | [Helpers](docs/helpers.md) | `expo-vitest/native`, `expo-vitest/windows` and `expo-vitest/router`. |
-| [Device tests](docs/device-tests.md) | The device API, selectors, matchers, screenshots, environment variables. |
-| [The harness](docs/harness.md) | The `expo-harness` command: steps, targets, options, what each platform can do. |
-| [The web pipeline](docs/web-pipeline.md) | `metroCompat` and `EXPO_WEB_PACKAGES`. |
-| [Contributing](docs/contributing.md) | How the package runs from source, and the fixture that proves it installed. |
+| [Device tests](docs/device-tests.md) | Running device tests, the device, waiting, the tree, errors, pools, hosted devices. |
+| [Platforms](docs/platforms.md) | What each platform needs, how it is driven, and what to know about it. |
+| [Locators](docs/locators.md) | `screen`, `within` and the locator they give. |
+| [Matchers](docs/matchers.md) | The matchers that wait, and screenshot comparison. |
+| [Controls](docs/controls.md) | Restart, clear state, deep links, and the device's settings. |
+| [Evidence](docs/evidence.md) | What a failing test leaves, and video. |
+| [The agent](docs/agent.md) | Steps in words, secrets, the replay cache, tools, models and cost. |
+| [Coding agents](docs/coding-agents.md) | The skill, the MCP server, explore and bug bash. |
+| [The harness](docs/harness.md) | The `expo-harness` command. |
+| [CI](docs/ci.md) | A job for each platform, and the pull request comment. |
+| [Performance](docs/performance.md) | What each driver's steps cost. |
+| [Migrating](docs/migrating.md) | From Detox, Maestro and Playwright. |
+| [The web pipeline](docs/web-pipeline.md) | Expo's packages in Vite, as for a web Storybook. |
+| [Contributing](docs/contributing.md) | Working on this package. |
+
+What is left to build is in the [roadmap](ROADMAP.md).
 
 ## Versions
 
 | | |
 | --- | --- |
+| Node | 22.18 or later |
 | Expo SDK | 57 |
 | Vitest | 4 |
-| `vitest-expo` | 57.1 |
-| `vitest-native` | 0.13 |
-| React Native Testing Library | 13 or 14 |
 
-## Limits worth knowing first
+The unit projects are built on
+[`vitest-expo`](https://github.com/niondigital/vitest-expo) and
+[`vitest-native`](https://github.com/danfry1/vitest-native), which run React
+Native's JavaScript for iOS and Android under Vitest, and on React Native
+Testing Library 14 and Testing Library. All of them come with
+`expo-vitest`.
 
-- The Windows project is React Native's iOS JavaScript told it is Windows. It
-  proves the props and events of a native component and the logic around them.
-  It does not run react-native-windows. What only that renderer does is for a
-  [device test](docs/device-tests.md).
-- Jest compatibility is off. Tests use `vi`, not `jest`.
+## Good to know
+
+- The Windows unit project runs React Native's iOS JavaScript, told it is
+  Windows. It checks a component, the props and events a native component
+  gets, and the logic around them, but not what react-native-windows draws.
+  A device test checks that.
+- Jest compatibility is off. Use `vi`, not `jest`.
 
 ## Used by
 
 [expo-interface](https://github.com/kat-tax/expo-interface), a UI kit with a
 file per platform for every component, and
 [expo-windows](https://github.com/kat-tax/expo-windows), the Windows platform
-for Expo apps. Both hold 100% coverage with it.
+for Expo apps.
 
 ## License
 

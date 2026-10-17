@@ -1,5 +1,20 @@
 // Shared setup for the iOS and Android projects (see vitest.config.mts).
-// @testing-library/react-native's matchers are registered by vitest-expo.
+// @testing-library/react-native's matchers are registered by vitest-expo,
+// whose setup runs before this one.
+import * as rntl from '@testing-library/react-native/matchers';
+import {expect} from 'vitest';
+import '../device/matchers.ts';
+import {alongside} from '../device/expectations.ts';
+import {setSurface} from '../device/surface.ts';
+import type {Platform} from '../harness/lib/types.ts';
+import {nativeSurface} from '../render/native.ts';
+
+// A unit test's device is what the test rendered, read as a device's tree,
+// so `screen`, `device` and the matchers are a device test's. The locator
+// matchers sit beside React Native Testing Library's, which still take an
+// element.
+setSurface(nativeSurface(process.env.EXPO_VITEST_PLATFORM as Platform));
+expect.extend(alongside(rntl));
 
 /**
  * The `ExpoUI` native module is mocked at the native boundary, but `@expo/ui`

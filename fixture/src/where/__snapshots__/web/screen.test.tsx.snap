@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a unit test > fills, checks and presses as a device test does, and waits for what follows 1`] = `
+"textbox "Name" (value:"Ada" placeholder:"Your name")
+switch "Newsletter" [checked]
+button "Save" [focused]
+  text "Save"
+text "Saved Ada" #saved"
+`;
