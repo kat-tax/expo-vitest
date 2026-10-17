@@ -59,6 +59,12 @@ describe('the capabilities', () => {
     expect(absentBecause('setBiometrics', 'ios', {device: {kind: 'simulator'}})).toBeNull();
   });
 
+  it("keep Android's clipboard to the versions before 16, which have the command agent-device uses", () => {
+    expect(absentBecause('clipboard', 'android', {device: pixel})).toBe('Android 16 has no clipboard command for agent-device to read or write it with');
+    expect(absentBecause('setClipboard', 'android', {device: {osVersion: '17'}})).toBe('Android 17 has no clipboard command for agent-device to read or write it with');
+    expect([absentBecause('setClipboard', 'android', {device: {osVersion: '15'}}), absentBecause('clipboard', 'android')]).toEqual([null, null]);
+  });
+
   it('keep the clipboard on web to Chromium', () => {
     expect(absentBecause('clipboard', 'web', {browser: 'webkit'})).toBe('the clipboard is driven in Chromium alone, and this is WebKit');
     expect(absentBecause('setClipboard', 'web', {browser: 'firefox'})).toBe('the clipboard is driven in Chromium alone, and this is Firefox');

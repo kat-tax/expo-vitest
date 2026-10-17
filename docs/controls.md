@@ -65,7 +65,7 @@ afterEach(async () => {
 | `setBiometrics(sensor, result)` | The next prompt answered with a `match` or a `nonmatch`: `faceid` or `touchid` on an iOS simulator, `fingerprint` on an Android emulator. Another sensor is skipped | Skipped | Skipped |
 | `enrollBiometrics(sensor, enrolled)` | iOS simulator: Face ID or Touch ID enrolled or not. Android: skipped | Skipped | Skipped |
 | `fold(pose)` | A foldable simulator or emulator put `closed`, `half-open` or `open` | Skipped | Skipped |
-| `clipboard()`, `setClipboard(text)` | The device's clipboard | The browser's own clipboard | The machine's clipboard, through the host |
+| `clipboard()`, `setClipboard(text)` | The device's clipboard. Android 16 has no clipboard command for agent-device to use, so there it is not among `device.capabilities` | The browser's own clipboard | The machine's clipboard, through the host |
 | `dismissKeyboard()` | The keyboard on the screen put away | The focus taken off what had it | Skipped |
 | `alert('accept' \| 'dismiss')` | The system alert on the screen answered | The next dialog the page opens answered, since a browser decides one as it opens | Skipped: a WinUI dialog is in the tree, so press its button by its label |
 

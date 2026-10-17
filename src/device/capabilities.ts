@@ -62,6 +62,10 @@ export function absentBecause(capability: Capability, platform: Platform, circum
   if (capability === 'installApp' && platform === 'windows' && !/\.msix(bundle)?$/i.test(app.appPath ?? '')) return 'only an .msix is installed on Windows, and app.windows.appPath names none';
   if (capability === 'clearState' && platform === 'windows' && !app.stateDir) return 'app.windows.stateDir names no folder to delete';
   if ((capability === 'clipboard' || capability === 'setClipboard') && platform === 'web') return noClipboard(browser);
+  // agent-device reads and writes Android's clipboard through the clipboard service's shell command, which Android 16 has none of.
+  if ((capability === 'clipboard' || capability === 'setClipboard') && platform === 'android' && major(device.osVersion) >= 16) {
+    return `Android ${device.osVersion} has no clipboard command for agent-device to read or write it with`;
+  }
   if (capability === 'pinch' && platform === 'web') return noPinch(browser);
   return null;
 }
