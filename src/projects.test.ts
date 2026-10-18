@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import os from 'node:os';
-import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, SELF, selfAliases, snapshotsFor, SUBPATHS} from './projects.ts';
+import {deviceConfig, expoProjects, file, installedIn, installFolders, isInstalled, MAIN, nodeProject, PRE_BUNDLED, SELF, selfAliases, snapshotsFor, SUBPATHS} from './projects.ts';
 
 const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE, 'package.json'), 'utf8'));
@@ -51,6 +51,16 @@ describe('the module graph', () => {
     expect(SELF.test('C:\\work\\app\\node_modules\\expo-vitest\\dist\\native.js')).toBe(true);
     expect(SELF.test('C:\\dev\\expo-vitest\\node_modules\\react-native\\index.js')).toBe(false);
     expect(SELF.test('/dev/expo-vitest/src/native.ts')).toBe(false);
+  });
+
+  it('keeps what was pre-bundled for web in it, wherever the project is, and leaves the rest of node_modules out', () => {
+    expect(PRE_BUNDLED.test('C:/work/app/node_modules/.vite/vitest/0a1b2c3d/deps/Navigator-68LCH3Ci.js?v=1d2165f9')).toBe(true);
+    expect(PRE_BUNDLED.test('C:\\work\\app\\node_modules\\.vite\\vitest\\0a1b2c3d\\deps\\expo-router.js')).toBe(true);
+    expect(PRE_BUNDLED.test('/work/app/node_modules/.vite/vitest/0a1b2c3d/deps/expo.js')).toBe(true);
+    expect(PRE_BUNDLED.test('/work/app/node_modules/expo-router/build/index.js')).toBe(false);
+    expect(PRE_BUNDLED.test('/work/app/node_modules/.vite/deps/react.js')).toBe(false);
+    const [web] = expoProjects({root: PACKAGE, platforms: ['web']});
+    expect(testOf(web).server.deps.inline).toEqual([SELF, PRE_BUNDLED]);
   });
 });
 

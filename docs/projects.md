@@ -78,7 +78,9 @@ supplies those:
 - The `.web` twin of a file is preferred.
 - An ambient type file is served as an empty module.
 
-Only the packages that are installed are pre-bundled.
+Only the packages that are installed are pre-bundled. The chunks run through
+Vite like the app's own code, so the images a package imports are served as
+Vite serves them, wherever the project's folder is.
 [The web pipeline](web-pipeline.md) says how to reuse this outside the tests.
 
 ## Windows
