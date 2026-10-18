@@ -204,6 +204,9 @@ refused, since it cannot be pictured without raising it. The `raise` step of
 - **A restarted window may not come to the front.** Windows lets a process in
   the background start a window, but not take the foreground from the one
   someone is using. `device.foregroundApp()` says what is in front.
+- **A restart waits for the app's process to end.** Its window goes before
+  the process lets go of its files, as its storage's database, and an app
+  started again before then can find them held and read nothing it saved.
 - **The React tree** of a development build is joined to the native one by
   testID alone, since the walk finds no boxes there.
 - **The screen of a CI runner** is 1024x768, smaller than most app windows.

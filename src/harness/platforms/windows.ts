@@ -284,11 +284,24 @@ export function windowsDriver(options: DriverOptions): WindowsDriver {
     );
   }
 
-  /** Ends the app and everything it started, and waits for its window to go. */
+  /**
+   * Ends the app and everything it started, and waits for its window to go
+   * and then for its process, which lets go of its files, as its storage's
+   * database, only after its window has gone: an app started again before
+   * then can find them held and read nothing it saved.
+   */
   async function stopApp(): Promise<void> {
     run('taskkill', ['/IM', `${processName}.exe`, '/T', '/F']);
     const deadline = Date.now() + 10_000;
-    while (Date.now() < deadline && (await backend.hasWindow().catch(() => false))) await new Promise(resolve => setTimeout(resolve, 250));
+    const pause = () => new Promise(resolve => setTimeout(resolve, 250));
+    while (Date.now() < deadline && (await backend.hasWindow().catch(() => false))) await pause();
+    while (Date.now() < deadline && stillRunning()) await pause();
+  }
+
+  /** Whether a process of the app's name is still there, as tasklist lists it. */
+  function stillRunning(): boolean {
+    const listed = run('tasklist', ['/FI', `IMAGENAME eq ${processName}.exe`, '/FO', 'CSV', '/NH']);
+    return listed.ok && listed.stdout.toLowerCase().includes(`"${processName.toLowerCase()}.exe"`);
   }
 
   /**
