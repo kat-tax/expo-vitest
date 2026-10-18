@@ -65,6 +65,15 @@ export function selfAliases(): Alias[] {
 export const SELF = /[\\/]node_modules[\\/]expo-vitest[\\/]/;
 
 /**
+ * Keeps what the dependency optimizer pre-bundled for web in the Vite module
+ * graph too. Vitest hands those chunks to Node otherwise, and a chunk of
+ * `expo-router` imports its images by their absolute paths, which only Vite
+ * can serve: Node refuses the path on Windows and the file type everywhere.
+ * Vitest keeps the chunks under its cache folder, `node_modules/.vite/vitest`.
+ */
+export const PRE_BUNDLED = /[\\/]node_modules[\\/]\.vite[\\/]vitest[\\/]/;
+
+/**
  * This package is not React Native's to compile. The engine takes any
  * dependency called `expo-*` for one that ships untranspiled source, and runs
  * it through React Native's Babel preset. That makes CommonJS of a setup file,
@@ -289,7 +298,7 @@ export function expoProjects(options: ExpoProjectsOptions = {}): TestProjectInli
           exclude: [...configDefaults.exclude, ...OTHERS.web],
           ...snapshotsFor('web'),
           setupFiles: [file('setup/web.ts')],
-          server: {deps: {inline: [SELF]}},
+          server: {deps: {inline: [SELF, PRE_BUNDLED]}},
           deps: {
             optimizer: {
               client: {

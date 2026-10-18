@@ -34,8 +34,10 @@ pipeline. `EXPO_WEB_PACKAGES` is the list the web project pre-bundles:
 `expo-symbols`, `expo-image`, `expo-web-browser`, `@expo/ui`,
 `react-native-safe-area-context` and `react-native-screens`.
 
-In the tests, only the packages that are installed are pre-bundled. Add more
-with [`web.optimize`](configuration.md#options).
+In the tests, only the packages that are installed are pre-bundled, and the
+chunks run through Vite like the app's own code, so the images a package
+imports are served as Vite serves them. Add more packages with
+[`web.optimize`](configuration.md#options).
 
 ## In a web Storybook
 
