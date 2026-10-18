@@ -29,9 +29,10 @@ beforeEach(async () => {
 
 /**
  * Scrolls a row of the form onto the screen by its text, since an Android
- * list draws a row only once it is scrolled to. The scroll looks for the
- * text, which agent-device finds as it scrolls: the name a control goes by
- * is the tree's reading of that text, which agent-device does not see.
+ * list draws a row only once it is scrolled to, and which rows the first
+ * screen holds depends on the screen's size. The scroll looks for the text,
+ * which agent-device finds as it scrolls: the name a control goes by is the
+ * tree's reading of that text, which agent-device does not see.
  */
 async function scrollTo(label: string): Promise<void> {
   await screen.getByText(label).scrollIntoView();
@@ -50,7 +51,9 @@ it('keeps what each control was set to across a relaunch', async () => {
   await screen.getByRole('switch', {name: 'Email digest'}).check();
   await expect(frequency()).toBeEnabled();
   await device.web.selectOption(frequency(), 'Monthly');
+  await scrollTo('Dark');
   await theme('Dark').press();
+  await scrollTo('Notes per page');
   await stepUp();
   await scrollTo('Share usage data');
   await setCheckbox('Share usage data', true);
@@ -61,7 +64,9 @@ it('keeps what each control was set to across a relaunch', async () => {
   await expect(screen.getByRole('switch', {name: 'Push notifications'})).not.toBeChecked();
   await expect(screen.getByRole('switch', {name: 'Email digest'})).toBeChecked();
   if (device.platform === 'web') await expect(frequency()).toHaveValue('monthly');
+  await scrollTo('Dark');
   await expectTheme('Dark');
+  await scrollTo('Notes per page');
   await expectPerPage('30');
   await scrollTo('Share usage data');
   await expectCheckbox('Share usage data', true);
