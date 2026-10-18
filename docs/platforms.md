@@ -252,6 +252,12 @@ installs agent-device's runner on it gets the same. Every other step has
   a field does when it brings up the keyboard. A press, a long press or a
   fill then reads the screen again and acts on the node where it came to
   rest, up to twice more.
+- **A fill agent-device cannot confirm is made again.** Where a field does
+  not hold the text after a fill, agent-device answers with what it read
+  there rather than failing, since an app may format what is typed. Its
+  first try can delete before its tap has focused the field, and the text
+  then follows what was there, so the harness fills the field once more
+  through the Node client.
 - **Compose names a button by its text.** A Compose button is a touch target
   around the label's text and a node with the button's role that cannot be
   pressed. The touch target is named by the text inside it, as TalkBack reads

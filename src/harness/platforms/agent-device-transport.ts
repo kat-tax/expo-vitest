@@ -18,7 +18,7 @@ import {HarnessError} from '../lib/errors.ts';
 import {firstLine, runAsync} from '../lib/run.ts';
 import type {Point, Target} from '../lib/snapshot.ts';
 import type {DeviceFacts, Platform} from '../lib/types.ts';
-import type {AgentFailure, Capabilities, DeviceCommand, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
+import type {AgentFailure, Capabilities, DeviceCommand, FillReadBack, Manifest, SettingUpdate, Wait} from './agent-device-mapping.ts';
 import {
   clientEntry,
   capabilitiesFrom,
@@ -54,6 +54,7 @@ import {
   targetArgs,
   typingArgs,
   typingRequest,
+  unconfirmedFill,
 } from './agent-device-mapping.ts';
 
 /** How long one step may take before it is given up on. */
@@ -81,7 +82,8 @@ export interface AgentDeviceTransport {
   press(target: Target, wait?: Wait, count?: number): Promise<void>;
   /** A press drawn from one target to another, held `hold` ms first: two points or two nodes. */
   drag(from: Target, to: Target, hold?: number): Promise<void>;
-  fill(target: Target, text: string, wait?: Wait): Promise<void>;
+  /** Fills a field, and answers what agent-device read in it where it could not confirm the text. */
+  fill(target: Target, text: string, wait?: Wait): Promise<FillReadBack | null>;
   /** A press held for `duration` ms, or for agent-device's own length when none is given. */
   longPress(target: Target, duration?: number, wait?: Wait): Promise<void>;
   /** The focus given at a point, which is the only way agent-device takes it. */
@@ -279,7 +281,7 @@ function clientTransport(options: TransportOptions, module: ClientModule, versio
       else await call(signal => client.interactions.drag({...select, ...request.options, signal}), 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
-      await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...typingRequest(options.platform), ...settleRequest(wait), signal}), 'ACTION_FAILED');
+      return unconfirmedFill(await call(signal => client.interactions.fill({...select, ...clientTarget(target), text, ...typingRequest(options.platform), ...settleRequest(wait), signal}), 'ACTION_FAILED'));
     },
     async longPress(target, duration, wait) {
       await call(signal => client.interactions.longPress({...select, ...clientTarget(target), ...(duration === undefined ? {} : {durationMs: duration}), ...settleRequest(wait), signal}), 'ACTION_FAILED');
@@ -392,7 +394,9 @@ function cliTransport(options: TransportOptions, command: string, prefix: string
       await agent(dragArgs(from, to, hold), 'ACTION_FAILED');
     },
     async fill(target, text, wait) {
+      // The command line answers in words, which say nothing of what the field then held.
       await agent(['fill', ...targetArgs(target), text, ...typingArgs(options.platform), ...settleArgs(wait)], 'ACTION_FAILED');
+      return null;
     },
     async longPress(target, duration, wait) {
       await agent(['longpress', ...targetArgs(target), ...(duration === undefined ? [] : [String(duration)]), ...settleArgs(wait)], 'ACTION_FAILED');

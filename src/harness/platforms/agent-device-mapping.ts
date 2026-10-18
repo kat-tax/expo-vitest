@@ -424,6 +424,23 @@ export function typingArgs(platform: string): string[] {
   return platform === 'ios' ? ['--delay-ms', String(IOS_TYPING_DELAY)] : [];
 }
 
+/** What agent-device read in a field after a fill it could not confirm. */
+export interface FillReadBack {
+  /** The field's text, where agent-device could read it. */
+  after: string | null;
+}
+
+/**
+ * What the Node client's answer to a fill says the field held, where it did
+ * not then hold the text: agent-device answers so rather than failing, since
+ * an app may format what is typed. Null for a fill it confirmed.
+ */
+export function unconfirmedFill(answer: unknown): FillReadBack | null {
+  if (!answer || typeof answer !== 'object' || (answer as {verification?: unknown}).verification !== 'unconfirmed') return null;
+  const {after} = answer as {after?: unknown};
+  return {after: typeof after === 'string' ? after : null};
+}
+
 /** An agent-device failure, as its code and its message. */
 export interface AgentFailure {
   code?: string;

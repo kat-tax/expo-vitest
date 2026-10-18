@@ -11,7 +11,7 @@ import {followConsole, metroFrom, readReact} from '../lib/metro.ts';
 import type {ReactTree, StackFrame} from '../lib/react.ts';
 import {framesExpression} from '../lib/react.ts';
 import {clipboardText, connectArgs, foregroundOf, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, readsAlike, STILL_MOVING, toAgentTarget, toSnapshotNodes, viewportFrom, waitFrom} from './agent-device-mapping.ts';
-import type {Wait} from './agent-device-mapping.ts';
+import type {FillReadBack, Wait} from './agent-device-mapping.ts';
 import type {AgentDeviceTransport} from './agent-device-transport.ts';
 import {transportFor} from './agent-device-transport.ts';
 
@@ -245,7 +245,19 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     },
 
     fill(what: Target, text: string, fillOptions: FillOptions = {}): Promise<StepResult> {
-      const filling = (at: Target) => step(`filled ${describeTarget(what)}`, 'fill failed', current => current.fill(at, text, waitFrom(fillOptions)));
+      // agent-device answers a fill whose field then holds something other
+      // than the text with what it read there, rather than failing. Its first
+      // try can delete before its tap has focused the field, as on a slow
+      // emulator, and the text then follows what was there, so a fill it
+      // could not confirm is made once more, on the field focused by then.
+      const filling = async (at: Target): Promise<StepResult> => {
+        const read: {back: FillReadBack | null} = {back: null};
+        const result = await step(`filled ${describeTarget(what)}`, 'fill failed', async current => {
+          read.back = await current.fill(at, text, waitFrom(fillOptions));
+          if (read.back) read.back = await current.fill(at, text, waitFrom(fillOptions));
+        });
+        return result.ok && read.back ? ok(`${result.message}, which agent-device could not confirm: the field holds ${JSON.stringify(read.back.after)}`) : result;
+      };
       return resolving(what, 'fill failed', async at => (await atRest(at, filling)).result);
     },
 

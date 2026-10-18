@@ -3,7 +3,7 @@ import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
 import type {Snapshot} from '../lib/snapshot.ts';
 import type {Whereabouts} from './agent-device-mapping.ts';
-import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, pinchArgs, pinchRequest, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, stableArgs, stableRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
+import {capabilitiesFrom, clientEntry, clientTarget, clipboardText, cliScript, codeFor, commandArgs, commandRequest, connectArgs, describeDevice, describeFailure, DRAG_MOVE_MS, dragArgs, dragRequest, factsOf, foregroundOf, installArgs, launchArgs, middleToPress, NO_TOUCH_POINT, nodesFrom, openInQuestion, openTarget, packageFolders, parseFailure, parsePayload, pinchArgs, pinchRequest, readsAlike, recordArgs, repeatArgs, repeatRequest, screenshotArgs, screenshotRequest, selectionById, settingArgs, settingRequest, settleArgs, settleRequest, stableArgs, stableRequest, STILL_MOVING, targetArgs, toAgentTarget, toSnapshotNode, toSnapshotNodes, typingArgs, typingRequest, unconfirmedFill, IOS_TYPING_DELAY, viewportFrom, waitFrom} from './agent-device-mapping.ts';
 
 describe('toSnapshotNode', () => {
   it('reads an Android node as agent-device answers one', () => {
@@ -451,6 +451,16 @@ describe('typing', () => {
     expect(typingArgs('ios')).toEqual(['--delay-ms', String(IOS_TYPING_DELAY)]);
     expect(typingRequest('android')).toEqual({});
     expect(typingArgs('android')).toEqual([]);
+  });
+});
+
+describe('a fill agent-device could not confirm', () => {
+  it('reads what the field held from the answer, and nothing from a fill it confirmed', () => {
+    expect(unconfirmedFill({ref: '@e39', text: 'Ada L.', verification: 'unconfirmed', requested: 'Ada L.', before: 'Ada', after: 'AdaAda L.', target: {}})).toEqual({after: 'AdaAda L.'});
+    expect(unconfirmedFill({ref: '@e39', text: 'Ada L.', verification: 'unconfirmed', requested: 'Ada L.', before: null, after: null})).toEqual({after: null});
+    expect(unconfirmedFill({ref: '@e39', text: 'Ada L.'})).toBeNull();
+    expect(unconfirmedFill(null)).toBeNull();
+    expect(unconfirmedFill('filled')).toBeNull();
   });
 });
 
