@@ -187,6 +187,15 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
     return {result, at};
   }
 
+  /** The testID a target's node has to itself in the tree its ref came from, the tree read last. */
+  function ownTestId(at: Target): string | undefined {
+    const selector = asSelector(at);
+    if (isPoint(selector)) return undefined;
+    const testId = selector.testId ?? (lastTree && selector.ref ? findNode(lastTree, selector)?.testId : undefined);
+    if (!testId || !lastTree) return testId;
+    return lastTree.nodes.filter(node => node.testId === testId).length === 1 ? testId : undefined;
+  }
+
   /**
    * A press or a hold, given at the node's middle where agent-device finds no
    * point of the node's own to press its ref at (`middleToPress`). The node
@@ -248,13 +257,23 @@ export function agentDeviceDriver(platform: Platform, options: DriverOptions): D
       // agent-device answers a fill whose field then holds something other
       // than the text with what it read there, rather than failing. Its first
       // try can delete before its tap has focused the field, as on a slow
-      // emulator, and the text then follows what was there, so a fill it
-      // could not confirm is made once more, on the field focused by then.
+      // emulator, and the text then follows what was there; and it deletes
+      // as many characters as the text to type has, so a longer text leaves
+      // the rest behind. A fill it could not confirm is made once more, on
+      // the field focused by then: emptied first, which deletes as many as
+      // the field holds, then filled. Both go to the field by its testID,
+      // which agent-device finds itself, since a fill retires the refs read
+      // before it and an Android field is named by what it holds. A field
+      // with no testID of its own is left as the first try left it.
+      const wait = waitFrom(fillOptions);
       const filling = async (at: Target): Promise<StepResult> => {
+        const testId = ownTestId(at);
         const read: {back: FillReadBack | null} = {back: null};
         const result = await step(`filled ${describeTarget(what)}`, 'fill failed', async current => {
-          read.back = await current.fill(at, text, waitFrom(fillOptions));
-          if (read.back) read.back = await current.fill(at, text, waitFrom(fillOptions));
+          read.back = await current.fill(at, text, wait);
+          if (!read.back || !testId) return;
+          await current.fill({testId}, '', wait);
+          read.back = await current.fill({testId}, text, wait);
         });
         return result.ok && read.back ? ok(`${result.message}, which agent-device could not confirm: the field holds ${JSON.stringify(read.back.after)}`) : result;
       };

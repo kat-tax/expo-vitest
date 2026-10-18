@@ -256,8 +256,12 @@ installs agent-device's runner on it gets the same. Every other step has
   not hold the text after a fill, agent-device answers with what it read
   there rather than failing, since an app may format what is typed. Its
   first try can delete before its tap has focused the field, and the text
-  then follows what was there, so the harness fills the field once more
-  through the Node client.
+  then follows what was there; and it deletes as many characters as the
+  text to type has, so a longer text leaves the rest behind. Through the
+  Node client the harness then empties the field, which deletes as many as
+  it holds, and fills it once more, each time by the field's testID, since
+  an Android field is named by what it holds. A field with no testID is
+  left as the first try left it.
 - **Compose names a button by its text.** A Compose button is a touch target
   around the label's text and a node with the button's role that cannot be
   pressed. The touch target is named by the text inside it, as TalkBack reads
