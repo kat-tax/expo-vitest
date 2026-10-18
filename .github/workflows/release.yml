@@ -44,6 +44,8 @@ jobs:
         run: bun run lint
       - name: Test
         run: bun run test
+      - name: Install Chromium for the fixture's device tests
+        run: bunx playwright-core install --with-deps --only-shell chromium
       - name: Test the package as an app installs it
         run: bun run test:fixture
       - name: Publish
