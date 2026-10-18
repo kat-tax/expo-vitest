@@ -221,7 +221,7 @@ jobs:
         with: {node-version: 24}
       - uses: oven-sh/setup-bun@v2
         with: {bun-version-file: package.json}
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
       # A runner's screen is 1024x768, smaller than the app's window, 1000 by
       # 1000, which Windows cuts to 788 high, so part of it is always off the
       # screen.
