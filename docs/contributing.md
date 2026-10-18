@@ -166,7 +166,7 @@ script makes from the app, with its JavaScript bundled in:
 
 ```sh
 APP_SOURCE="$PWD/testapp" \
-EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.34.0" \
+EXTRA_DEPENDENCIES="@expo/material-symbols@^0.1.1 @expo/ui@~57.0.25 expo-interface@^0.35.0" \
 EXPECT_LINKED=ExpoInterface \
   bash path/to/expo-windows/ci/build.sh .harness/win
 TESTAPP_PLATFORMS=windows HARNESS_TARGET="$(cygpath -aw .harness/win/WinCi/windows/x64/Release/TestApp.exe)" bun run test:testapp
