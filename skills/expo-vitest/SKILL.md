@@ -4,7 +4,7 @@ description: "Test Expo code with Vitest on iOS, Android, web and Windows: unit 
 argument-hint: "[projects|device|evidence|harness|agent|mcp|explore|bug-bash]"
 allowed-tools: Bash(npx vitest *), Bash(npx expo-harness *), Bash(npx expo-vitest *), Bash(bunx vitest *), Bash(bunx expo-harness *), Bash(bunx expo-vitest *), Read, Grep
 metadata:
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # expo-vitest
