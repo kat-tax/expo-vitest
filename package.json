@@ -1,6 +1,6 @@
 {
   "name": "expo-vitest",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Vitest for Expo code on every platform it runs on: one project each for iOS, Android, web and Windows, picked by a test file's name, and a harness that drives the running app and reads its accessibility tree.",
   "license": "MIT",
   "author": "kat-tax",
